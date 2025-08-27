@@ -1,0 +1,4144 @@
+{% extends "base.html" %}
+
+{% block title %}AI Migration Dashboard - Legal Case File Manager{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
+<!-- Markdown styling is now handled by custom CSS -->
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+                    <h1 class="h2 mb-4">
+                <i class="fas fa-code me-2 text-primary"></i>
+                AI-Powered Data Pipeline Generator
+                <span class="badge bg-gradient bg-success text-white ms-2">Infrastructure as Code</span>
+            </h1>
+            <p class="text-muted">🤖 <strong>Powered by GenAI:</strong> Advanced AI analyzes your database schema, understands data patterns, and generates intelligent, production-ready Terraform configurations optimized for AWS or Azure deployment.</p>
+    </div>
+</div>
+
+<!-- Migration Wizard Card -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-gradient bg-primary text-white">
+                <h5 class="mb-0 d-flex align-items-center">
+                    <i class="fas fa-code me-2"></i>
+                    Data Pipeline Generation Wizard
+                    <div class="ms-auto">
+                        <span class="badge bg-light text-dark">Infrastructure as Code</span>
+                    </div>
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- Progress Steps -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="step-indicator active" id="step-1-indicator">
+                                <i class="fas fa-plug"></i> Connection
+                            </span>
+                            <span class="step-indicator" id="step-2-indicator">
+                                <i class="fas fa-cloud"></i> Cloud Platform
+                            </span>
+                            <span class="step-indicator" id="step-3-indicator">
+                                <i class="fas fa-table"></i> Table Selection
+                            </span>
+                            <span class="step-indicator" id="step-4-indicator">
+                                <i class="fas fa-code"></i> Terraform Generation
+                            </span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-primary" id="wizard-progress" style="width: 25%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 1: Connection -->
+                <div class="wizard-step active" id="step-connection">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h6 class="text-primary mb-3">
+                                <i class="fas fa-database me-2"></i>
+                                Connect to Source Database
+                            </h6>
+                            <form id="connection-form">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Database Type</label>
+                                    <select class="form-select" id="database-type" onchange="updateConnectionFormat()">
+                                        <option value="">Select database type...</option>
+                                        <!-- Options will be populated dynamically -->
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Connection String</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light">
+                                            <i class="fas fa-server text-muted"></i>
+                                        </span>
+                                        <input type="text" class="form-control" id="connection-string" 
+                                               placeholder="Select database type to see format"
+                                               value="">
+                                    </div>
+                                    <small class="text-muted" id="connection-help">Select a database type to see the connection format</small>
+                                </div>
+                                <div id="database-info" class="alert alert-info d-none">
+                                    <h6><i class="fas fa-info-circle me-2"></i>Database Information</h6>
+                                    <p class="small mb-0" id="database-description"></p>
+                                </div>
+                                <button type="button" class="btn btn-primary btn-lg btn-pulse" onclick="testConnection()" disabled id="test-connection-btn" data-loading-text="Testing Connection...">
+                                    <i class="fas fa-plug me-2"></i>Test Connection & Discover Tables
+                                    <span class="spinner-border spinner-border-sm ms-2 d-none" id="connection-spinner"></span>
+                                </button>
+                            </form>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="alert alert-info">
+                                <h6><i class="fas fa-info-circle me-2"></i>What happens next?</h6>
+                                <ul class="small mb-0">
+                                    <li>Test database connection</li>
+                                    <li>Select target cloud platform</li>
+                                    <li>Choose tables for migration</li>
+                                    <li>Generate Terraform infrastructure</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Cloud Platform Selection -->
+                <div class="wizard-step" id="step-cloud-platform">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h6 class="text-primary mb-3">
+                                <i class="fas fa-cloud me-2"></i>
+                                Select Target Cloud Platform
+                            </h6>
+                            <div id="cloud-platform-selection">
+                                <p class="text-muted mb-3">Choose your preferred cloud platform for the data pipeline deployment:</p>
+                                <div id="cloud-platforms-list" class="row">
+                                    <!-- Dynamically populated -->
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <button type="button" class="btn btn-primary btn-lg" onclick="proceedToTableSelection()" disabled id="proceed-to-tables-btn">
+                                    <i class="fas fa-arrow-right me-2"></i>Proceed to Table Selection
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary ms-2" onclick="showStep('step-connection')">
+                                    <i class="fas fa-arrow-left me-1"></i>Back
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="alert alert-success" id="selected-platform-info" style="display: none;">
+                                <h6><i class="fas fa-check-circle me-2"></i>Selected Platform</h6>
+                                <div id="platform-details">
+                                    <!-- Platform details will be populated here -->
+                                </div>
+                            </div>
+                            
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="card-title">Platform Comparison</h6>
+                                    <div class="small">
+                                        <div class="mb-2">
+                                            <strong>AWS:</strong> Mature ecosystem, extensive services
+                                        </div>
+                                        <div class="mb-2">
+                                            <strong>Azure:</strong> Integrated Microsoft stack, enterprise-friendly
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: Table Discovery & Selection -->
+                <div class="wizard-step" id="step-discovery">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h6 class="text-primary mb-3">
+                                <i class="fas fa-table me-2"></i>
+                                Select Tables for Migration
+                            </h6>
+                            <div id="table-selection-area">
+                                <div class="mb-3">
+                                    <button class="btn btn-outline-primary btn-sm me-2" onclick="selectRecommended()">
+                                        <i class="fas fa-robot me-1"></i>Select AI Recommended
+                                    </button>
+                                    <button class="btn btn-outline-secondary btn-sm me-2" onclick="selectAll()">
+                                        <i class="fas fa-check-double me-1"></i>Select All
+                                    </button>
+                                    <button class="btn btn-outline-warning btn-sm" onclick="clearSelection()">
+                                        <i class="fas fa-times me-1"></i>Clear All
+                                    </button>
+                                </div>
+                                <div id="table-list" class="border rounded p-3 bg-light">
+                                    <!-- Dynamically populated -->
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <button type="button" class="btn btn-info btn-lg me-2" onclick="showFieldMappings()" disabled id="view-mappings-btn" data-loading-text="Loading Mappings...">
+                                    <i class="fas fa-exchange-alt me-2"></i>View Field Mappings
+                                </button>
+                                <button type="button" class="btn btn-success btn-lg btn-pulse" onclick="startTerraformGeneration()" disabled id="start-terraform-btn" data-loading-text="Starting AI Generation...">
+                                    <i class="fas fa-robot me-2"></i>Generate with GenAI
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary ms-2" onclick="showStep('step-cloud-platform')">
+                                    <i class="fas fa-arrow-left me-1"></i>Back
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="alert alert-success">
+                                <h6><i class="fas fa-check-circle me-2"></i>AI Recommendations</h6>
+                                <div id="ai-recommendations">
+                                    <p class="small">AI will analyze your tables and provide intelligent recommendations for migration.</p>
+                                </div>
+                            </div>
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="card-title">Selection Summary</h6>
+                                    <div class="row text-center">
+                                        <div class="col-6">
+                                            <h4 class="text-primary" id="selected-count">0</h4>
+                                            <small class="text-muted">Tables Selected</small>
+                                        </div>
+                                        <div class="col-6">
+                                            <h4 class="text-info" id="selected-records">0</h4>
+                                            <small class="text-muted">Total Records</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: AI Analysis Results -->
+                <div class="wizard-step" id="step-analysis">
+                    <div class="row">
+                        <div class="col-12">
+                            <h6 class="text-primary mb-3">
+                                <i class="fas fa-brain me-2"></i>
+                                AI Analysis Results
+                            </h6>
+                            <div id="ai-analysis-results">
+                                <!-- Populated by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4: Terraform Generation -->
+                <div class="wizard-step" id="step-terraform">
+                    <div class="row">
+                        <div class="col-md-8">
+                                        <h6 class="text-primary mb-3">
+                <i class="fas fa-robot me-2"></i>
+                Data Pipeline Generation in Progress
+            </h6>
+            <div id="terraform-progress-area">
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Overall Progress</span>
+                                        <span id="migration-percentage">0%</span>
+                                    </div>
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar bg-success progress-bar-striped progress-bar-animated" 
+                                             id="migration-progress-bar" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <div class="text-center">
+                                            <h4 id="generated-files" class="text-success">0</h4>
+                                            <small class="text-muted">Files Generated</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="text-center">
+                                            <h4 id="selected-tables" class="text-info">0</h4>
+                                            <small class="text-muted">Selected Tables</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="text-center">
+                                            <button id="estimated-cost-btn" class="btn btn-link p-0 text-decoration-none" 
+                                                    onclick="openCostSummary()" disabled 
+                                                    title="Click to view detailed cost breakdown">
+                                                <h4 id="estimated-cost" class="text-primary mb-0">$0.00</h4>
+                                            </button>
+                                            <small class="text-muted d-block">
+                                                Estimated Cost/Month
+                                                <i id="cost-link-icon" class="fas fa-external-link-alt ms-1 text-muted" style="display: none; font-size: 0.75em;"></i>
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div id="terraform-status-log" class="border rounded p-3 bg-light" style="height: 200px; overflow-y: auto;">
+                                    <div class="text-muted">Terraform generation status will appear here...</div>
+                                </div>
+                                
+                                <div class="mt-3">
+                                    <button type="button" class="btn btn-success" onclick="exportTerraform()" id="export-terraform-btn" style="display: none;">
+                                        <i class="fas fa-download me-2"></i>Download Terraform Files
+                                    </button>
+                                    <button type="button" class="btn btn-danger" onclick="cancelTerraform()" id="cancel-terraform-btn">
+                                        <i class="fas fa-stop me-2"></i>Cancel Generation
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="alert alert-info">
+                                <h6><i class="fas fa-info-circle me-2"></i>Generation Process</h6>
+                                <ul class="small mb-0">
+                                    <li>AI analyzes your database schema</li>
+                                    <li>Generates cloud-specific infrastructure code</li>
+                                    <li>Creates production-ready Terraform configuration</li>
+                                    <li>Includes cost estimates and documentation</li>
+                                </ul>
+                            </div>
+                            
+                                        <div id="terraform-complete-alert" class="alert alert-success d-none">
+                <h6><i class="fas fa-robot me-2"></i>Data Pipeline Generated!</h6>
+                <p class="small">🤖 AI has analyzed your data and generated intelligent, optimized infrastructure code ready for deployment.</p>
+                                <div class="d-flex flex-column gap-2">
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-outline-primary flex-fill" onclick="previewDataPipelineCode()">
+                                            <i class="fas fa-eye me-1"></i>Preview Code
+                                        </button>
+                                        <button class="btn btn-success flex-fill" onclick="exportTerraform()">
+                                            <i class="fas fa-download me-1"></i>Download Files
+                                        </button>
+                                    </div>
+                                    <button class="btn btn-outline-secondary" onclick="startNewGeneration()">
+                                        <i class="fas fa-plus me-1"></i>New Generation
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div id="terraform-failed-alert" class="alert alert-danger d-none">
+                                <h6><i class="fas fa-exclamation-circle me-2"></i>Generation Failed</h6>
+                                <p class="small">The Terraform generation process encountered errors.</p>
+                                <div id="error-details" class="small bg-white p-2 rounded border">
+                                    <!-- Error details will be populated here -->
+                                </div>
+                                <div class="mt-2">
+                                    <button class="btn btn-outline-danger btn-sm" onclick="retryGeneration()">
+                                        <i class="fas fa-redo me-1"></i>Retry
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Migration History -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-history me-2"></i>
+                    Data Pipeline Generation History
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="migration-history">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Loading generation history...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Historical Field Mappings Modal -->
+<div class="modal fade" id="historicalMappingsModal" tabindex="-1" aria-labelledby="historicalMappingsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="historicalMappingsModalLabel">
+                    <i class="fas fa-history me-2"></i>Historical Field Mappings
+                    <span id="historical-job-info" class="badge bg-light text-dark ms-2"></span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="historical-mappings-loading" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading historical mappings...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Loading field mappings used for this job...</p>
+                </div>
+                
+                <div id="historical-mappings-content" style="display: none;">
+                    <!-- Job Information -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <h6><i class="fas fa-info-circle me-2"></i>Job Information</h6>
+                                <div class="row" id="historical-job-details">
+                                    <!-- Populated dynamically -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Mapping Summary -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="alert alert-secondary">
+                                <h6><i class="fas fa-chart-bar me-2"></i>Mapping Summary</h6>
+                                <div class="row">
+                                    <div class="col-md-2">
+                                        <strong>Tables:</strong> <span id="hist-summary-tables">0</span>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <strong>Total Fields:</strong> <span id="hist-summary-fields">0</span>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <strong>Required:</strong> <span id="hist-summary-required">0</span>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <strong>Transformations:</strong> <span id="hist-summary-transformations">0</span>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <strong>Foreign Keys:</strong> <span id="hist-summary-foreign-keys">0</span>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <strong>Status:</strong> <span class="badge bg-info">Historical</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Field Mappings by Table -->
+                    <div id="historical-mappings-tables">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+                
+                <div id="historical-mappings-error" style="display: none;">
+                    <div class="alert alert-danger">
+                        <h6><i class="fas fa-exclamation-circle me-2"></i>Error Loading Historical Mappings</h6>
+                        <p class="mb-0" id="historical-mappings-error-message"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-outline-primary" onclick="exportHistoricalMappings()">
+                    <i class="fas fa-download me-1"></i>Export Historical Mappings
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Field Mappings Modal -->
+<div class="modal fade" id="fieldMappingsModal" tabindex="-1" aria-labelledby="fieldMappingsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="fieldMappingsModalLabel">
+                    <i class="fas fa-exchange-alt me-2"></i>Database Field Mappings to Application Schema
+                    <span id="mappings-mode-indicator" class="badge bg-success ms-2" style="display: none;">
+                        <i class="fas fa-edit me-1"></i>Edit Mode
+                    </span>
+                    <span id="mappings-customized-indicator" class="badge bg-info ms-2" style="display: none;">
+                        <i class="fas fa-user-edit me-1"></i>Customized
+                    </span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="mappings-loading" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading mappings...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Analyzing field mappings...</p>
+                </div>
+                
+                <div id="mappings-content" style="display: none;">
+                    <!-- Mapping Summary -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <h6><i class="fas fa-info-circle me-2"></i>Mapping Summary</h6>
+                                <div class="row">
+                                    <div class="col-md-2">
+                                        <strong>Tables:</strong> <span id="summary-tables">0</span>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <strong>Total Fields:</strong> <span id="summary-fields">0</span>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <strong>Required:</strong> <span id="summary-required">0</span>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <strong>Transformations:</strong> <span id="summary-transformations">0</span>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <strong>Foreign Keys:</strong> <span id="summary-foreign-keys">0</span>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <strong>Customized:</strong> <span id="summary-customized" class="text-primary">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Field Mappings by Table -->
+                    <div id="mappings-tables">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+                
+                <div id="mappings-error" style="display: none;">
+                    <div class="alert alert-danger">
+                        <h6><i class="fas fa-exclamation-circle me-2"></i>Error Loading Mappings</h6>
+                        <p class="mb-0" id="mappings-error-message"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div id="mappings-view-mode" class="d-flex w-100 justify-content-between">
+                    <div>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-outline-primary" onclick="exportMappings()">
+                            <i class="fas fa-download me-1"></i>Export Mappings
+                        </button>
+                    </div>
+                    <div>
+                        <button type="button" class="btn btn-primary" onclick="enterEditMode()">
+                            <i class="fas fa-edit me-1"></i>Edit Mappings
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="mappings-edit-mode" class="d-flex w-100 justify-content-between" style="display: none !important;">
+                    <div>
+                        <button type="button" class="btn btn-outline-warning" onclick="resetFieldMappings()">
+                            <i class="fas fa-undo me-1"></i>Reset to Defaults
+                        </button>
+                    </div>
+                    <div>
+                        <button type="button" class="btn btn-secondary me-2" onclick="cancelEditMode()">Cancel</button>
+                        <button type="button" class="btn btn-success" onclick="saveFieldMappings()">
+                            <i class="fas fa-save me-1"></i>Save Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Data Pipeline Code Preview Modal -->
+<div class="modal fade" id="terraformPreviewModal" tabindex="-1" aria-labelledby="terraformPreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                                 <h5 class="modal-title d-flex align-items-center" id="terraformPreviewModalLabel">
+                     <div class="d-flex align-items-center me-3">
+                         <i id="preview-cloud-logo" class="fab fa-aws me-2"></i>
+                         <i class="fas fa-plus text-muted me-2" style="font-size: 0.8em;"></i>
+                         <img src="{{ url_for('static', filename='terraform-logo.svg') }}" alt="Terraform" class="terraform-logo me-2" title="HashiCorp Terraform">
+                     </div>
+                     <span id="preview-title">Data Pipeline Code Preview</span>
+                 </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <!-- Terraform code tabs -->
+                <div class="bg-light border-bottom">
+                    <ul class="nav nav-tabs border-0" id="codePreviewTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="readme-tab" data-bs-toggle="tab" data-bs-target="#readme-content" type="button" role="tab">
+                                <i class="fas fa-book me-1"></i>README.md
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="tfvars-tab" data-bs-toggle="tab" data-bs-target="#tfvars-content" type="button" role="tab">
+                                <i class="fas fa-cog me-1"></i>terraform.tfvars.example
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="variables-tf-tab" data-bs-toggle="tab" data-bs-target="#variables-tf-content" type="button" role="tab">
+                                <i class="fas fa-sliders-h me-1"></i>variables.tf
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="main-tf-tab" data-bs-toggle="tab" data-bs-target="#main-tf-content" type="button" role="tab">
+                                <i class="fas fa-file-code me-1"></i>main.tf
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="etl-scripts-tab" data-bs-toggle="tab" data-bs-target="#etl-scripts-content" type="button" role="tab">
+                                <i class="fab fa-python me-1"></i>ETL Scripts
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="services-tab" data-bs-toggle="tab" data-bs-target="#services-content" type="button" role="tab">
+                                <i class="fas fa-cloud me-1"></i>Services & Cost
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                
+                <!-- Code content -->
+                <div class="tab-content" id="codePreviewTabContent">
+                    <div class="tab-pane fade show active" id="readme-content" role="tabpanel">
+                        <div class="code-preview-container">
+                            <div class="code-header d-flex justify-content-between align-items-center p-3 bg-light border-bottom">
+                                <span class="text-muted">
+                                    <i class="fas fa-book me-1"></i>
+                                    <span id="readme-lines">0</span> lines
+                                </span>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard('readme-code')">
+                                    <i class="fas fa-copy me-1"></i>Copy
+                                </button>
+                            </div>
+                            <div class="code-container">
+                                <div id="readme-code" class="markdown-content"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-pane fade" id="tfvars-content" role="tabpanel">
+                        <div class="code-preview-container">
+                            <div class="code-header d-flex justify-content-between align-items-center p-3 bg-light border-bottom">
+                                <span class="text-muted">
+                                    <i class="fas fa-cog me-1"></i>
+                                    <span id="tfvars-lines">0</span> lines
+                                </span>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard('tfvars-code')">
+                                    <i class="fas fa-copy me-1"></i>Copy
+                                </button>
+                            </div>
+                            <div class="code-container">
+                                <pre><code id="tfvars-code" class="language-hcl"></code></pre>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-pane fade" id="variables-tf-content" role="tabpanel">
+                        <div class="code-preview-container">
+                            <div class="code-header d-flex justify-content-between align-items-center p-3 bg-light border-bottom">
+                                <span class="text-muted">
+                                    <i class="fas fa-sliders-h me-1"></i>
+                                    <span id="variables-tf-lines">0</span> lines
+                                </span>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard('variables-tf-code')">
+                                    <i class="fas fa-copy me-1"></i>Copy
+                                </button>
+                            </div>
+                            <div class="code-container">
+                                <pre><code id="variables-tf-code" class="language-hcl"></code></pre>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-pane fade" id="main-tf-content" role="tabpanel">
+                        <div class="code-preview-container">
+                            <div class="code-header d-flex justify-content-between align-items-center p-3 bg-light border-bottom">
+                                <span class="text-muted">
+                                    <i class="fas fa-file-code me-1"></i>
+                                    <span id="main-tf-lines">0</span> lines
+                                </span>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard('main-tf-code')">
+                                    <i class="fas fa-copy me-1"></i>Copy
+                                </button>
+                            </div>
+                            <div class="code-container">
+                                <pre><code id="main-tf-code" class="language-hcl"></code></pre>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- ETL Scripts Tab Content -->
+                    <div class="tab-pane fade" id="etl-scripts-content" role="tabpanel">
+                        <div class="code-preview-container">
+                            <div class="code-header d-flex justify-content-between align-items-center p-3 bg-light border-bottom">
+                                <span class="text-muted">
+                                    <i class="fab fa-python me-1"></i>
+                                    AI-Generated ETL Scripts
+                                </span>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="exportETLScripts()">
+                                    <i class="fas fa-download me-1"></i>Export ETL Scripts
+                                </button>
+                            </div>
+                            <div class="etl-scripts-container">
+                                <div id="etl-scripts-list" class="list-group list-group-flush">
+                                    <!-- ETL scripts list will be populated here -->
+                                </div>
+                                <div id="etl-script-viewer" class="code-container d-none">
+                                    <div class="code-header d-flex justify-content-between align-items-center p-2 bg-secondary">
+                                        <span class="text-white" id="current-etl-file">Select a script to view</span>
+                                        <div>
+                                            <button class="btn btn-sm btn-outline-light me-2" onclick="copyETLScript()" id="copy-etl-btn">
+                                                <i class="fas fa-copy"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-light" onclick="closeETLViewer()">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <pre><code id="etl-script-code" class="language-python"></code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-pane fade" id="services-content" role="tabpanel">
+                        <div class="services-preview-container">
+                            <div class="code-header d-flex justify-content-between align-items-center p-3 bg-light border-bottom">
+                                <span class="text-muted">
+                                    <i class="fas fa-cloud me-1"></i>
+                                    Cloud Services & Cost Analysis
+                                </span>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="exportServicesSummary()">
+                                    <i class="fas fa-download me-1"></i>Export Summary
+                                </button>
+                            </div>
+                            <div class="services-container">
+                                <div id="services-summary" class="p-4">
+                                    <!-- Services summary will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-success" onclick="exportTerraform()">
+                    <i class="fas fa-download me-1"></i>Download Terraform & ETL
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-hcl.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/5.1.1/marked.min.js"></script>
+
+<script>
+let currentJobId = null;
+let previewingJobId = null; // Tracks which job is currently being previewed
+let terraformInterval = null;
+let availableTables = [];
+let currentDatabaseType = 'oracle';
+let selectedCloudPlatform = null;
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    loadSupportedDatabases();
+    loadCloudPlatforms();
+    loadTerraformHistory();
+    
+    // Add modal close handler to reset previewingJobId
+    const terraformModal = document.getElementById('terraformPreviewModal');
+    if (terraformModal) {
+        terraformModal.addEventListener('hidden.bs.modal', function () {
+            previewingJobId = null;
+        });
+    }
+});
+
+async function loadSupportedDatabases() {
+    try {
+        const response = await fetch('/api/database-types');
+        const data = await response.json();
+        
+        const databaseSelect = document.getElementById('database-type');
+        databaseSelect.innerHTML = '<option value="">Select database type...</option>';
+        
+        data.database_types.forEach(db => {
+            const option = document.createElement('option');
+            option.value = db.value;
+            option.textContent = db.name;
+            option.dataset.description = db.description;
+            option.dataset.format = db.connection_format;
+            option.dataset.icon = db.icon;
+            databaseSelect.appendChild(option);
+        });
+        
+        // Set default to Oracle for demo
+        databaseSelect.value = 'oracle';
+        updateConnectionFormat();
+        
+    } catch (error) {
+        console.error('Failed to load database types:', error);
+        showAlert('Failed to load database types', 'warning');
+    }
+}
+
+function updateConnectionFormat() {
+    const databaseSelect = document.getElementById('database-type');
+    const connectionInput = document.getElementById('connection-string');
+    const connectionHelp = document.getElementById('connection-help');
+    const databaseInfo = document.getElementById('database-info');
+    const databaseDescription = document.getElementById('database-description');
+    const testButton = document.getElementById('test-connection-btn');
+    
+    const selectedOption = databaseSelect.options[databaseSelect.selectedIndex];
+    
+    if (selectedOption.value) {
+        const format = selectedOption.dataset.format;
+        const description = selectedOption.dataset.description;
+        
+        connectionInput.placeholder = format;
+        connectionHelp.textContent = `Format: ${format}`;
+        databaseDescription.textContent = `Compatible with ${description}`;
+        databaseInfo.classList.remove('d-none');
+        testButton.disabled = false;
+        
+        // Set sample connection strings based on database type
+        const sampleConnections = {
+            'oracle': 'oracle://legal_user:password@oracle-server:1521/LEGAL_DB',
+            'mysql': 'mysql://legal_user:password@mysql-server:3306/legal_system'
+        };
+        
+        connectionInput.value = sampleConnections[selectedOption.value] || '';
+        
+    } else {
+        connectionInput.placeholder = 'Select database type to see format';
+        connectionHelp.textContent = 'Select a database type to see the connection format';
+        databaseInfo.classList.add('d-none');
+        testButton.disabled = true;
+        connectionInput.value = '';
+    }
+}
+
+async function loadCloudPlatforms() {
+    try {
+        const response = await fetch('/api/cloud-platforms');
+        const data = await response.json();
+        
+        displayCloudPlatforms(data.cloud_platforms);
+    } catch (error) {
+        console.error('Failed to load cloud platforms:', error);
+        showAlert('Failed to load cloud platforms', 'warning');
+    }
+}
+
+function displayCloudPlatforms(platforms) {
+    const platformsList = document.getElementById('cloud-platforms-list');
+    let html = '';
+    
+    platforms.forEach(platform => {
+        html += `
+            <div class="col-md-6 mb-3">
+                <div class="card platform-card h-100" data-platform="${platform.value}" onclick="selectPlatform('${platform.value}')">
+                    <div class="card-body text-center">
+                        <div class="mb-3">
+                            <i class="${platform.icon} fa-3x text-primary"></i>
+                        </div>
+                        <h5 class="card-title">${platform.name}</h5>
+                        <p class="card-text small text-muted">${platform.description}</p>
+                        <div class="mt-2">
+                            ${platform.services.map(service => `<span class="badge bg-light text-dark me-1 mb-1">${service}</span>`).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    platformsList.innerHTML = html;
+}
+
+function selectPlatform(platformValue) {
+    // Remove previous selection
+    document.querySelectorAll('.platform-card').forEach(card => {
+        card.classList.remove('border-primary', 'bg-light');
+    });
+    
+    // Add selection to clicked card
+    const selectedCard = document.querySelector(`.platform-card[data-platform="${platformValue}"]`);
+    selectedCard.classList.add('border-primary', 'bg-light');
+    
+    selectedCloudPlatform = platformValue;
+    
+    // Show platform info
+    const platformInfo = document.getElementById('selected-platform-info');
+    const platformDetails = document.getElementById('platform-details');
+    
+    platformDetails.innerHTML = `
+        <div class="small">
+            <strong>Selected:</strong> ${platformValue.toUpperCase()}<br>
+            <strong>Target:</strong> ${platformValue === 'aws' ? 'Amazon Web Services' : 'Microsoft Azure'}
+        </div>
+    `;
+    platformInfo.style.display = 'block';
+    
+    // Enable proceed button
+    document.getElementById('proceed-to-tables-btn').disabled = false;
+}
+
+function proceedToTableSelection() {
+    if (!selectedCloudPlatform) {
+        showAlert('Please select a cloud platform', 'warning');
+        return;
+    }
+    
+    displayTables(availableTables, currentDatabaseType);
+    displayAIRecommendations({
+        recommended_count: availableTables.filter(t => t.recommended).length,
+        total_records: availableTables.filter(t => t.recommended).reduce((sum, t) => sum + t.rows, 0),
+        estimated_time: `${availableTables.filter(t => t.recommended).length * 15}-${availableTables.filter(t => t.recommended).length * 25} minutes for Terraform generation`
+    }, currentDatabaseType);
+    
+    showStep('step-discovery');
+    updateProgress(75);
+}
+
+async function testConnection() {
+    const dbType = document.getElementById('database-type').value;
+    const connectionString = document.getElementById('connection-string').value;
+    
+    if (!dbType) {
+        showAlert('Please select a database type', 'warning');
+        return;
+    }
+    
+    if (!connectionString.trim()) {
+        showAlert('Please enter a connection string', 'warning');
+        return;
+    }
+    
+    setButtonLoading('test-connection-btn', true);
+    
+    try {
+        const response = await fetch('/api/discover-tables', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                db_type: dbType,
+                connection_string: connectionString
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            availableTables = data.tables;
+            currentDatabaseType = dbType;
+            
+            // Add success feedback before transitioning
+            showAlert('✅ Connection successful! Discovered ' + data.tables.length + ' tables.', 'success');
+            
+            // Smooth transition to next step
+            setTimeout(() => {
+                showStep('step-cloud-platform');
+                updateProgress(50);
+            }, 500);
+        } else {
+            showAlert('Connection failed: ' + (data.error || 'Unknown error'), 'danger');
+        }
+    } catch (error) {
+        showAlert('Connection error: ' + error.message, 'danger');
+    } finally {
+        setButtonLoading('test-connection-btn', false);
+    }
+}
+
+function displayTables(tables, dbType) {
+    const tableList = document.getElementById('table-list');
+    let html = '';
+    
+    tables.forEach((table, index) => {
+        const isRecommended = table.recommended;
+        const relevance = table.ai_relevance;
+        
+        html += `
+            <div class="form-check mb-3 p-3 border rounded table-item ${isRecommended ? 'bg-success bg-opacity-10 border-success' : ''}" data-table="${table.name}">
+                <input class="form-check-input table-checkbox" type="checkbox" value="${table.name}" id="table-${index}" 
+                       ${isRecommended ? 'checked' : ''} onchange="updateSelection()">
+                <label class="form-check-label w-100" for="table-${index}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong class="d-block">${table.name}</strong>
+                            <small class="text-muted">${table.description}</small>
+                            <div class="mt-1">
+                                <span class="badge bg-secondary">${table.rows.toLocaleString()} rows</span>
+                                <span class="badge bg-${getRelevanceColor(relevance)} ms-1">
+                                    ${relevance} relevance
+                                </span>
+                                <span class="badge bg-info ms-1">
+                                    <i class="fas fa-database"></i> ${dbType.toUpperCase()}
+                                </span>
+                                ${isRecommended ? '<span class="badge bg-primary ms-1"><i class="fas fa-robot"></i> AI Recommended</span>' : ''}
+                            </div>
+                        </div>
+                    </div>
+                </label>
+            </div>
+        `;
+    });
+    
+    tableList.innerHTML = html;
+    updateSelection(); // Initialize selection count
+}
+
+function showConnectionInfo(connectionInfo, dbType) {
+    // You can add connection info display here if needed
+    console.log('Connected to:', connectionInfo, 'Database type:', dbType);
+}
+
+function displayAIRecommendations(recommendations, dbType) {
+    const recommendationsDiv = document.getElementById('ai-recommendations');
+    recommendationsDiv.innerHTML = `
+        <p class="small mb-2"><strong>AI Analysis Results for ${dbType.toUpperCase()}:</strong></p>
+        <ul class="small mb-0">
+            <li>${recommendations.recommended_count} tables recommended for migration</li>
+            <li>${recommendations.total_records.toLocaleString()} records to process</li>
+            <li>Estimated time: ${recommendations.estimated_time}</li>
+        </ul>
+    `;
+}
+
+function getRelevanceColor(relevance) {
+    switch(relevance) {
+        case 'high': return 'success';
+        case 'medium': return 'warning';
+        case 'low': return 'secondary';
+        default: return 'secondary';
+    }
+}
+
+function selectRecommended() {
+    document.querySelectorAll('.table-checkbox').forEach(checkbox => {
+        const tableItem = checkbox.closest('.table-item');
+        const isRecommended = tableItem.classList.contains('bg-success');
+        checkbox.checked = isRecommended;
+    });
+    updateSelection();
+}
+
+function selectAll() {
+    document.querySelectorAll('.table-checkbox').forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    updateSelection();
+}
+
+function clearSelection() {
+    document.querySelectorAll('.table-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    updateSelection();
+}
+
+function updateSelection() {
+    const selectedTables = Array.from(document.querySelectorAll('.table-checkbox:checked'));
+    const selectedCount = selectedTables.length;
+    
+    let totalRecords = 0;
+    selectedTables.forEach(checkbox => {
+        const table = availableTables.find(t => t.name === checkbox.value);
+        if (table) {
+            totalRecords += table.rows;
+        }
+    });
+    
+    document.getElementById('selected-count').textContent = selectedCount;
+    document.getElementById('selected-records').textContent = totalRecords.toLocaleString();
+    document.getElementById('start-terraform-btn').disabled = selectedCount === 0;
+    document.getElementById('view-mappings-btn').disabled = selectedCount === 0;
+}
+
+async function startTerraformGeneration() {
+    const selectedTables = Array.from(document.querySelectorAll('.table-checkbox:checked'))
+                                .map(cb => cb.value);
+    
+    if (selectedTables.length === 0) {
+        showAlert('Please select at least one table', 'warning');
+        return;
+    }
+    
+    if (!selectedCloudPlatform) {
+        showAlert('Please select a cloud platform', 'warning');
+        return;
+    }
+    
+    setButtonLoading('start-terraform-btn', true);
+    
+    try {
+        // Prepare request payload
+        const payload = {
+            db_type: currentDatabaseType,
+            cloud_platform: selectedCloudPlatform,
+            connection_string: document.getElementById('connection-string').value,
+            selected_tables: selectedTables
+        };
+        
+        // Include custom field mappings if available
+        if (currentMappingsData && currentMappingsData.field_mappings) {
+            payload.field_mappings = currentMappingsData.field_mappings;
+            console.log('Including custom field mappings in generation request:', Object.keys(currentMappingsData.field_mappings).length, 'tables');
+        }
+        
+        const response = await fetch('/api/generate-terraform', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            currentJobId = data.job_id;
+            
+            // Add success feedback before transitioning
+            showAlert('🤖 GenAI started! ' + data.message, 'success');
+            
+            // Smooth transition to terraform step
+            setTimeout(() => {
+                showStep('step-terraform');
+                updateProgress(100);
+                startTerraformMonitoring();
+            }, 300);
+        } else {
+            showAlert('Failed to start Terraform generation: ' + (data.error || 'Unknown error'), 'danger');
+        }
+        
+    } catch (error) {
+        showAlert('Terraform generation failed: ' + error.message, 'danger');
+    } finally {
+        setButtonLoading('start-terraform-btn', false);
+    }
+}
+
+function startTerraformMonitoring() {
+    clearTerraformLog();
+    terraformInterval = setInterval(async () => {
+        try {
+            const response = await fetch(`/api/terraform-status/${currentJobId}`);
+            
+            if (!response.ok) {
+                if (response.status === 404) {
+                    console.error('Terraform job not found');
+                    clearInterval(terraformInterval);
+                    showAlert('Terraform job not found. Please start a new generation.', 'warning');
+                    return;
+                } else if (response.status === 500) {
+                    const errorData = await response.json();
+                    console.error('Server error getting Terraform status:', errorData);
+                    clearInterval(terraformInterval);
+                    showAlert('Server error while monitoring generation progress. Please check the logs.', 'danger');
+                    return;
+                }
+            }
+            
+            const status = await response.json();
+            
+            // Handle error status from server
+            if (status.status === 'error') {
+                console.error('Server returned error status:', status);
+                clearInterval(terraformInterval);
+                showAlert('Error occurred during generation monitoring. Please try again.', 'danger');
+                return;
+            }
+            
+            updateTerraformDisplay(status);
+            
+            if (status.status === 'completed') {
+                clearInterval(terraformInterval);
+                showTerraformComplete();
+                loadTerraformHistory();
+            } else if (status.status === 'failed') {
+                clearInterval(terraformInterval);
+                showTerraformError(status.errors);
+            }
+            
+        } catch (error) {
+            console.error('Failed to get Terraform status:', error);
+            // Don't stop monitoring for network errors, but log them
+            addToTerraformLog({
+                type: 'warning',
+                message: `⚠️ Connection issue while monitoring progress. Retrying...`
+            });
+        }
+    }, 2000);
+}
+
+// Global variables for field mappings editing
+let currentMappingsData = null;
+let isEditMode = false;
+let originalMappingsData = null;
+
+async function showFieldMappings() {
+    const selectedTables = Array.from(document.querySelectorAll('.table-checkbox:checked'))
+                                .map(cb => cb.value);
+    
+    if (selectedTables.length === 0) {
+        showAlert('Please select at least one table', 'warning');
+        return;
+    }
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('fieldMappingsModal'));
+    modal.show();
+    
+    // Reset modal state
+    document.getElementById('mappings-loading').style.display = 'block';
+    document.getElementById('mappings-content').style.display = 'none';
+    document.getElementById('mappings-error').style.display = 'none';
+    resetEditMode();
+    
+    try {
+        const response = await fetch('/api/field-mappings', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                db_type: currentDatabaseType,
+                selected_tables: selectedTables,
+                job_id: currentJobId  // Pass current job ID to get user customizations
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            currentMappingsData = data;
+            originalMappingsData = JSON.parse(JSON.stringify(data)); // Deep copy for reset
+            displayFieldMappings(data);
+        } else {
+            showMappingsError(data.error || 'Failed to load field mappings');
+        }
+        
+    } catch (error) {
+        showMappingsError('Network error: ' + error.message);
+    }
+}
+
+function displayFieldMappings(data) {
+    // Hide loading, show content
+    document.getElementById('mappings-loading').style.display = 'none';
+    document.getElementById('mappings-content').style.display = 'block';
+    
+    // Update summary
+    const summary = data.mapping_summary;
+    document.getElementById('summary-tables').textContent = summary.total_tables;
+    document.getElementById('summary-fields').textContent = summary.total_fields;
+    document.getElementById('summary-required').textContent = summary.required_fields;
+    document.getElementById('summary-transformations').textContent = summary.fields_with_transformations;
+    document.getElementById('summary-foreign-keys').textContent = summary.foreign_keys || 0;
+    document.getElementById('summary-customized').textContent = summary.user_customized || 0;
+    
+    // Show customization indicator if there are user customizations
+    const customizedIndicator = document.getElementById('mappings-customized-indicator');
+    if (data.has_user_customizations) {
+        customizedIndicator.style.display = 'inline-block';
+    } else {
+        customizedIndicator.style.display = 'none';
+    }
+    
+    // Display field mappings by table
+    generateMappingsHTML(data);
+}
+
+function generateMappingsHTML(data) {
+    const mappingsContainer = document.getElementById('mappings-tables');
+    let html = '';
+    
+    for (const [tableName, tableData] of Object.entries(data.field_mappings)) {
+        const isCustomizedTable = tableData.is_customized;
+        const customizedBadge = isCustomizedTable ? 
+            '<span class="badge bg-info ms-2"><i class="fas fa-user-edit me-1"></i>Customized</span>' : '';
+        
+        html += `
+            <div class="card mb-4" data-table="${tableName}">
+                <div class="card-header ${isCustomizedTable ? 'bg-info' : 'bg-primary'} text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-table me-2"></i>
+                        ${tableName} → Application Entities
+                        ${customizedBadge}
+                    </h6>
+                </div>
+                <div class="card-body">
+        `;
+        
+        // Display mappings grouped by app entities
+        for (const [entityName, fields] of Object.entries(tableData.app_entities)) {
+            html += `
+                <div class="mb-4">
+                    <h6 class="text-primary">
+                        <i class="fas fa-cube me-2"></i>
+                        Maps to: <code>${entityName}</code>
+                    </h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Source Field</th>
+                                    <th>App Field</th>
+                                    <th>Type</th>
+                                    <th>Required</th>
+                                    <th>Transformation</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+            
+            fields.forEach((field, fieldIndex) => {
+                const fieldId = `${tableName}_${field.source_field}`.replace(/[^a-zA-Z0-9]/g, '_');
+                
+                if (isEditMode) {
+                    html += generateEditableFieldRow(tableName, field, fieldId);
+                } else {
+                    html += generateViewOnlyFieldRow(field);
+                }
+            });
+            
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+        
+        html += `
+                </div>
+            </div>
+        `;
+    }
+    
+    mappingsContainer.innerHTML = html;
+}
+
+function generateViewOnlyFieldRow(field) {
+    const requiredBadge = field.required ? 
+        '<span class="badge bg-danger">Required</span>' : 
+        '<span class="badge bg-secondary">Optional</span>';
+    
+    const typeBadge = getTypeBadge(field.type);
+    
+    const transformation = field.transformation ? 
+        `<small class="text-primary">${field.transformation}</small>` : 
+        '<small class="text-muted">Direct mapping</small>';
+    
+    let details = '';
+    if (field.values && field.values.length > 0) {
+        details += `<small><strong>Values:</strong> ${field.values.slice(0, 3).join(', ')}${field.values.length > 3 ? '...' : ''}</small><br>`;
+    }
+    if (field.references) {
+        details += `<small><strong>References:</strong> ${field.references}</small><br>`;
+    }
+    if (field.default) {
+        details += `<small><strong>Default:</strong> ${field.default}</small>`;
+    }
+    
+    return `
+        <tr>
+            <td><code>${field.source_field}</code></td>
+            <td><strong>${field.app_field}</strong></td>
+            <td>${typeBadge}</td>
+            <td>${requiredBadge}</td>
+            <td>${transformation}</td>
+            <td>${details || '<small class="text-muted">None</small>'}</td>
+        </tr>
+    `;
+}
+
+function generateEditableFieldRow(tableName, field, fieldId) {
+    const typeOptions = ['text', 'integer', 'boolean', 'date', 'foreign_key', 'email', 'phone'];
+    const typeSelect = typeOptions.map(type => 
+        `<option value="${type}" ${field.type === type ? 'selected' : ''}>${type}</option>`
+    ).join('');
+    
+    return `
+        <tr data-field-id="${fieldId}">
+            <td><code>${field.source_field}</code></td>
+            <td>
+                <input type="text" class="form-control form-control-sm" 
+                       value="${field.app_field}" 
+                       onchange="updateFieldMapping('${tableName}', '${field.source_field}', 'app_field', this.value)">
+            </td>
+            <td>
+                <select class="form-select form-select-sm" 
+                        onchange="updateFieldMapping('${tableName}', '${field.source_field}', 'type', this.value)">
+                    ${typeSelect}
+                </select>
+            </td>
+            <td>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" 
+                           ${field.required ? 'checked' : ''}
+                           onchange="updateFieldMapping('${tableName}', '${field.source_field}', 'required', this.checked)">
+                    <label class="form-check-label">Required</label>
+                </div>
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm" 
+                       value="${field.transformation || ''}" 
+                       placeholder="Direct mapping"
+                       onchange="updateFieldMapping('${tableName}', '${field.source_field}', 'transformation', this.value)">
+            </td>
+            <td>
+                <div class="row g-1">
+                    <div class="col-12">
+                        <input type="text" class="form-control form-control-sm" 
+                               value="${field.default || ''}" 
+                               placeholder="Default value"
+                               onchange="updateFieldMapping('${tableName}', '${field.source_field}', 'default', this.value)">
+                    </div>
+                    <div class="col-12 mt-1">
+                        <input type="text" class="form-control form-control-sm" 
+                               value="${field.references || ''}" 
+                               placeholder="References (e.g., clients.id)"
+                               onchange="updateFieldMapping('${tableName}', '${field.source_field}', 'references', this.value)">
+                    </div>
+                </div>
+            </td>
+        </tr>
+    `;
+}
+
+function getTypeBadge(type) {
+    const badges = {
+        'string': '<span class="badge bg-info">String</span>',
+        'int': '<span class="badge bg-primary">Integer</span>',
+        'decimal': '<span class="badge bg-success">Decimal</span>',
+        'date': '<span class="badge bg-warning text-dark">Date</span>',
+        'datetime': '<span class="badge bg-warning text-dark">DateTime</span>',
+        'enum': '<span class="badge bg-purple text-white">Enum</span>',
+        'email': '<span class="badge bg-dark">Email</span>',
+        'phone': '<span class="badge bg-dark">Phone</span>',
+        'text': '<span class="badge bg-secondary">Text</span>',
+        'foreign_key': '<span class="badge bg-danger">Foreign Key</span>',
+        'boolean': '<span class="badge bg-success">Boolean</span>'
+    };
+    return badges[type] || `<span class="badge bg-light text-dark">${type}</span>`;
+}
+
+function showMappingsError(errorMessage) {
+    document.getElementById('mappings-loading').style.display = 'none';
+    document.getElementById('mappings-content').style.display = 'none';
+    document.getElementById('mappings-error').style.display = 'block';
+    document.getElementById('mappings-error-message').textContent = errorMessage;
+}
+
+// Edit mode management functions
+function enterEditMode() {
+    if (!currentMappingsData) {
+        showAlert('No mappings data available', 'warning');
+        return;
+    }
+    
+    isEditMode = true;
+    
+    // Update UI elements
+    document.getElementById('mappings-view-mode').style.display = 'none';
+    document.getElementById('mappings-edit-mode').style.display = 'flex';
+    document.getElementById('mappings-mode-indicator').style.display = 'inline-block';
+    
+    // Regenerate the mappings HTML in edit mode
+    generateMappingsHTML(currentMappingsData);
+    
+    showAlert('Edit mode activated. You can now modify field mappings.', 'info');
+}
+
+function cancelEditMode() {
+    if (!originalMappingsData) {
+        resetEditMode();
+        return;
+    }
+    
+    // Restore original data
+    currentMappingsData = JSON.parse(JSON.stringify(originalMappingsData));
+    resetEditMode();
+    
+    // Regenerate the mappings HTML in view mode
+    generateMappingsHTML(currentMappingsData);
+    
+    showAlert('Changes cancelled. Mappings restored to original values.', 'info');
+}
+
+function resetEditMode() {
+    isEditMode = false;
+    
+    // Update UI elements
+    document.getElementById('mappings-view-mode').style.display = 'flex';
+    document.getElementById('mappings-edit-mode').style.display = 'none';
+    document.getElementById('mappings-mode-indicator').style.display = 'none';
+}
+
+// Field mapping update functions
+function updateFieldMapping(tableName, sourceField, property, value) {
+    if (!currentMappingsData || !currentMappingsData.field_mappings[tableName]) {
+        console.error('Cannot update field mapping: table not found');
+        return;
+    }
+    
+    // Update in the fields object
+    if (currentMappingsData.field_mappings[tableName].fields[sourceField]) {
+        currentMappingsData.field_mappings[tableName].fields[sourceField][property] = value;
+        
+        // Also update in app_entities for display
+        for (const [entityName, fields] of Object.entries(currentMappingsData.field_mappings[tableName].app_entities)) {
+            const fieldIndex = fields.findIndex(f => f.source_field === sourceField);
+            if (fieldIndex !== -1) {
+                fields[fieldIndex][property] = value;
+                break;
+            }
+        }
+        
+        // Mark table as customized
+        currentMappingsData.field_mappings[tableName].is_customized = true;
+        
+        console.log(`Updated ${tableName}.${sourceField}.${property} to:`, value);
+    }
+}
+
+async function saveFieldMappings() {
+    if (!currentJobId) {
+        showAlert('No active job found. Please start a new migration process.', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/field-mappings/${currentJobId}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                field_mappings: currentMappingsData.field_mappings
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            // Update original data to reflect saved changes
+            originalMappingsData = JSON.parse(JSON.stringify(currentMappingsData));
+            
+            // Update customization indicators
+            currentMappingsData.has_user_customizations = true;
+            document.getElementById('mappings-customized-indicator').style.display = 'inline-block';
+            
+            // Update summary
+            const customizedCount = Object.values(currentMappingsData.field_mappings)
+                .filter(table => table.is_customized).length;
+            document.getElementById('summary-customized').textContent = customizedCount;
+            currentMappingsData.mapping_summary.user_customized = customizedCount;
+            
+            resetEditMode();
+            generateMappingsHTML(currentMappingsData);
+            
+            showAlert(`✅ Field mappings saved successfully! Updated ${result.update_info.total_fields} fields across ${result.update_info.updated_tables.length} tables.`, 'success');
+        } else {
+            showAlert(`Failed to save mappings: ${result.error}`, 'danger');
+        }
+        
+    } catch (error) {
+        showAlert(`Network error while saving mappings: ${error.message}`, 'danger');
+    }
+}
+
+async function resetFieldMappings() {
+    if (!currentJobId) {
+        showAlert('No active job found. Please start a new migration process.', 'warning');
+        return;
+    }
+    
+    if (!confirm('Are you sure you want to reset all field mappings to their default values? This will remove all your customizations.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/field-mappings/${currentJobId}/reset`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showAlert('✅ Field mappings reset to defaults successfully!', 'success');
+            
+            // Reload the field mappings to get fresh default values
+            const selectedTables = Array.from(document.querySelectorAll('.table-checkbox:checked'))
+                                        .map(cb => cb.value);
+            
+            if (selectedTables.length > 0) {
+                // Refresh the mappings display
+                showFieldMappings();
+            }
+        } else {
+            showAlert(`Failed to reset mappings: ${result.error}`, 'danger');
+        }
+        
+    } catch (error) {
+        showAlert(`Network error while resetting mappings: ${error.message}`, 'danger');
+    }
+}
+
+// Historical field mappings functions
+async function viewJobFieldMappings(jobId) {
+    if (!jobId) {
+        showAlert('Invalid job ID', 'warning');
+        return;
+    }
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('historicalMappingsModal'));
+    modal.show();
+    
+    // Reset modal state
+    document.getElementById('historical-mappings-loading').style.display = 'block';
+    document.getElementById('historical-mappings-content').style.display = 'none';
+    document.getElementById('historical-mappings-error').style.display = 'none';
+    
+    // Update modal title with job ID
+    document.getElementById('historical-job-info').textContent = jobId;
+    
+    try {
+        const response = await fetch(`/api/job-field-mappings/${jobId}`);
+        const data = await response.json();
+        
+        if (response.ok) {
+            displayHistoricalFieldMappings(data);
+        } else {
+            showHistoricalMappingsError(data.error || 'Failed to load historical field mappings');
+        }
+        
+    } catch (error) {
+        showHistoricalMappingsError('Network error: ' + error.message);
+    }
+}
+
+function displayHistoricalFieldMappings(data) {
+    // Hide loading, show content
+    document.getElementById('historical-mappings-loading').style.display = 'none';
+    document.getElementById('historical-mappings-content').style.display = 'block';
+    
+    // Update job details
+    const jobDetails = document.getElementById('historical-job-details');
+    const createdDate = new Date(data.job_info.created_at).toLocaleString();
+    const dbBadge = getDatabaseBadge(data.database_type);
+    const cloudBadge = getCloudBadge(data.target_cloud);
+    const statusBadge = getStatusBadge(data.job_info.status);
+    
+    jobDetails.innerHTML = `
+        <div class="col-md-2">
+            <strong>Database:</strong> ${dbBadge}
+        </div>
+        <div class="col-md-2">
+            <strong>Cloud:</strong> ${cloudBadge}
+        </div>
+        <div class="col-md-2">
+            <strong>Status:</strong> ${statusBadge}
+        </div>
+        <div class="col-md-3">
+            <strong>Created:</strong> ${createdDate}
+        </div>
+        <div class="col-md-3">
+            <strong>Progress:</strong> ${Math.round(data.job_info.progress)}%
+        </div>
+    `;
+    
+    // Update summary
+    const summary = data.mapping_summary;
+    document.getElementById('hist-summary-tables').textContent = summary.total_tables;
+    document.getElementById('hist-summary-fields').textContent = summary.total_fields;
+    document.getElementById('hist-summary-required').textContent = summary.required_fields;
+    document.getElementById('hist-summary-transformations').textContent = summary.fields_with_transformations;
+    document.getElementById('hist-summary-foreign-keys').textContent = summary.foreign_keys || 0;
+    
+    // Generate historical mappings HTML (read-only)
+    generateHistoricalMappingsHTML(data);
+}
+
+function generateHistoricalMappingsHTML(data) {
+    const mappingsContainer = document.getElementById('historical-mappings-tables');
+    let html = '';
+    
+    for (const [tableName, tableData] of Object.entries(data.field_mappings)) {
+        html += `
+            <div class="card mb-4">
+                <div class="card-header bg-secondary text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-table me-2"></i>
+                        ${tableName} → Application Entities
+                        <span class="badge bg-info ms-2">
+                            <i class="fas fa-history me-1"></i>Historical Data
+                        </span>
+                    </h6>
+                </div>
+                <div class="card-body">
+        `;
+        
+        // Display mappings grouped by app entities (read-only)
+        for (const [entityName, fields] of Object.entries(tableData.app_entities)) {
+            html += `
+                <div class="mb-4">
+                    <h6 class="text-secondary">
+                        <i class="fas fa-cube me-2"></i>
+                        Maps to: <code>${entityName}</code>
+                    </h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Source Field</th>
+                                    <th>App Field</th>
+                                    <th>Type</th>
+                                    <th>Required</th>
+                                    <th>Transformation</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+            
+            fields.forEach(field => {
+                html += generateHistoricalFieldRow(field);
+            });
+            
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+        
+        html += `
+                </div>
+            </div>
+        `;
+    }
+    
+    mappingsContainer.innerHTML = html;
+}
+
+function generateHistoricalFieldRow(field) {
+    const requiredBadge = field.required ? 
+        '<span class="badge bg-danger">Required</span>' : 
+        '<span class="badge bg-secondary">Optional</span>';
+    
+    const typeBadge = getTypeBadge(field.type);
+    
+    const transformation = field.transformation ? 
+        `<small class="text-primary">${field.transformation}</small>` : 
+        '<small class="text-muted">Direct mapping</small>';
+    
+    let details = '';
+    if (field.values && field.values.length > 0) {
+        details += `<small><strong>Values:</strong> ${field.values.slice(0, 3).join(', ')}${field.values.length > 3 ? '...' : ''}</small><br>`;
+    }
+    if (field.references) {
+        details += `<small><strong>References:</strong> ${field.references}</small><br>`;
+    }
+    if (field.default) {
+        details += `<small><strong>Default:</strong> ${field.default}</small>`;
+    }
+    
+    return `
+        <tr class="table-light">
+            <td><code>${field.source_field}</code></td>
+            <td><strong>${field.app_field}</strong></td>
+            <td>${typeBadge}</td>
+            <td>${requiredBadge}</td>
+            <td>${transformation}</td>
+            <td>${details || '<small class="text-muted">None</small>'}</td>
+        </tr>
+    `;
+}
+
+function showHistoricalMappingsError(errorMessage) {
+    document.getElementById('historical-mappings-loading').style.display = 'none';
+    document.getElementById('historical-mappings-content').style.display = 'none';
+    document.getElementById('historical-mappings-error').style.display = 'block';
+    document.getElementById('historical-mappings-error-message').textContent = errorMessage;
+}
+
+function exportHistoricalMappings() {
+    const jobId = document.getElementById('historical-job-info').textContent;
+    
+    if (!jobId) {
+        showAlert('No job selected for export', 'warning');
+        return;
+    }
+    
+    fetch(`/api/job-field-mappings/${jobId}`)
+    .then(response => response.json())
+    .then(data => {
+        if (data.field_mappings) {
+            const exportData = {
+                job_id: jobId,
+                exported_at: new Date().toISOString(),
+                job_info: data.job_info,
+                mapping_summary: data.mapping_summary,
+                field_mappings: data.field_mappings
+            };
+            
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `historical_field_mappings_${jobId}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            showAlert(`✅ Historical field mappings exported successfully for job ${jobId}`, 'success');
+        } else {
+            showAlert('Failed to export historical mappings: No data available', 'danger');
+        }
+    })
+    .catch(error => {
+        showAlert('Failed to export historical mappings: ' + error.message, 'danger');
+    });
+}
+
+function exportMappings() {
+    const selectedTables = Array.from(document.querySelectorAll('.table-checkbox:checked'))
+                                .map(cb => cb.value);
+    
+    if (selectedTables.length === 0) {
+        showAlert('No tables selected for export', 'warning');
+        return;
+    }
+    
+    fetch('/api/field-mappings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            db_type: currentDatabaseType,
+            selected_tables: selectedTables
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.field_mappings) {
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `field-mappings-${currentDatabaseType}-${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            showAlert('Field mappings exported successfully!', 'success');
+        }
+    })
+    .catch(error => {
+        showAlert('Export failed: ' + error.message, 'danger');
+    });
+}
+
+// Cost Summary Navigation Function
+function openCostSummary() {
+    console.log('Cost summary requested, currentJobId:', currentJobId);
+    if (!currentJobId) {
+        showAlert('No Terraform job available for cost analysis', 'warning');
+        return;
+    }
+    
+    // Open the preview modal and navigate directly to Services & Cost tab
+    previewDataPipelineCode(() => {
+        // Callback to switch to Services & Cost tab after modal opens
+        setTimeout(() => {
+            const servicesTab = document.getElementById('services-tab');
+            if (servicesTab) {
+                servicesTab.click();
+            }
+        }, 500); // Small delay to ensure modal content is loaded
+    });
+}
+
+// Open cost summary for a specific job from history table
+function openJobCostSummary(jobId) {
+    console.log('Job cost summary requested, jobId:', jobId);
+    if (!jobId) {
+        showAlert('Invalid job ID for cost analysis', 'warning');
+        return;
+    }
+    
+    // Set the current job ID temporarily to preview this specific job
+    const originalJobId = currentJobId;
+    currentJobId = jobId;
+    
+    // Open the preview modal for this job and navigate to Services & Cost tab
+    previewDataPipelineCode(() => {
+        // Callback to switch to Services & Cost tab after modal opens
+        setTimeout(() => {
+            const servicesTab = document.getElementById('services-tab');
+            if (servicesTab) {
+                servicesTab.click();
+            }
+            
+            // Restore the original current job ID
+            currentJobId = originalJobId;
+        }, 500);
+    });
+}
+
+// Data Pipeline Code Preview Functions
+function previewDataPipelineCode(callback = null) {
+    console.log('Preview requested, currentJobId:', currentJobId);
+    if (!currentJobId) {
+        showAlert('No Terraform job available for preview', 'warning');
+        return;
+    }
+    
+    previewJobTerraform(currentJobId, callback);
+}
+
+function previewJobTerraform(jobId, callback = null) {
+    console.log('Preview requested for job:', jobId);
+    if (!jobId) {
+        showAlert('No job ID specified for preview', 'warning');
+        return;
+    }
+
+    // Set the job being previewed
+    previewingJobId = jobId;
+
+    // Show loading state
+    const modal = new bootstrap.Modal(document.getElementById('terraformPreviewModal'));
+    const cloudLogo = document.getElementById('preview-cloud-logo');
+    const previewTitle = document.getElementById('preview-title');
+    
+    // Set initial loading state
+    cloudLogo.className = 'fas fa-spinner fa-spin me-2';
+    cloudLogo.style.color = '#ffffff';
+    
+    previewTitle.innerHTML = `Loading Terraform Code for Job ${jobId}...`;
+    
+    // Clear existing content
+    document.getElementById('main-tf-code').textContent = '';
+    document.getElementById('variables-tf-code').textContent = '';
+    document.getElementById('tfvars-code').textContent = '';
+    document.getElementById('readme-code').innerHTML = '';
+    
+    modal.show();
+
+    // Fetch Terraform files for preview
+    fetch(`/api/terraform-preview/${jobId}`)
+        .then(response => {
+            console.log('Preview response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Preview data received:', data);
+            if (data.success) {
+                displayTerraformPreview(data.files, data);
+                displayServicesSummary(data.service_summary, data.cost_breakdown);
+                displayETLScripts(data.etl_scripts, data);
+                
+                // Execute callback if provided (e.g., to switch tabs)
+                if (callback && typeof callback === 'function') {
+                    callback();
+                }
+            } else {
+                showAlert('Failed to load Terraform preview: ' + (data.error || 'Unknown error'), 'danger');
+                modal.hide();
+            }
+        })
+        .catch(error => {
+            console.error('Error loading Terraform preview:', error);
+            showAlert('Failed to load Terraform preview: ' + error.message, 'danger');
+            modal.hide();
+            previewingJobId = null; // Reset on error
+        });
+}
+
+function displayTerraformPreview(files, jobData = null) {
+    // Update title and cloud provider logo
+    const cloudLogo = document.getElementById('preview-cloud-logo');
+    const previewTitle = document.getElementById('preview-title');
+    
+    // Determine cloud platform from job data or current selection
+    const cloudPlatform = (jobData && jobData.cloud_platform) ? jobData.cloud_platform : selectedCloudPlatform;
+    
+    // Set appropriate logo based on cloud platform
+    if (cloudPlatform.toLowerCase() === 'aws') {
+        cloudLogo.className = 'fab fa-aws me-2';
+        cloudLogo.style.color = '#FF9900'; // AWS orange
+    } else if (cloudPlatform.toLowerCase() === 'azure') {
+        cloudLogo.className = 'fab fa-microsoft me-2';
+        cloudLogo.style.color = '#0078D4'; // Azure blue
+    } else {
+        cloudLogo.className = 'fas fa-cloud me-2';
+        cloudLogo.style.color = '#ffffff';
+    }
+    
+    previewTitle.textContent = `Data Pipeline Code Preview - ${cloudPlatform.toUpperCase()}`;
+
+    // Display main.tf
+    if (files['main.tf']) {
+        const mainTfCode = document.getElementById('main-tf-code');
+        mainTfCode.textContent = files['main.tf'];
+        mainTfCode.className = 'language-hcl'; // Ensure HCL class is set
+        document.getElementById('main-tf-lines').textContent = countLines(files['main.tf']);
+        
+        // Force syntax highlighting
+        if (typeof Prism !== 'undefined') {
+            Prism.highlightElement(mainTfCode);
+        }
+    }
+
+    // Display variables.tf
+    if (files['variables.tf']) {
+        const variablesTfCode = document.getElementById('variables-tf-code');
+        variablesTfCode.textContent = files['variables.tf'];
+        variablesTfCode.className = 'language-hcl'; // Ensure HCL class is set
+        document.getElementById('variables-tf-lines').textContent = countLines(files['variables.tf']);
+        
+        if (typeof Prism !== 'undefined') {
+            Prism.highlightElement(variablesTfCode);
+        }
+    }
+
+    // Display terraform.tfvars.example
+    if (files['terraform.tfvars.example']) {
+        const tfvarsCode = document.getElementById('tfvars-code');
+        tfvarsCode.textContent = files['terraform.tfvars.example'];
+        tfvarsCode.className = 'language-hcl'; // Ensure HCL class is set
+        document.getElementById('tfvars-lines').textContent = countLines(files['terraform.tfvars.example']);
+        
+        if (typeof Prism !== 'undefined') {
+            Prism.highlightElement(tfvarsCode);
+        }
+    }
+
+    // Display README.md (render as HTML)
+    if (files['README.md']) {
+        const readmeContainer = document.getElementById('readme-code');
+        try {
+            if (typeof marked !== 'undefined') {
+                readmeContainer.innerHTML = marked.parse(files['README.md']);
+            } else {
+                // Fallback to plain text if marked.js isn't loaded
+                readmeContainer.innerHTML = '<pre>' + files['README.md'].replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>';
+            }
+            document.getElementById('readme-lines').textContent = countLines(files['README.md']);
+            
+            // Add markdown styling
+            readmeContainer.classList.add('markdown-body');
+        } catch (error) {
+            console.error('Error rendering README:', error);
+            readmeContainer.innerHTML = '<pre>' + files['README.md'].replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>';
+        }
+    }
+}
+
+function copyToClipboard(elementId) {
+    const element = document.getElementById(elementId);
+    let textToCopy = '';
+    
+    if (elementId === 'readme-code') {
+        // For README, get the original markdown content
+        const jobIdToUse = previewingJobId || currentJobId;
+        fetch(`/api/terraform-preview/${jobIdToUse}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.files['README.md']) {
+                    navigator.clipboard.writeText(data.files['README.md']).then(() => {
+                        showCopySuccess();
+                    });
+                }
+            });
+        return;
+    } else {
+        textToCopy = element.textContent;
+    }
+    
+    navigator.clipboard.writeText(textToCopy).then(() => {
+        showCopySuccess();
+    }).catch(err => {
+        console.error('Failed to copy text: ', err);
+        showAlert('Failed to copy to clipboard', 'warning');
+    });
+}
+
+function showCopySuccess() {
+    // Create a temporary success message
+    const tooltip = document.createElement('div');
+    tooltip.textContent = '✓ Copied!';
+    tooltip.style.position = 'fixed';
+    tooltip.style.top = '20px';
+    tooltip.style.right = '20px';
+    tooltip.style.backgroundColor = '#28a745';
+    tooltip.style.color = 'white';
+    tooltip.style.padding = '8px 16px';
+    tooltip.style.borderRadius = '4px';
+    tooltip.style.zIndex = '9999';
+    tooltip.style.fontSize = '14px';
+    
+    document.body.appendChild(tooltip);
+    
+    setTimeout(() => {
+        document.body.removeChild(tooltip);
+    }, 2000);
+}
+
+function displayServicesSummary(serviceSummary, costBreakdown) {
+    const container = document.getElementById('services-summary');
+    
+    if (!serviceSummary || !costBreakdown) {
+        container.innerHTML = '<div class="alert alert-warning">Service summary not available</div>';
+        return;
+    }
+    
+    container.innerHTML = `
+        <!-- Service Summary Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cloud me-2"></i>
+                        ${serviceSummary.cloud_provider} Infrastructure
+                    </h5>
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="badge bg-primary fs-6">${serviceSummary.architecture_type}</span>
+                        <h4 class="text-success mb-0">
+                            <i class="fas fa-dollar-sign me-1"></i>
+                            ${serviceSummary.estimated_total_monthly}/month
+                        </h4>
+                    </div>
+                </div>
+                
+                <!-- Data Characteristics -->
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <div class="card border-0 bg-light">
+                            <div class="card-body text-center py-2">
+                                <small class="text-muted d-block">Estimated Rows</small>
+                                <strong>${serviceSummary.data_characteristics.estimated_rows}</strong>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-0 bg-light">
+                            <div class="card-body text-center py-2">
+                                <small class="text-muted d-block">Data Size</small>
+                                <strong>${serviceSummary.data_characteristics.estimated_size_gb} GB</strong>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-0 bg-light">
+                            <div class="card-body text-center py-2">
+                                <small class="text-muted d-block">Tables</small>
+                                <strong>${serviceSummary.data_characteristics.table_count}</strong>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-0 bg-light">
+                            <div class="card-body text-center py-2">
+                                <small class="text-muted d-block">Source</small>
+                                <strong>${serviceSummary.data_characteristics.database_type}</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Services List -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h6><i class="fas fa-server me-2"></i>Deployed Services (${serviceSummary.total_services})</h6>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Service</th>
+                                <th>Type</th>
+                                <th>Purpose</th>
+                                <th>Configuration</th>
+                                <th>Monthly Cost</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${serviceSummary.services.map(service => `
+                                <tr>
+                                    <td><strong>${service.name}</strong></td>
+                                    <td><span class="badge bg-secondary">${service.type}</span></td>
+                                    <td><small>${service.purpose}</small></td>
+                                    <td><small class="text-muted">${service.configuration}</small></td>
+                                    <td>
+                                        ${service.monthly_cost_range === 'Free' 
+                                            ? '<span class="badge bg-success">Free</span>'
+                                            : `<span class="text-success fw-bold">${service.monthly_cost_range}</span>`
+                                        }
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Cost Breakdown -->
+        <div class="row">
+            <div class="col-md-6">
+                <h6><i class="fas fa-chart-pie me-2"></i>Cost Breakdown by Category</h6>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="text-primary mb-0">Total Estimated: ${costBreakdown.total_estimated_monthly}</h5>
+                    </div>
+                </div>
+                
+                ${costBreakdown.cost_categories.map(category => `
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="fw-bold">${category.category}</span>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-primary">${category.percentage}</span>
+                                <span class="text-success fw-bold">${category.monthly_cost}</span>
+                            </div>
+                        </div>
+                        <div class="progress mb-1" style="height: 8px;">
+                            <div class="progress-bar bg-primary" role="progressbar" 
+                                 style="width: ${category.percentage}" aria-valuenow="${category.percentage}" 
+                                 aria-valuemin="0" aria-valuemax="100">
+                            </div>
+                        </div>
+                        <small class="text-muted">${category.description}</small>
+                    </div>
+                `).join('')}
+            </div>
+            
+            <div class="col-md-6">
+                <h6><i class="fas fa-lightbulb me-2"></i>Cost Optimization</h6>
+                <div class="card border-0 bg-light">
+                    <div class="card-body">
+                        <ul class="list-unstyled mb-3">
+                            ${costBreakdown.optimization_notes.map(note => `
+                                <li class="mb-2">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    <small>${note}</small>
+                                </li>
+                            `).join('')}
+                        </ul>
+                        
+                        <h6 class="mb-2">Pricing Factors:</h6>
+                        <div class="row g-2">
+                            ${Object.entries(costBreakdown.pricing_factors).map(([key, value]) => `
+                                <div class="col-12">
+                                    <div class="d-flex justify-content-between">
+                                        <small class="text-muted">${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</small>
+                                        <small class="fw-bold">${value}</small>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function exportServicesSummary() {
+    // Create a downloadable JSON file with the services summary
+    const jobIdToUse = previewingJobId || currentJobId;
+    fetch(`/api/terraform-preview/${jobIdToUse}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const summaryData = {
+                    job_id: data.job_id,
+                    cloud_platform: data.cloud_platform,
+                    database_type: data.database_type,
+                    service_summary: data.service_summary,
+                    cost_breakdown: data.cost_breakdown,
+                    generated_at: new Date().toISOString()
+                };
+                
+                const blob = new Blob([JSON.stringify(summaryData, null, 2)], { type: 'application/json' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `services-summary-${data.job_id}.json`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                showAlert('Services summary exported successfully!', 'success');
+            }
+        })
+        .catch(error => {
+            console.error('Error exporting services summary:', error);
+            showAlert('Failed to export services summary', 'danger');
+        });
+}
+
+function countLines(text) {
+    if (!text) return 0;
+    return text.split('\n').length;
+}
+
+function updateTerraformDisplay(status) {
+    // Update progress bar
+    const progressBar = document.getElementById('migration-progress-bar');
+    const percentage = document.getElementById('migration-percentage');
+    
+    progressBar.style.width = status.progress + '%';
+    percentage.textContent = Math.round(status.progress) + '%';
+    
+    // Remove animation when completed to make progress bar solid
+    if (status.status === 'completed' || status.progress >= 100) {
+        progressBar.classList.remove('progress-bar-striped', 'progress-bar-animated');
+        progressBar.classList.add('bg-success'); // Ensure solid green appearance
+    } else {
+        // Ensure animation is present during progress
+        progressBar.classList.add('progress-bar-striped', 'progress-bar-animated');
+    }
+    
+    // Update counters
+    document.getElementById('generated-files').textContent = status.terraform_config ? Object.keys(status.terraform_config).length : 0;
+    document.getElementById('selected-tables').textContent = status.target_tables.length;
+    
+    // Update estimated cost with interactive link
+    const estimatedCost = status.estimated_cost ? status.estimated_cost.monthly_estimate : '$0.00';
+    document.getElementById('estimated-cost').textContent = estimatedCost;
+    
+    // Enable/disable cost button and show/hide link icon based on completion status
+    const costButton = document.getElementById('estimated-cost-btn');
+    const costIcon = document.getElementById('cost-link-icon');
+    
+    if (status.status === 'completed' && status.terraform_config) {
+        costButton.disabled = false;
+        costButton.classList.add('text-primary');
+        costButton.classList.remove('text-muted');
+        costButton.style.cursor = 'pointer';
+        costButton.title = 'Click to view detailed cost breakdown and service analysis';
+        costIcon.style.display = 'inline';
+    } else {
+        costButton.disabled = true;
+        costButton.classList.add('text-muted');
+        costButton.classList.remove('text-primary');
+        costButton.style.cursor = 'default';
+        costButton.title = 'Cost analysis available after generation completes';
+        costIcon.style.display = 'none';
+    }
+    
+    // Update status log
+    addToTerraformLog(getTerraformStatusMessage(status));
+}
+
+function clearTerraformLog() {
+    const statusLog = document.getElementById('terraform-status-log');
+    statusLog.innerHTML = '<div class="text-muted">Terraform generation status will appear here...</div>';
+}
+
+function addToTerraformLog(statusMessage) {
+    if (!statusMessage) return;
+    
+    const statusLog = document.getElementById('terraform-status-log');
+    const timestamp = new Date().toLocaleTimeString();
+    
+    const logEntry = document.createElement('div');
+    logEntry.className = 'small mb-1';
+    logEntry.innerHTML = `
+        <span class="text-muted">[${timestamp}]</span> 
+        <span class="text-${statusMessage.type}">${statusMessage.message}</span>
+    `;
+    
+    statusLog.appendChild(logEntry);
+    statusLog.scrollTop = statusLog.scrollHeight;
+}
+
+function getTerraformStatusMessage(status) {
+    switch(status.status) {
+        case 'analyzing':
+            return {
+                type: 'info',
+                message: '🤖 GenAI is analyzing database schema and generating intelligent field mappings...'
+            };
+        case 'generating':
+            return {
+                type: 'primary',
+                message: `🚀 GenAI is creating optimized ${status.target_cloud.toUpperCase()} Terraform infrastructure code based on your data patterns...`
+            };
+        default:
+            return null;
+    }
+}
+
+function showTerraformComplete() {
+    document.getElementById('terraform-complete-alert').classList.remove('d-none');
+    document.getElementById('export-terraform-btn').style.display = 'inline-block';
+    document.getElementById('cancel-terraform-btn').style.display = 'none';
+    
+    addToTerraformLog({
+        type: 'success',
+        message: '✅ GenAI has successfully generated optimized Terraform configuration!'
+    });
+}
+
+function showTerraformError(errors) {
+    document.getElementById('terraform-failed-alert').classList.remove('d-none');
+    document.getElementById('cancel-terraform-btn').style.display = 'none';
+    
+    const errorDetails = document.getElementById('error-details');
+    errorDetails.innerHTML = errors.map(error => `<div>• ${error}</div>`).join('');
+    
+    errors.forEach(error => {
+        addToTerraformLog({
+            type: 'danger',
+            message: `✗ Error: ${error}`
+        });
+    });
+}
+
+async function exportTerraform() {
+    if (!currentJobId) {
+        showAlert('No Terraform configuration to export', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/export-terraform/${currentJobId}`);
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `terraform-${currentJobId}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            showAlert('Terraform files downloaded successfully!', 'success');
+        } else {
+            showAlert('Failed to export Terraform files', 'danger');
+        }
+    } catch (error) {
+        showAlert('Export failed: ' + error.message, 'danger');
+    }
+}
+
+async function loadTerraformHistory() {
+    try {
+        const response = await fetch('/api/terraform-jobs');
+        const data = await response.json();
+        
+        const historyDiv = document.getElementById('migration-history');
+        
+        if (data.jobs && data.jobs.length > 0) {
+            let html = '<div class="table-responsive"><table class="table table-hover"><thead><tr>';
+            html += '<th>Job ID</th><th>Database</th><th>Cloud</th><th>Status</th><th>Progress</th><th>Tables</th><th>Field Mappings</th><th>Cost</th><th>Created</th><th>Actions</th></tr></thead><tbody>';
+            
+            data.jobs.forEach(job => {
+                const statusBadge = getStatusBadge(job.status);
+                const createdDate = new Date(job.created_at).toLocaleString();
+                const dbTypeBadge = getDatabaseBadge(job.source_db_type || 'oracle');
+                const cloudBadge = getCloudBadge(job.target_cloud || 'aws');
+                
+                html += `
+                    <tr>
+                        <td>
+                            ${job.status === 'completed' 
+                                ? `<button class="btn btn-link p-0 text-decoration-none" 
+                                           onclick="previewJobTerraform('${job.job_id}')" 
+                                           title="Click to preview generated code">
+                                       <code class="small text-primary">${job.job_id}</code>
+                                       <i class="fas fa-external-link-alt ms-1" style="font-size: 0.6em;"></i>
+                                   </button>`
+                                : `<code class="small text-muted">${job.job_id}</code>`
+                            }
+                        </td>
+                        <td>${dbTypeBadge}</td>
+                        <td>${cloudBadge}</td>
+                        <td>${statusBadge}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="progress me-2" style="width: 80px; height: 15px;">
+                                    <div class="progress-bar" style="width: ${job.progress}%"></div>
+                                </div>
+                                <small class="text-muted">${Math.round(job.progress)}%</small>
+                            </div>
+                        </td>
+                        <td><span class="badge bg-secondary">${job.table_count} tables</span></td>
+                        <td>
+                            ${job.mappings_summary && job.mappings_summary.has_mappings 
+                                ? `<div class="d-flex align-items-center">
+                                     <div>
+                                       <small class="text-primary fw-bold">${job.mappings_summary.total_fields} fields</small><br>
+                                       <small class="text-muted">${job.mappings_summary.required_fields} req, ${job.mappings_summary.transformations} trans</small>
+                                     </div>
+                                     <button class="btn btn-sm btn-outline-info ms-2" onclick="viewJobFieldMappings('${job.job_id}')" 
+                                             title="View field mappings used for this job">
+                                       <i class="fas fa-sitemap"></i>
+                                     </button>
+                                   </div>`
+                                : '<small class="text-muted">Not available</small>'
+                            }
+                        </td>
+                        <td>
+                            ${job.status === 'completed' 
+                                ? `<button class="btn btn-link p-0 text-success text-decoration-none" 
+                                           onclick="openJobCostSummary('${job.job_id}')" 
+                                           title="Click to view cost breakdown">
+                                       <small>${job.estimated_cost}</small>
+                                       <i class="fas fa-external-link-alt ms-1" style="font-size: 0.7em;"></i>
+                                   </button>`
+                                : `<small class="text-muted">${job.estimated_cost}</small>`
+                            }
+                        </td>
+                        <td><small class="text-muted">${createdDate}</small></td>
+                        <td>
+                            ${job.status === 'completed' ? `<button class="btn btn-sm btn-outline-primary" onclick="downloadTerraform('${job.job_id}')"><i class="fas fa-download"></i></button>` : ''}
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table></div>';
+            historyDiv.innerHTML = html;
+        } else {
+            historyDiv.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="fas fa-code fa-3x text-muted mb-3"></i>
+                    <h6 class="text-muted">No Terraform generations yet</h6>
+                    <p class="text-muted">Start your first infrastructure generation using the wizard above.</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Failed to load Terraform history:', error);
+        document.getElementById('migration-history').innerHTML = `
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Failed to load generation history. Please refresh the page.
+            </div>
+        `;
+    }
+}
+
+function getCloudBadge(cloudType) {
+    const badges = {
+        'aws': '<span class="badge bg-warning text-dark"><i class="fab fa-aws"></i> AWS</span>',
+        'azure': '<span class="badge bg-primary"><i class="fab fa-microsoft"></i> Azure</span>'
+    };
+    return badges[cloudType] || '<span class="badge bg-secondary">Unknown</span>';
+}
+
+async function downloadTerraform(jobId) {
+    try {
+        const response = await fetch(`/api/export-terraform/${jobId}`);
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `terraform-${jobId}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } else {
+            showAlert('Failed to download Terraform files', 'danger');
+        }
+    } catch (error) {
+        showAlert('Download failed: ' + error.message, 'danger');
+    }
+}
+
+function updateMigrationDisplay(status) {
+    // Update progress bar
+    const progressBar = document.getElementById('migration-progress-bar');
+    const percentage = document.getElementById('migration-percentage');
+    
+    progressBar.style.width = status.progress + '%';
+    percentage.textContent = Math.round(status.progress) + '%';
+    
+    // Remove animation when completed to make progress bar solid
+    if (status.status === 'completed' || status.progress >= 100) {
+        progressBar.classList.remove('progress-bar-striped', 'progress-bar-animated');
+        progressBar.classList.add('bg-success'); // Ensure solid green appearance
+    } else {
+        // Ensure animation is present during progress
+        progressBar.classList.add('progress-bar-striped', 'progress-bar-animated');
+    }
+    
+    // Update counters
+    document.getElementById('migrated-records').textContent = status.migrated_records.toLocaleString();
+    document.getElementById('total-records').textContent = status.total_records.toLocaleString();
+    
+    // Calculate speed (records per minute)
+    const speed = Math.round(status.migrated_records / 2); // Approximate based on 2-second intervals
+    document.getElementById('migration-speed').textContent = speed.toLocaleString();
+    
+    // Update status log
+    addToMigrationLog(getStatusMessage(status));
+}
+
+function getStatusMessage(status) {
+    switch(status.status) {
+        case 'analyzing':
+            return {
+                type: 'info',
+                message: 'AI is analyzing Oracle schema and generating field mappings...'
+            };
+        case 'mapping':
+            return {
+                type: 'info',
+                message: 'Creating intelligent data transformation rules...'
+            };
+        case 'migrating':
+            return {
+                type: 'primary',
+                message: `Migrating data - ${status.migrated_records}/${status.total_records} records processed`
+            };
+        case 'validating':
+            return {
+                type: 'warning',
+                message: 'Validating migrated data integrity with AI...'
+            };
+        default:
+            return null;
+    }
+}
+
+function addToMigrationLog(statusMessage) {
+    if (!statusMessage) return;
+    
+    const statusLog = document.getElementById('migration-status-log');
+    const timestamp = new Date().toLocaleTimeString();
+    
+    const logEntry = document.createElement('div');
+    logEntry.className = 'small mb-1';
+    logEntry.innerHTML = `
+        <span class="text-muted">[${timestamp}]</span> 
+        <span class="text-${statusMessage.type}">${statusMessage.message}</span>
+    `;
+    
+    statusLog.appendChild(logEntry);
+    statusLog.scrollTop = statusLog.scrollHeight;
+}
+
+function clearMigrationLog() {
+    const statusLog = document.getElementById('migration-status-log');
+    statusLog.innerHTML = '<div class="text-muted">Migration status updates will appear here...</div>';
+}
+
+function showMigrationComplete() {
+    document.getElementById('migration-complete-alert').classList.remove('d-none');
+    document.getElementById('cancel-migration-btn').style.display = 'none';
+    
+    // Add completion message to log
+    addToMigrationLog({
+        type: 'success',
+        message: '✓ Migration completed successfully!'
+    });
+}
+
+function showMigrationError(errors) {
+    document.getElementById('migration-failed-alert').classList.remove('d-none');
+    document.getElementById('cancel-migration-btn').style.display = 'none';
+    
+    const errorDetails = document.getElementById('error-details');
+    errorDetails.innerHTML = errors.map(error => `<div>• ${error}</div>`).join('');
+    
+    errors.forEach(error => {
+        addToMigrationLog({
+            type: 'danger',
+            message: `✗ Error: ${error}`
+        });
+    });
+}
+
+async function cancelMigration() {
+    if (!currentJobId) return;
+    
+    try {
+        const response = await fetch(`/api/cancel-migration/${currentJobId}`, {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            clearInterval(migrationInterval);
+            showAlert('Migration cancelled', 'warning');
+            addToMigrationLog({
+                type: 'warning',
+                message: '⚠ Migration cancelled by user'
+            });
+        }
+    } catch (error) {
+        console.error('Failed to cancel migration:', error);
+    }
+}
+
+function startNewMigration() {
+    // Reset the wizard
+    showStep('step-connection');
+    updateProgress(25);
+    currentJobId = null;
+    
+    // Hide alerts
+    document.getElementById('migration-complete-alert').classList.add('d-none');
+    document.getElementById('migration-failed-alert').classList.add('d-none');
+    document.getElementById('cancel-migration-btn').style.display = 'inline-block';
+    
+    // Clear previous data
+    clearMigrationLog();
+    const progressBar = document.getElementById('migration-progress-bar');
+    progressBar.style.width = '0%';
+    document.getElementById('migration-percentage').textContent = '0%';
+    
+    // Reset progress bar to animated striped state for new generation
+    progressBar.classList.add('progress-bar-striped', 'progress-bar-animated', 'bg-success');
+    progressBar.classList.remove('bg-primary'); // Remove any other background classes
+}
+
+function retryMigration() {
+    startNewMigration();
+}
+
+function startNewGeneration() {
+    // Reset the wizard to the beginning
+    showStep('step-connection');
+    updateProgress(25);
+    currentJobId = null;
+    selectedCloudPlatform = '';
+    selectedDatabaseType = '';
+    availableTables = [];
+    
+    // Hide completion alerts
+    document.getElementById('terraform-complete-alert').classList.add('d-none');
+    document.getElementById('terraform-failed-alert').classList.add('d-none');
+    document.getElementById('terraform-in-progress-alert').classList.add('d-none');
+    
+    // Clear status and progress
+    clearTerraformLog();
+    const progressBar = document.getElementById('migration-progress-bar');
+    progressBar.style.width = '0%';
+    document.getElementById('migration-percentage').textContent = '0%';
+    
+    // Reset progress bar to animated striped state for new generation
+    progressBar.classList.add('progress-bar-striped', 'progress-bar-animated', 'bg-success');
+    progressBar.classList.remove('bg-primary');
+    
+    // Clear form inputs
+    document.getElementById('database-host').value = '';
+    document.getElementById('database-user').value = '';
+    document.getElementById('database-password').value = '';
+    document.getElementById('database-name').value = '';
+    
+    // Clear table selection
+    document.getElementById('available-tables').innerHTML = '';
+    document.getElementById('selected-tables-count').textContent = '0';
+    
+    // Reset counters
+    document.getElementById('generated-files').textContent = '0';
+    document.getElementById('selected-tables').textContent = '0';
+    document.getElementById('estimated-cost').textContent = '$0.00';
+    
+    // Disable cost button
+    const costButton = document.getElementById('estimated-cost-btn');
+    const costIcon = document.getElementById('cost-link-icon');
+    if (costButton) {
+        costButton.disabled = true;
+        costButton.classList.add('text-muted');
+        costButton.classList.remove('text-primary');
+        costButton.style.cursor = 'default';
+        costButton.title = 'Cost analysis available after generation completes';
+    }
+    if (costIcon) {
+        costIcon.style.display = 'none';
+    }
+}
+
+async function loadMigrationHistory() {
+    try {
+        const response = await fetch('/api/migration-jobs');
+        const data = await response.json();
+        
+        const historyDiv = document.getElementById('migration-history');
+        
+        if (data.jobs && data.jobs.length > 0) {
+            let html = '<div class="table-responsive"><table class="table table-hover"><thead><tr>';
+            html += '<th>Job ID</th><th>Database</th><th>Status</th><th>Progress</th><th>Tables</th><th>Records</th><th>Created</th></tr></thead><tbody>';
+            
+            data.jobs.forEach(job => {
+                const statusBadge = getStatusBadge(job.status);
+                const createdDate = new Date(job.created_at).toLocaleString();
+                const dbTypeBadge = getDatabaseBadge(job.source_db_type || 'oracle');
+                
+                html += `
+                    <tr>
+                        <td><code class="small">${job.job_id}</code></td>
+                        <td>${dbTypeBadge}</td>
+                        <td>${statusBadge}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="progress me-2" style="width: 80px; height: 15px;">
+                                    <div class="progress-bar" style="width: ${job.progress}%"></div>
+                                </div>
+                                <small class="text-muted">${Math.round(job.progress)}%</small>
+                            </div>
+                        </td>
+                        <td><span class="badge bg-secondary">${job.table_count} tables</span></td>
+                        <td>
+                            <small>${job.migrated_records.toLocaleString()} / ${job.total_records.toLocaleString()}</small>
+                        </td>
+                        <td><small class="text-muted">${createdDate}</small></td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table></div>';
+            historyDiv.innerHTML = html;
+        } else {
+            historyDiv.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="fas fa-database fa-3x text-muted mb-3"></i>
+                    <h6 class="text-muted">No migration jobs yet</h6>
+                    <p class="text-muted">Start your first migration using the wizard above.</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Failed to load migration history:', error);
+        document.getElementById('migration-history').innerHTML = `
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Failed to load migration history. Please refresh the page.
+            </div>
+        `;
+    }
+}
+
+function getStatusBadge(status) {
+    const badges = {
+        'pending': '<span class="badge bg-secondary">Pending</span>',
+        'analyzing': '<span class="badge bg-info">Analyzing</span>',
+        'mapping': '<span class="badge bg-primary">Mapping</span>',
+        'migrating': '<span class="badge bg-warning">Migrating</span>',
+        'validating': '<span class="badge bg-info">Validating</span>',
+        'completed': '<span class="badge bg-success">Completed</span>',
+        'failed': '<span class="badge bg-danger">Failed</span>'
+    };
+    return badges[status] || '<span class="badge bg-secondary">Unknown</span>';
+}
+
+function getDatabaseBadge(dbType) {
+    const badges = {
+        'oracle': '<span class="badge bg-danger"><i class="fas fa-database"></i> Oracle</span>',
+        'mysql': '<span class="badge bg-info"><i class="fas fa-leaf"></i> MySQL</span>'
+    };
+    return badges[dbType] || '<span class="badge bg-secondary">Unknown</span>';
+}
+
+function showStep(stepId) {
+    // Hide all steps
+    document.querySelectorAll('.wizard-step').forEach(step => {
+        step.classList.remove('active');
+    });
+    
+    // Show target step
+    document.getElementById(stepId).classList.add('active');
+    
+    // Update step indicators
+    document.querySelectorAll('.step-indicator').forEach(indicator => {
+        indicator.classList.remove('active');
+    });
+    
+    // Map wizard steps to step indicators
+    if (stepId === 'step-connection') {
+        document.getElementById('step-1-indicator').classList.add('active');
+    } else if (stepId === 'step-cloud-platform') {
+        document.getElementById('step-2-indicator').classList.add('active');
+    } else if (stepId === 'step-discovery' || stepId === 'step-analysis') {
+        document.getElementById('step-3-indicator').classList.add('active');
+    } else if (stepId === 'step-terraform') {
+        document.getElementById('step-4-indicator').classList.add('active');
+    }
+}
+
+function updateProgress(percentage) {
+    const progressBar = document.getElementById('wizard-progress');
+    progressBar.style.width = percentage + '%';
+}
+
+function showAlert(message, type) {
+    // Create toast-style alert
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    // Auto dismiss after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
+// ETL Scripts Functions
+function displayETLScripts(etlScripts, jobData = null) {
+    console.log('Displaying ETL scripts:', etlScripts);
+    
+    const etlList = document.getElementById('etl-scripts-list');
+    etlList.innerHTML = '';
+    
+    if (!etlScripts || Object.keys(etlScripts).length === 0) {
+        etlList.innerHTML = `
+            <div class="list-group-item">
+                <div class="text-center text-muted py-4">
+                    <i class="fab fa-python fa-2x mb-2"></i>
+                    <p>No ETL scripts generated</p>
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
+    // Sort scripts to show main orchestrator first
+    const sortedScripts = Object.entries(etlScripts).sort(([nameA], [nameB]) => {
+        if (nameA === 'etl_orchestrator.py') return -1;
+        if (nameB === 'etl_orchestrator.py') return 1;
+        if (nameA === 'data_validator.py') return -1;
+        if (nameB === 'data_validator.py') return 1;
+        if (nameA === 'config.py') return 1;
+        if (nameB === 'config.py') return -1;
+        if (nameA === 'requirements.txt') return 1;
+        if (nameB === 'requirements.txt') return -1;
+        return nameA.localeCompare(nameB);
+    });
+    
+    sortedScripts.forEach(([filename, content]) => {
+        const icon = getETLFileIcon(filename);
+        const description = getETLFileDescription(filename);
+        const lines = content.split('\n').length;
+        
+        const listItem = document.createElement('div');
+        listItem.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+        listItem.style.cursor = 'pointer';
+        listItem.innerHTML = `
+            <div>
+                <div class="d-flex align-items-center mb-1">
+                    <i class="${icon} me-2"></i>
+                    <strong>${filename}</strong>
+                    <span class="badge bg-secondary ms-2">${lines} lines</span>
+                </div>
+                <small class="text-muted">${description}</small>
+            </div>
+            <i class="fas fa-chevron-right text-muted"></i>
+        `;
+        
+        listItem.addEventListener('click', () => {
+            viewETLScript(filename, content);
+        });
+        
+        etlList.appendChild(listItem);
+    });
+}
+
+function getETLFileIcon(filename) {
+    if (filename.endsWith('.py')) return 'fab fa-python text-success';
+    if (filename.endsWith('.txt')) return 'fas fa-file-alt text-info';
+    if (filename.endsWith('.md')) return 'fas fa-book text-primary';
+    return 'fas fa-file-code text-secondary';
+}
+
+function getETLFileDescription(filename) {
+    const descriptions = {
+        'etl_orchestrator.py': 'Main ETL pipeline orchestrator with cloud integration',
+        'data_validator.py': 'Comprehensive data quality validation rules',
+        'config.py': 'Environment configuration and settings management',
+        'requirements.txt': 'Python package dependencies for ETL pipeline'
+    };
+    
+    if (filename.startsWith('etl_') && filename.endsWith('.py')) {
+        const tableName = filename.replace('etl_', '').replace('.py', '');
+        return `Table-specific ETL processor for ${tableName}`;
+    }
+    
+    return descriptions[filename] || 'AI-generated ETL component';
+}
+
+function viewETLScript(filename, content) {
+    const scriptsList = document.getElementById('etl-scripts-list');
+    const scriptViewer = document.getElementById('etl-script-viewer');
+    const currentFileSpan = document.getElementById('current-etl-file');
+    const codeElement = document.getElementById('etl-script-code');
+    
+    // Hide list, show viewer
+    scriptsList.classList.add('d-none');
+    scriptViewer.classList.remove('d-none');
+    
+    // Update content
+    currentFileSpan.textContent = filename;
+    codeElement.textContent = content;
+    
+    // Apply syntax highlighting
+    if (filename.endsWith('.py')) {
+        codeElement.className = 'language-python';
+    } else if (filename.endsWith('.txt')) {
+        codeElement.className = 'language-text';
+    } else {
+        codeElement.className = 'language-text';
+    }
+    
+    // Trigger syntax highlighting
+    if (window.Prism) {
+        Prism.highlightElement(codeElement);
+    }
+    
+    // Store current script for copy function
+    window.currentETLScript = { filename, content };
+}
+
+function closeETLViewer() {
+    const scriptsList = document.getElementById('etl-scripts-list');
+    const scriptViewer = document.getElementById('etl-script-viewer');
+    
+    scriptsList.classList.remove('d-none');
+    scriptViewer.classList.add('d-none');
+    
+    window.currentETLScript = null;
+}
+
+function copyETLScript() {
+    if (window.currentETLScript) {
+        navigator.clipboard.writeText(window.currentETLScript.content).then(() => {
+            showCopySuccess('ETL script copied to clipboard!');
+        }).catch(err => {
+            console.error('Failed to copy ETL script:', err);
+            showAlert('Failed to copy ETL script to clipboard', 'warning');
+        });
+    }
+}
+
+function exportETLScripts() {
+    if (!currentJobId) {
+        showAlert('No current job to export ETL scripts from', 'warning');
+        return;
+    }
+    
+    // Trigger download of ETL scripts only
+    const downloadUrl = `/migration/api/export-terraform/${currentJobId}`;
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = `etl-scripts-${currentJobId}.zip`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showAlert('ETL scripts download started!', 'success');
+}
+
+// ===== SMOOTH BUTTON INTERACTION HELPERS =====
+
+// Debounce function to prevent rapid button clicks
+function debounce(func, wait = 300) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Add loading state to button with smooth animation
+function setButtonLoading(buttonId, loading = true, originalText = '') {
+    const button = document.getElementById(buttonId);
+    if (!button) return;
+    
+    if (loading) {
+        // Store original text if not provided
+        if (!originalText && !button.dataset.originalText) {
+            button.dataset.originalText = button.innerHTML;
+        }
+        
+        button.classList.add('loading');
+        button.disabled = true;
+        button.style.minWidth = button.offsetWidth + 'px'; // Prevent width change
+        
+        // Add loading spinner
+        const spinner = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>';
+        button.innerHTML = spinner + (button.dataset.loadingText || 'Loading...');
+    } else {
+        button.classList.remove('loading');
+        button.disabled = false;
+        button.style.minWidth = '';
+        
+        // Restore original text
+        const original = originalText || button.dataset.originalText || button.innerHTML;
+        button.innerHTML = original;
+        delete button.dataset.originalText;
+    }
+}
+
+// Add ripple effect on button click
+function addRippleEffect(event) {
+    const button = event.currentTarget;
+    const ripple = document.createElement('span');
+    const diameter = Math.max(button.clientWidth, button.clientHeight);
+    const radius = diameter / 2;
+
+    ripple.style.width = ripple.style.height = `${diameter}px`;
+    ripple.style.left = `${event.clientX - button.offsetLeft - radius}px`;
+    ripple.style.top = `${event.clientY - button.offsetTop - radius}px`;
+    ripple.classList.add('ripple');
+
+    const existingRipple = button.getElementsByClassName('ripple')[0];
+    if (existingRipple) {
+        existingRipple.remove();
+    }
+
+    button.appendChild(ripple);
+}
+
+// Enhanced button click handler
+function enhanceButtonClick(buttonId, clickHandler, options = {}) {
+    const button = document.getElementById(buttonId);
+    if (!button) return;
+    
+    const {
+        loadingText = 'Loading...',
+        debounceMs = 300,
+        showRipple = true,
+        preventDoubleClick = true
+    } = options;
+    
+    // Store loading text
+    button.dataset.loadingText = loadingText;
+    
+    // Create debounced handler
+    const debouncedHandler = debounce(async (event) => {
+        if (preventDoubleClick && button.disabled) return;
+        
+        if (showRipple) addRippleEffect(event);
+        
+        try {
+            setButtonLoading(buttonId, true);
+            await clickHandler(event);
+        } catch (error) {
+            console.error('Button click handler error:', error);
+            showAlert('An error occurred. Please try again.', 'danger');
+        } finally {
+            setButtonLoading(buttonId, false);
+        }
+    }, debounceMs);
+    
+    button.addEventListener('click', debouncedHandler);
+}
+
+// Auto-enhance all buttons on page load
+function autoEnhanceButtons() {
+    // Add smooth focus handling to all buttons
+    document.querySelectorAll('.btn').forEach(button => {
+        // Add keyboard navigation
+        button.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                button.click();
+            }
+        });
+        
+        // Add ripple on click
+        button.addEventListener('click', addRippleEffect);
+        
+        // Prevent text selection
+        button.style.userSelect = 'none';
+        button.style.webkitUserSelect = 'none';
+    });
+    
+    // Add smooth form interactions
+    document.querySelectorAll('.form-control, .form-select').forEach(input => {
+        input.addEventListener('focus', () => {
+            input.parentElement?.classList.add('form-focus');
+        });
+        
+        input.addEventListener('blur', () => {
+            input.parentElement?.classList.remove('form-focus');
+        });
+    });
+    
+    // Add smooth checkbox interactions
+    document.querySelectorAll('.form-check-input').forEach(checkbox => {
+        checkbox.addEventListener('change', () => {
+            const label = checkbox.parentElement?.querySelector('.form-check-label');
+            if (label) {
+                label.style.transform = checkbox.checked ? 'scale(1.02)' : 'scale(1)';
+                setTimeout(() => {
+                    label.style.transform = 'scale(1)';
+                }, 150);
+            }
+        });
+    });
+}
+
+// Performance optimization: Use RAF for smooth animations
+function smoothTransition(element, property, startValue, endValue, duration = 300) {
+    const startTime = performance.now();
+    
+    function animate(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Easing function (ease-out cubic)
+        const easing = 1 - Math.pow(1 - progress, 3);
+        const currentValue = startValue + (endValue - startValue) * easing;
+        
+        element.style[property] = currentValue + (typeof startValue === 'number' ? 'px' : '');
+        
+        if (progress < 1) {
+            requestAnimationFrame(animate);
+        }
+    }
+    
+    requestAnimationFrame(animate);
+}
+
+// Initialize smooth interactions when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    autoEnhanceButtons();
+    
+    // Add CSS for ripple effect
+    if (!document.getElementById('ripple-styles')) {
+        const style = document.createElement('style');
+        style.id = 'ripple-styles';
+        style.textContent = `
+            .btn {
+                position: relative;
+                overflow: hidden;
+            }
+            
+            .ripple {
+                position: absolute;
+                border-radius: 50%;
+                background: rgba(255, 255, 255, 0.4);
+                animation: ripple-animation 0.6s linear;
+                pointer-events: none;
+            }
+            
+            @keyframes ripple-animation {
+                to {
+                    transform: scale(4);
+                    opacity: 0;
+                }
+            }
+            
+            .form-focus {
+                transform: scale(1.01);
+                transition: transform 0.2s ease;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+});
+</script>
+
+<style>
+.wizard-step {
+    display: none;
+    padding: 2rem 0;
+}
+
+.wizard-step.active {
+    display: block;
+}
+
+.step-indicator {
+    padding: 0.5rem 1rem;
+    border-radius: 2rem;
+    background-color: #f8f9fa;
+    color: #6c757d;
+    transition: all 0.3s ease;
+    font-size: 0.875rem;
+    font-weight: 500;
+    flex: 1;
+    text-align: center;
+    margin: 0 0.25rem;
+}
+
+.step-indicator.active {
+    background-color: #0d6efd;
+    color: white;
+}
+
+.progress {
+    height: 8px;
+    margin-bottom: 2rem;
+}
+
+.bg-gradient {
+    background-image: linear-gradient(45deg, rgba(255,255,255,.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.15) 50%, rgba(255,255,255,.15) 75%, transparent 75%, transparent);
+}
+
+.form-check-input:checked ~ .form-check-label {
+    color: #0d6efd;
+}
+
+.table-item {
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.table-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+#migration-status-log {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.progress-bar-striped.progress-bar-animated {
+    animation: progress-bar-stripes 1s linear infinite;
+}
+
+/* Platform selection cards */
+.platform-card {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.platform-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.platform-card.border-primary {
+    border-color: #0d6efd !important;
+    box-shadow: 0 0 20px rgba(13, 110, 253, 0.3);
+}
+
+/* Field mapping badges */
+.bg-purple {
+    background-color: #6f42c1 !important;
+}
+
+/* Field mappings modal styling */
+#fieldMappingsModal .table th {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+#fieldMappingsModal .table td {
+    font-size: 0.8rem;
+    vertical-align: middle;
+}
+
+#fieldMappingsModal code {
+    font-size: 0.75rem;
+    background-color: #f8f9fa;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+/* Historical mappings modal styling */
+#historicalMappingsModal .table th {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+#historicalMappingsModal .table td {
+    font-size: 0.8rem;
+    vertical-align: middle;
+}
+
+#historicalMappingsModal code {
+    font-size: 0.75rem;
+    background-color: #f8f9fa;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+#historicalMappingsModal .table-light {
+    background-color: #f8f9fa !important;
+}
+
+#historicalMappingsModal .card-header.bg-secondary {
+    background-color: #6c757d !important;
+}
+
+@media (max-width: 768px) {
+    .step-indicator {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .step-indicator i {
+        display: block;
+        margin-bottom: 0.25rem;
+    }
+}
+
+/* Toast-style alerts */
+.alert.position-fixed {
+    animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Data Pipeline Code Preview Styles */
+.code-preview-container {
+    height: calc(100vh - 300px);
+    display: flex;
+    flex-direction: column;
+}
+
+.code-header {
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.code-container {
+    flex: 1;
+    overflow-y: auto;
+    background-color: #f6f8fa;
+    border: none;
+}
+
+.code-container pre {
+    margin: 0;
+    padding: 16px;
+    background: transparent;
+    border: none;
+    font-family: 'SFMono-Regular', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
+    font-size: 12px;
+    line-height: 1.45;
+    overflow-x: auto;
+    white-space: pre;
+}
+
+.code-container code {
+    background: transparent;
+    padding: 0;
+    font-size: inherit;
+    color: #24292f;
+}
+
+/* Prism.js syntax highlighting overrides */
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+    color: #6a737d;
+    font-style: italic;
+}
+
+.token.namespace {
+    opacity: .7;
+}
+
+.token.string,
+.token.attr-value {
+    color: #032f62;
+}
+
+.token.punctuation,
+.token.operator {
+    color: #24292f;
+}
+
+.token.entity,
+.token.url,
+.token.symbol,
+.token.number,
+.token.boolean,
+.token.variable,
+.token.constant,
+.token.property,
+.token.regex,
+.token.inserted {
+    color: #005cc5;
+}
+
+.token.atrule,
+.token.keyword,
+.token.attr-name,
+.language-autohotkey .token.selector {
+    color: #d73a49;
+}
+
+.token.function,
+.token.deleted,
+.token.tag {
+    color: #6f42c1;
+}
+
+.token.function-name {
+    color: #005cc5;
+}
+
+.token.tag,
+.token.selector {
+    color: #22863a;
+}
+
+/* Tab styling */
+.nav-tabs {
+    border-bottom: 1px solid #d0d7de;
+}
+
+.nav-tabs .nav-link {
+    color: #656d76;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 8px 16px;
+    font-size: 14px;
+    background: none;
+}
+
+.nav-tabs .nav-link:hover {
+    color: #24292f;
+    border-bottom-color: #d0d7de;
+    background: none;
+}
+
+.nav-tabs .nav-link.active {
+    color: #24292f;
+    border-bottom-color: #fd7e14;
+    background: none;
+    font-weight: 600;
+}
+
+/* Markdown content styling */
+.markdown-content {
+    padding: 16px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #24292f;
+    overflow-y: auto;
+    height: calc(100vh - 300px);
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+    margin-top: 24px;
+    margin-bottom: 16px;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.markdown-content h1 {
+    font-size: 2em;
+    border-bottom: 1px solid #d0d7de;
+    padding-bottom: 0.3em;
+}
+
+.markdown-content h2 {
+    font-size: 1.5em;
+    border-bottom: 1px solid #d0d7de;
+    padding-bottom: 0.3em;
+}
+
+.markdown-content h3 {
+    font-size: 1.25em;
+}
+
+.markdown-content h4 {
+    font-size: 1em;
+}
+
+.markdown-content h5 {
+    font-size: 0.875em;
+}
+
+.markdown-content h6 {
+    font-size: 0.85em;
+    color: #656d76;
+}
+
+.markdown-content p {
+    margin-top: 0;
+    margin-bottom: 16px;
+}
+
+.markdown-content blockquote {
+    padding: 0 1em;
+    color: #656d76;
+    border-left: 0.25em solid #d0d7de;
+    margin: 0 0 16px 0;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+    margin-top: 0;
+    margin-bottom: 16px;
+    padding-left: 2em;
+}
+
+.markdown-content li {
+    margin: 0.25em 0;
+}
+
+.markdown-content code {
+    padding: 0.2em 0.4em;
+    margin: 0;
+    font-size: 85%;
+    background-color: rgba(175, 184, 193, 0.2);
+    border-radius: 6px;
+    font-family: 'SFMono-Regular', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
+}
+
+.markdown-content pre {
+    padding: 16px;
+    overflow: auto;
+    font-size: 85%;
+    line-height: 1.45;
+    background-color: #f6f8fa;
+    border-radius: 6px;
+    margin-bottom: 16px;
+}
+
+.markdown-content pre code {
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    border-radius: 0;
+}
+
+/* Services Preview Styling */
+.services-preview-container {
+    background: white;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.services-container {
+    max-height: 80vh;
+    overflow-y: auto;
+    background: #f8f9fa;
+}
+
+.services-container .card {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.services-container .progress {
+    background-color: #e9ecef;
+}
+
+.services-container .table th {
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.services-container .table td {
+    vertical-align: middle;
+}
+
+/* Cost breakdown animation */
+.progress-bar {
+    transition: width 0.6s ease;
+}
+
+/* Progress bar completion styling */
+.progress {
+    position: relative;
+}
+
+.progress-bar.bg-success:not(.progress-bar-striped) {
+    background: linear-gradient(45deg, #198754 0%, #20c997 100%);
+    box-shadow: 0 2px 4px rgba(25, 135, 84, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.progress-bar.bg-success:not(.progress-bar-striped)::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, 
+        transparent 0%, 
+        rgba(255, 255, 255, 0.2) 50%, 
+        transparent 100%
+    );
+    animation: shimmer 2s ease-in-out;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); opacity: 0; }
+    50% { opacity: 1; }
+    100% { transform: translateX(100%); opacity: 0; }
+}
+
+/* Interactive estimated cost button */
+#estimated-cost-btn:not(:disabled):hover {
+    transform: scale(1.02);
+    transition: all 0.2s ease;
+}
+
+#estimated-cost-btn:not(:disabled) {
+    border: 1px solid rgba(13, 110, 253, 0.2);
+    border-radius: 8px;
+    padding: 8px 12px;
+    background: rgba(13, 110, 253, 0.05);
+}
+
+#estimated-cost-btn:not(:disabled):hover {
+    background: rgba(13, 110, 253, 0.1);
+    box-shadow: 0 2px 8px rgba(13, 110, 253, 0.15);
+}
+
+#estimated-cost-btn:disabled {
+    opacity: 0.6;
+}
+
+#cost-link-icon {
+    transition: opacity 0.3s ease;
+}
+
+/* Job history cost buttons */
+.btn-link.text-success:hover {
+    background: rgba(25, 135, 84, 0.1);
+    border-radius: 4px;
+    transform: scale(1.02);
+    transition: all 0.2s ease;
+}
+
+.btn-link.text-success:hover i {
+    color: #198754 !important;
+}
+
+/* Cloud provider and official Terraform logo styling */
+#preview-cloud-logo {
+    font-size: 1.2em;
+    transition: color 0.3s ease;
+}
+
+.fab.fa-aws {
+    filter: drop-shadow(0 1px 2px rgba(255, 153, 0, 0.3));
+}
+
+.fab.fa-microsoft {
+    filter: drop-shadow(0 1px 2px rgba(0, 120, 212, 0.3));
+}
+
+.terraform-logo {
+    width: 18px;
+    height: 26px;
+    filter: drop-shadow(0 1px 2px rgba(160, 103, 218, 0.3));
+    transition: transform 0.2s ease;
+}
+
+.terraform-logo:hover {
+    transform: scale(1.1);
+}
+
+/* ETL Scripts Styling */
+.etl-scripts-container {
+    height: 70vh;
+    display: flex;
+    flex-direction: column;
+}
+
+#etl-scripts-list {
+    max-height: 100%;
+    overflow-y: auto;
+}
+
+#etl-script-viewer {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+#etl-script-viewer .code-container {
+    flex: 1;
+    overflow-y: auto;
+    background-color: #f8f9fa;
+}
+
+#etl-script-viewer pre {
+    height: 100%;
+    margin: 0;
+    padding: 1rem;
+    font-family: 'SFMono-Regular', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.list-group-item-action:hover {
+    background-color: #f8f9fa;
+    transform: translateX(2px);
+    transition: all 0.2s ease;
+}
+
+.etl-scripts-container .badge {
+    font-size: 0.7em;
+}
+
+/* Copy button animations */
+.btn-outline-secondary:hover {
+    transform: translateY(-1px);
+    transition: transform 0.1s ease;
+}
+
+/* Modal fullscreen adjustments */
+.modal-fullscreen .modal-body {
+    overflow: hidden;
+}
+
+/* Loading states */
+.fa-spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ===== SMOOTH BUTTON INTERACTIONS ===== */
+
+/* Base button improvements */
+.btn {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    border: none;
+    outline: none;
+    transform: translateZ(0); /* Enable hardware acceleration */
+}
+
+/* Hover effects for different button types */
+.btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-primary:hover:not(:disabled) {
+    background-color: #0056b3;
+    box-shadow: 0 4px 15px rgba(13, 110, 253, 0.3);
+}
+
+.btn-success:hover:not(:disabled) {
+    background-color: #157347;
+    box-shadow: 0 4px 15px rgba(25, 135, 84, 0.3);
+}
+
+.btn-info:hover:not(:disabled) {
+    background-color: #0a58ca;
+    box-shadow: 0 4px 15px rgba(13, 202, 240, 0.3);
+}
+
+.btn-warning:hover:not(:disabled) {
+    background-color: #e0a800;
+    box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
+}
+
+.btn-danger:hover:not(:disabled) {
+    background-color: #b02a37;
+    box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+}
+
+.btn-outline-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.2);
+}
+
+.btn-outline-secondary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.2);
+}
+
+/* Click/Active effects */
+.btn:active:not(:disabled) {
+    transform: translateY(0px) scale(0.98);
+    transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Focus states for accessibility */
+.btn:focus:not(:disabled) {
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
+    transform: translateY(-1px);
+}
+
+/* Disabled state improvements */
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+    transition: opacity 0.2s ease;
+}
+
+/* Large button improvements */
+.btn-lg {
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-lg:hover:not(:disabled) {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Small button improvements */
+.btn-sm {
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-sm:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+/* Ripple effect on click */
+.btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.4);
+    transform: translate(-50%, -50%);
+    transition: width 0.3s, height 0.3s;
+    pointer-events: none;
+}
+
+.btn:active::before {
+    width: 300px;
+    height: 300px;
+    transition: width 0.1s, height 0.1s;
+}
+
+/* Loading spinner improvements */
+.btn .spinner-border-sm {
+    transition: all 0.2s ease;
+}
+
+.btn.loading {
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+.btn.loading::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    margin: auto;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 1s ease infinite;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+}
+
+/* Icon button improvements */
+.btn i {
+    transition: transform 0.2s ease;
+}
+
+.btn:hover:not(:disabled) i {
+    transform: scale(1.1);
+}
+
+/* Button group improvements */
+.btn-group .btn {
+    transition: all 0.2s ease;
+    z-index: 1;
+}
+
+.btn-group .btn:hover:not(:disabled) {
+    z-index: 2;
+    transform: scale(1.05);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+}
+
+/* Card button improvements */
+.card .btn {
+    transition: all 0.2s ease;
+}
+
+.card .btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Modal button improvements */
+.modal .btn {
+    transition: all 0.2s ease;
+}
+
+.modal .btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+}
+
+/* Special button animations */
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(13, 110, 253, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(13, 110, 253, 0); }
+}
+
+.btn-pulse:not(:disabled) {
+    animation: pulse 2s infinite;
+}
+
+/* Smooth form control interactions */
+.form-control, .form-select {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid #ced4da;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
+    transform: translateY(-1px);
+}
+
+/* Smooth checkbox and radio interactions */
+.form-check-input {
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.form-check-input:hover {
+    transform: scale(1.1);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.form-check-input:checked {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.2);
+}
+
+/* Smooth table row interactions */
+.table-hover tbody tr {
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.05) !important;
+    transform: translateX(2px);
+    box-shadow: -3px 0 0 #007bff;
+}
+
+/* Smooth alert interactions */
+.alert {
+    transition: all 0.3s ease;
+}
+
+.alert.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.alert.fade {
+    transform: translateX(100%);
+    opacity: 0;
+}
+
+/* Smooth card interactions */
+.card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Smooth badge interactions */
+.badge {
+    transition: all 0.2s ease;
+}
+
+.badge:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+}
+
+/* Performance optimizations */
+* {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.btn, .form-control, .card, .table-hover tbody tr {
+    will-change: transform, box-shadow;
+    backface-visibility: hidden;
+    perspective: 1000px;
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+    .btn, .form-control, .card, .table-hover tbody tr {
+        transition: none !important;
+        animation: none !important;
+        transform: none !important;
+    }
+}
+</style>
+{% endblock %}

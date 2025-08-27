@@ -1,0 +1,326 @@
+{% extends "base.html" %}
+
+{% block title %}Search Files - Legal Case File Manager{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="h2 mb-4">
+            <i class="fas fa-search me-2"></i>
+            File Search
+        </h1>
+    </div>
+</div>
+
+<!-- Interactive Search Form -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-search me-2"></i>
+                    Unified Interactive Search
+                    <span class="badge bg-success ms-2" id="live-search-indicator">Live</span>
+                    <span class="badge bg-info ms-1">All Data Types</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="search-form" method="GET">
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label for="q" class="form-label">Search Query</label>
+                            <div class="position-relative">
+                                <input type="text" class="form-control" id="q" name="q" 
+                                       value="{{ query }}" 
+                                       placeholder="Search files, clients, cases, payments, access history, comments..."
+                                       autocomplete="off">
+                                <div id="search-suggestions" class="position-absolute w-100 bg-white border rounded shadow-sm d-none" style="z-index: 1000; top: 100%;"></div>
+                                <div class="position-absolute end-0 top-50 translate-middle-y me-2">
+                                    <i class="fas fa-search text-muted" id="search-icon"></i>
+                                    <div class="spinner-border spinner-border-sm text-primary d-none" id="search-spinner" role="status">
+                                        <span class="visually-hidden">Searching...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row" id="filters-container">
+                        <div class="col-md-3 mb-3">
+                            <label for="case_type" class="form-label">Case Type</label>
+                            <select class="form-select interactive-filter" id="case_type" name="case_type">
+                                <option value="">All Types</option>
+                                {% for case_type in case_types %}
+                                <option value="{{ case_type }}" {% if filters.case_type == case_type %}selected{% endif %}>
+                                    {{ case_type }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="file_type" class="form-label">File Type</label>
+                            <select class="form-select interactive-filter" id="file_type" name="file_type">
+                                <option value="">All File Types</option>
+                                {% for file_type in file_types %}
+                                <option value="{{ file_type }}" {% if filters.file_type == file_type %}selected{% endif %}>
+                                    {{ file_type }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="confidentiality_level" class="form-label">Confidentiality</label>
+                            <select class="form-select interactive-filter" id="confidentiality_level" name="confidentiality_level">
+                                <option value="">All Levels</option>
+                                {% for level in confidentiality_levels %}
+                                <option value="{{ level }}" {% if filters.confidentiality_level == level %}selected{% endif %}>
+                                    {{ level }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="warehouse_location" class="form-label">Warehouse</label>
+                            <select class="form-select interactive-filter" id="warehouse_location" name="warehouse_location">
+                                <option value="">All Warehouses</option>
+                                {% for location in warehouse_locations %}
+                                <option value="{{ location }}" {% if filters.warehouse_location == location %}selected{% endif %}>
+                                    {{ location }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Date Range Filters -->
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6 class="text-primary mb-3">
+                                <i class="fas fa-calendar-alt me-2"></i>
+                                Date Range Filters
+                                <button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="toggleDateFilters()">
+                                    <i class="fas fa-chevron-down" id="date-toggle-icon"></i>
+                                </button>
+                            </h6>
+                        </div>
+                    </div>
+                    
+                    <div id="date-filters" class="row d-none">
+                        <!-- Created Date Range -->
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label text-muted">
+                                <i class="fas fa-plus-circle me-1"></i>Created Date
+                            </label>
+                            <div class="row">
+                                <div class="col-6">
+                                    <input type="date" class="form-control form-control-sm interactive-filter" 
+                                           name="created_from" id="created_from" 
+                                           placeholder="From" title="Created from">
+                                    <small class="text-muted">From</small>
+                                </div>
+                                <div class="col-6">
+                                    <input type="date" class="form-control form-control-sm interactive-filter" 
+                                           name="created_to" id="created_to" 
+                                           placeholder="To" title="Created to">
+                                    <small class="text-muted">To</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Last Accessed Date Range -->
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label text-muted">
+                                <i class="fas fa-eye me-1"></i>Last Accessed
+                            </label>
+                            <div class="row">
+                                <div class="col-6">
+                                    <input type="date" class="form-control form-control-sm interactive-filter" 
+                                           name="accessed_from" id="accessed_from" 
+                                           placeholder="From" title="Accessed from">
+                                    <small class="text-muted">From</small>
+                                </div>
+                                <div class="col-6">
+                                    <input type="date" class="form-control form-control-sm interactive-filter" 
+                                           name="accessed_to" id="accessed_to" 
+                                           placeholder="To" title="Accessed to">
+                                    <small class="text-muted">To</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Last Modified Date Range -->
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label text-muted">
+                                <i class="fas fa-edit me-1"></i>Last Modified
+                            </label>
+                            <div class="row">
+                                <div class="col-6">
+                                    <input type="date" class="form-control form-control-sm interactive-filter" 
+                                           name="modified_from" id="modified_from" 
+                                           placeholder="From" title="Modified from">
+                                    <small class="text-muted">From</small>
+                                </div>
+                                <div class="col-6">
+                                    <input type="date" class="form-control form-control-sm interactive-filter" 
+                                           name="modified_to" id="modified_to" 
+                                           placeholder="To" title="Modified to">
+                                    <small class="text-muted">To</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Date Presets -->
+                    <div id="date-presets" class="row mt-2 d-none">
+                        <div class="col-12">
+                            <small class="text-muted me-2">Quick filters:</small>
+                            <button type="button" class="btn btn-sm btn-outline-info me-1" onclick="setDatePreset('today')">Today</button>
+                            <button type="button" class="btn btn-sm btn-outline-info me-1" onclick="setDatePreset('week')">Last 7 days</button>
+                            <button type="button" class="btn btn-sm btn-outline-info me-1" onclick="setDatePreset('month')">Last month</button>
+                            <button type="button" class="btn btn-sm btn-outline-info me-1" onclick="setDatePreset('quarter')">Last 3 months</button>
+                            <button type="button" class="btn btn-sm btn-outline-info me-1" onclick="setDatePreset('year')">Last year</button>
+                        </div>
+                    </div>
+                    
+                                            <div class="d-flex gap-2 align-items-center flex-wrap mt-3">
+                        <button type="button" class="btn btn-outline-secondary" id="clear-search">
+                            <i class="fas fa-times me-1"></i>Clear All
+                        </button>
+                        <div class="ms-auto d-none d-md-block">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Unified search across files, clients, cases, payments, access history & comments
+                            </small>
+                        </div>
+                        <div class="d-md-none w-100 mt-2">
+                            <small class="text-muted text-center d-block">
+                                <i class="fas fa-mobile-alt me-1"></i>
+                                Touch-friendly • Unified search across all data
+                            </small>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Dynamic Search Results -->
+<div class="row">
+    <div class="col-12">
+        <div class="card" id="results-container">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-list me-2"></i>
+                    Search Results
+                    <small class="text-muted ms-2" id="search-status">Start typing to search...</small>
+                </h5>
+                <span class="badge bg-primary" id="results-count">0 files</span>
+            </div>
+            <div class="card-body" id="results-body">
+                <!-- Initial state -->
+                {% if query or filters %}
+                    {% if results %}
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="results-table">
+                            <thead>
+                                <tr>
+                                    <th>Reference #</th>
+                                    <th>Client</th>
+                                    <th>Case Type</th>
+                                    <th>File Type</th>
+                                    <th>Location</th>
+                                    <th>Confidentiality</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="results-tbody">
+                                {% for file in results %}
+                                <tr>
+                                    <td>
+                                        <strong class="text-primary">{{ file.reference_number }}</strong>
+                                        <br><small class="text-muted">{{ file.file_id }}</small>
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('client_detail', client_id=file.client_id) }}" class="text-decoration-none">
+                                            {{ get_client_name(file.client_id) }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ get_case_type(file.case_id) }}</span>
+                                    </td>
+                                    <td>{{ file.file_type }}</td>
+                                    <td>
+                                        <strong>{{ file.warehouse_location }}</strong><br>
+                                        <small class="text-muted">{{ file.shelf_number }} - {{ file.box_number }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if file.confidentiality_level == 'Public' %}bg-success
+                                            {% elif file.confidentiality_level == 'Internal' %}bg-warning
+                                            {% elif file.confidentiality_level == 'Confidential' %}bg-danger
+                                            {% else %}bg-dark{% endif %}">
+                                            {{ file.confidentiality_level }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if file.storage_status == 'Active' %}bg-success
+                                            {% elif file.storage_status == 'Archived' %}bg-secondary
+                                            {% else %}bg-warning{% endif %}">
+                                            {{ file.storage_status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('file_detail', file_id=file.file_id) }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye me-1"></i>Details
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5" id="no-results">
+                        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No files found</h5>
+                        <p class="text-muted">Try adjusting your search criteria or filters.</p>
+                    </div>
+                    {% endif %}
+                {% else %}
+                <div class="text-center py-5" id="welcome-message">
+                    <i class="fas fa-search fa-3x text-primary mb-3"></i>
+                    <h5 class="text-primary">Unified Interactive Search</h5>
+                    <p class="text-muted">Search across all data types: files, clients, cases, payments, access history, and comments.</p>
+                    <div class="row mt-4">
+                        <div class="col-md-4">
+                            <div class="p-3 bg-light rounded">
+                                <i class="fas fa-keyboard fa-2x text-info mb-2"></i>
+                                <h6>Real-time Search</h6>
+                                <small class="text-muted">Results appear as you type</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 bg-light rounded">
+                                <i class="fas fa-filter fa-2x text-success mb-2"></i>
+                                <h6>Smart Filters</h6>
+                                <small class="text-muted">Combine filters instantly</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 bg-light rounded">
+                                <i class="fas fa-lightbulb fa-2x text-warning mb-2"></i>
+                                <h6>Auto-suggestions</h6>
+                                <small class="text-muted">Get suggestions as you type</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

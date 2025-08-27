@@ -1,0 +1,694 @@
+/* Custom CSS for Legal Case File Manager */
+
+:root {
+    --primary-color: #2c5aa0;
+    --secondary-color: #f8f9fa;
+    --success-color: #198754;
+    --warning-color: #ffc107;
+    --danger-color: #dc3545;
+    --info-color: #0dcaf0;
+    --dark-color: #212529;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+    line-height: 1.6;
+}
+
+/* Navigation */
+.navbar-brand {
+    font-weight: 600;
+    font-size: 1.5rem;
+}
+
+.navbar-nav .nav-link {
+    font-weight: 500;
+    margin-left: 0.5rem;
+    border-radius: 0.375rem;
+    transition: background-color 0.3s ease;
+}
+
+.navbar-nav .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Cards */
+.card {
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border-radius: 0.5rem;
+    margin-bottom: 1.5rem;
+    transition: box-shadow 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    background-color: white;
+    border-bottom: 1px solid #dee2e6;
+    border-radius: 0.5rem 0.5rem 0 0 !important;
+    padding: 1rem 1.25rem;
+}
+
+.card-header h5 {
+    margin-bottom: 0;
+    color: var(--dark-color);
+    font-weight: 600;
+}
+
+/* Statistics Cards */
+.card.bg-primary,
+.card.bg-success,
+.card.bg-info,
+.card.bg-warning {
+    border: none;
+    color: white !important;
+}
+
+.card.bg-primary h4,
+.card.bg-success h4,
+.card.bg-info h4,
+.card.bg-warning h4 {
+    font-weight: 700;
+    font-size: 2rem;
+}
+
+/* Tables */
+.table {
+    margin-bottom: 0;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+    color: var(--dark-color);
+    background-color: #f8f9fa;
+}
+
+.table td {
+    vertical-align: middle;
+    padding: 0.75rem;
+}
+
+.table-hover tbody tr:hover {
+    background-color: #f5f5f5;
+}
+
+/* Badges */
+.badge {
+    font-size: 0.75em;
+    font-weight: 500;
+    padding: 0.5em 0.75em;
+    border-radius: 0.375rem;
+}
+
+/* Buttons */
+.btn {
+    border-radius: 0.375rem;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    transition: all 0.3s ease;
+    min-height: 44px; /* Touch-friendly minimum */
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: manipulation; /* Improve touch response */
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+    background-color: #1e3f73;
+    border-color: #1e3f73;
+    transform: translateY(-1px);
+}
+
+.btn-outline-primary {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    transform: translateY(-1px);
+}
+
+/* Forms */
+.form-control,
+.form-select {
+    border-radius: 0.375rem;
+    border-color: #ced4da;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(44, 90, 160, 0.25);
+}
+
+.form-label {
+    font-weight: 500;
+    color: var(--dark-color);
+    margin-bottom: 0.5rem;
+}
+
+/* Search Form */
+.search-form {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 0.5rem;
+    color: white;
+}
+
+.search-form .form-control {
+    background-color: rgba(255, 255, 255, 0.9);
+    border: none;
+}
+
+.search-form .form-control:focus {
+    background-color: white;
+    box-shadow: none;
+}
+
+/* Warehouse Location Display */
+.location-display {
+    background: linear-gradient(45deg, #f8f9fa, #e9ecef);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin: 0.5rem 0;
+}
+
+.location-item {
+    text-align: center;
+    padding: 1rem;
+    background: white;
+    border-radius: 0.375rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: transform 0.3s ease;
+}
+
+.location-item:hover {
+    transform: translateY(-2px);
+}
+
+.location-item i {
+    margin-bottom: 0.5rem;
+}
+
+/* Status Indicators */
+.status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.status-dot.active {
+    background-color: var(--success-color);
+}
+
+.status-dot.inactive {
+    background-color: var(--secondary-color);
+}
+
+.status-dot.pending {
+    background-color: var(--warning-color);
+}
+
+/* Breadcrumbs */
+.breadcrumb {
+    background-color: transparent;
+    padding: 0.5rem 0;
+}
+
+.breadcrumb-item a {
+    text-decoration: none;
+    color: var(--primary-color);
+    font-weight: 500;
+}
+
+.breadcrumb-item a:hover {
+    text-decoration: underline;
+}
+
+/* Footer */
+footer {
+    margin-top: auto;
+    background-color: #f8f9fa !important;
+    border-top: 1px solid #dee2e6;
+}
+
+/* Mobile Touch-Friendly Design */
+@media (max-width: 768px) {
+    /* Enhanced button sizing for touch */
+    .btn {
+        font-size: 0.9rem;
+        padding: 0.75rem 1rem;
+        min-height: 48px; /* Larger touch target on mobile */
+        min-width: 48px;
+        margin: 0.25rem; /* Add spacing between buttons */
+    }
+    
+    .btn-sm {
+        min-height: 40px;
+        min-width: 40px;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.85rem;
+    }
+    
+    .btn-lg {
+        min-height: 56px;
+        padding: 1rem 1.5rem;
+        font-size: 1.1rem;
+    }
+    
+    /* Touch-friendly form controls */
+    .form-control, .form-select {
+        font-size: 16px; /* Prevent zoom on iOS */
+        padding: 0.75rem;
+        min-height: 48px;
+    }
+    
+    /* Touch-friendly search suggestions */
+    .suggestion-item, .dashboard-suggestion-item {
+        padding: 1rem 0.75rem !important;
+        min-height: 48px;
+        font-size: 1rem;
+    }
+    
+    /* Navbar improvements */
+    .navbar-brand {
+        font-size: 1.25rem;
+    }
+    
+    .nav-link {
+        padding: 0.75rem 1rem;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+    }
+    
+    /* Card and content adjustments */
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .table-responsive {
+        border: none;
+    }
+    
+    /* Table row touch improvements */
+    .table td, .table th {
+        padding: 0.75rem;
+    }
+    
+    .result-row {
+        min-height: 60px;
+    }
+    
+    /* Badge and status improvements */
+    .badge {
+        font-size: 0.8em;
+        padding: 0.5em 0.75em;
+        min-height: 28px;
+        display: inline-flex;
+        align-items: center;
+    }
+    
+    /* Search input improvements */
+    .input-group .form-control {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+    
+    .input-group .btn {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+        min-width: 80px;
+    }
+    
+    /* Statistics cards touch improvements */
+    .card.bg-primary, .card.bg-success, .card.bg-info, .card.bg-warning {
+        margin-bottom: 1rem;
+    }
+    
+    .card.bg-primary .card-body,
+    .card.bg-success .card-body,
+    .card.bg-info .card-body,
+    .card.bg-warning .card-body {
+        padding: 1.25rem;
+    }
+    
+    /* Touch-friendly warehouse location cards */
+    .location-item {
+        padding: 1.25rem;
+        margin: 0.5rem 0;
+        min-height: 80px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .location-item:active {
+        transform: scale(0.98);
+        background-color: #e9ecef;
+    }
+    
+    /* Improve breadcrumb touch targets */
+    .breadcrumb-item a {
+        padding: 0.5rem;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+    }
+    
+    /* Better spacing for mobile forms */
+    .row.mb-3 {
+        margin-bottom: 1.5rem;
+    }
+    
+    /* Touch-friendly dropdown toggles */
+    .navbar-toggler {
+        padding: 0.5rem;
+        min-width: 48px;
+        min-height: 48px;
+    }
+    
+    /* Improve table responsiveness */
+    .table-responsive table {
+        min-width: 600px;
+    }
+}
+
+/* Tablet-specific optimizations */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .btn {
+        min-height: 46px;
+        padding: 0.625rem 1rem;
+    }
+    
+    .form-control, .form-select {
+        min-height: 46px;
+        padding: 0.625rem;
+    }
+    
+    /* Better spacing on tablets */
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    .location-item {
+        padding: 1rem;
+        min-height: 70px;
+    }
+}
+
+/* Loading States */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Touch-friendly enhancements */
+.btn:focus, .form-control:focus, .form-select:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* Better touch feedback */
+.btn:active, .card:active, .location-item:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
+}
+
+/* Improve touch targets for small elements */
+.badge {
+    min-height: 24px;
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Touch-friendly suggestions */
+.suggestion-item, .dashboard-suggestion-item {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 44px;
+    display: flex !important;
+    align-items: center;
+}
+
+.suggestion-item:hover, .dashboard-suggestion-item:hover {
+    background-color: #f8f9fa;
+    transform: translateX(2px);
+}
+
+.suggestion-item:active, .dashboard-suggestion-item:active {
+    background-color: #e9ecef;
+}
+
+.suggestion-item.active, .dashboard-suggestion-item.active {
+    background-color: #e3f2fd;
+    border-left: 3px solid var(--primary-color);
+}
+
+/* Suggestion categories */
+.suggestion-category-header {
+    background-color: #f8f9fa !important;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 0.75rem;
+}
+
+/* Intelligent suggestion containers */
+#search-suggestions, #dashboard-suggestions {
+    max-height: 400px;
+    overflow-y: auto;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.15);
+}
+
+/* Suggestion icons */
+.suggestion-item i, .dashboard-suggestion-item i {
+    width: 16px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+/* Suggestion text */
+.suggestion-item .suggestion-text {
+    flex-grow: 1;
+    min-width: 0; /* Allow text to truncate */
+}
+
+.suggestion-item .suggestion-subtitle {
+    font-size: 0.8rem;
+    opacity: 0.7;
+    margin-top: 2px;
+}
+
+/* No suggestions message */
+.no-suggestions-message {
+    padding: 1rem;
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Popular search indicators */
+.suggestion-popularity {
+    font-size: 0.75rem;
+    opacity: 0.6;
+    background-color: rgba(0, 0, 0, 0.1);
+    padding: 2px 6px;
+    border-radius: 10px;
+}
+
+/* Animation for suggestions appearing */
+@keyframes suggestionFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.suggestion-item, .dashboard-suggestion-item {
+    animation: suggestionFadeIn 0.2s ease-out;
+}
+
+/* Touch active states */
+.touch-active {
+    transform: scale(0.98) !important;
+    background-color: rgba(0, 0, 0, 0.05) !important;
+    transition: all 0.1s ease !important;
+}
+
+.btn.touch-active {
+    filter: brightness(0.95);
+}
+
+/* Touch device specific styles */
+.touch-device .btn:hover {
+    transform: none;
+}
+
+.touch-device .card:hover {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+/* Improve tap highlight */
+* {
+    -webkit-tap-highlight-color: rgba(44, 90, 160, 0.2);
+}
+
+/* Date Range Filter Styles */
+#date-filters input[type="date"] {
+    font-size: 0.875rem;
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+    transition: border-color 0.3s ease;
+}
+
+#date-filters input[type="date"]:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(44, 90, 160, 0.25);
+}
+
+#date-filters input[type="date"].is-invalid {
+    border-color: var(--danger-color);
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+
+#date-filters .form-label {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+#date-presets .btn {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+/* Date filter toggle button */
+#date-filters h6 .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    line-height: 1;
+}
+
+/* Animation for date filter collapse */
+#date-filters {
+    transition: all 0.3s ease;
+}
+
+#date-filters.d-none {
+    display: none !important;
+}
+
+/* Date input mobile improvements */
+@media (max-width: 768px) {
+    #date-filters input[type="date"] {
+        font-size: 16px; /* Prevent iOS zoom */
+        padding: 0.5rem;
+        min-height: 44px;
+    }
+    
+    #date-presets .btn {
+        font-size: 0.8rem;
+        padding: 0.375rem 0.75rem;
+        margin: 0.25rem 0.125rem;
+        min-height: 36px;
+    }
+    
+    #date-filters .col-md-4 {
+        margin-bottom: 1rem;
+    }
+}
+
+/* Mobile-specific hover states (use touch-friendly alternatives) */
+@media (hover: none) {
+    .btn:hover {
+        transform: none;
+    }
+    
+    .card:hover {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    
+    .location-item:hover {
+        transform: none;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .navbar,
+    .btn,
+    .card-header,
+    footer {
+        display: none !important;
+    }
+    
+    .card {
+        border: 1px solid #ddd !important;
+        page-break-inside: avoid;
+    }
+    
+    body {
+        background: white !important;
+        color: black !important;
+    }
+}

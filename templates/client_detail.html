@@ -1,0 +1,501 @@
+{% extends "base.html" %}
+
+{% block title %}Client Details - {{ recommendations.client.first_name }} {{ recommendations.client.last_name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Dashboard</a></li>
+                <li class="breadcrumb-item active">Client Details</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="h2">
+            <i class="fas fa-user me-2"></i>
+            {{ recommendations.client.first_name }} {{ recommendations.client.last_name }}
+            <span class="badge 
+                {% if recommendations.client.status == 'Active' %}bg-success
+                {% elif recommendations.client.status == 'Inactive' %}bg-secondary
+                {% else %}bg-warning{% endif %} ms-2">
+                {{ recommendations.client.status }}
+            </span>
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Client Information -->
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-id-card me-2"></i>
+                    Personal Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <td><strong><i class="fas fa-id-badge me-2 text-primary"></i>Client ID:</strong></td>
+                        <td>{{ recommendations.client.client_id }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong><i class="fas fa-envelope me-2 text-primary"></i>Email:</strong></td>
+                        <td>{{ recommendations.client.email }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong><i class="fas fa-phone me-2 text-primary"></i>Phone:</strong></td>
+                        <td>{{ recommendations.client.phone }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong><i class="fas fa-birthday-cake me-2 text-primary"></i>Date of Birth:</strong></td>
+                        <td>{{ recommendations.client.date_of_birth | replace('-', '/') }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong><i class="fas fa-user-tag me-2 text-primary"></i>Client Type:</strong></td>
+                        <td>
+                            <span class="badge bg-info">{{ recommendations.client.client_type }}</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong><i class="fas fa-calendar-alt me-2 text-primary"></i>Registration Date:</strong></td>
+                        <td>{{ recommendations.client.registration_date | replace('-', '/') }}</td>
+                    </tr>
+                </table>
+                
+                <div class="mt-3">
+                    <h6><i class="fas fa-map-marker-alt me-2 text-primary"></i>Address:</h6>
+                    <p class="text-muted">{{ recommendations.client.address }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Summary -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-credit-card me-2"></i>
+                    Payment Summary
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center mb-3">
+                    <div class="col-4">
+                        <div class="p-2 bg-success bg-opacity-10 rounded">
+                            <i class="fas fa-check-circle text-success"></i>
+                            <div class="mt-1">
+                                <strong class="text-success">${{ "%.0f"|format(recommendations.payment_summary.total_paid) }}</strong>
+                                <br><small class="text-muted">Paid</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="p-2 bg-warning bg-opacity-10 rounded">
+                            <i class="fas fa-clock text-warning"></i>
+                            <div class="mt-1">
+                                <strong class="text-warning">${{ "%.0f"|format(recommendations.payment_summary.total_pending) }}</strong>
+                                <br><small class="text-muted">Pending</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="p-2 bg-danger bg-opacity-10 rounded">
+                            <i class="fas fa-exclamation-triangle text-danger"></i>
+                            <div class="mt-1">
+                                <strong class="text-danger">${{ "%.0f"|format(recommendations.payment_summary.total_overdue) }}</strong>
+                                <br><small class="text-muted">Overdue</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {% if recommendations.payment_summary.recent_payments %}
+                <h6>Recent Payments:</h6>
+                {% for payment in recommendations.payment_summary.recent_payments %}
+                <div class="border-start border-3 border-primary ps-2 mb-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-bold">${{ "%.2f"|format(payment.amount) }}</div>
+                            <small class="text-muted">{{ payment.payment_date }} - {{ payment.payment_method }}</small>
+                        </div>
+                        <span class="badge 
+                            {% if payment.status == 'Paid' %}bg-success
+                            {% elif payment.status == 'Pending' %}bg-warning
+                            {% else %}bg-danger{% endif %}">
+                            {{ payment.status }}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Cases and Files -->
+    <div class="col-lg-8">
+        <!-- Active Cases -->
+        {% if recommendations.active_cases %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-folder-open me-2"></i>
+                    Active Cases
+                    <span class="badge bg-success">{{ recommendations.active_cases|length }}</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Reference</th>
+                                <th>Type</th>
+                                <th>Lawyer</th>
+                                <th>Priority</th>
+                                <th>Value</th>
+                                <th>Created</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for case in recommendations.active_cases %}
+                            <tr>
+                                <td>
+                                    <strong>{{ case.reference_number }}</strong>
+                                    <br><small class="text-muted">{{ case.case_id }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">{{ case.case_type }}</span>
+                                </td>
+                                <td>{{ case.assigned_lawyer }}</td>
+                                <td>
+                                    <span class="badge 
+                                        {% if case.priority == 'Critical' %}bg-danger
+                                        {% elif case.priority == 'High' %}bg-warning
+                                        {% elif case.priority == 'Medium' %}bg-info
+                                        {% else %}bg-secondary{% endif %}">
+                                        {{ case.priority }}
+                                    </span>
+                                </td>
+                                <td>${{ "%.0f"|format(case.estimated_value) }}</td>
+                                <td><small class="text-muted">{{ case.created_date }}</small></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- All Cases -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-briefcase me-2"></i>
+                    All Cases
+                    <span class="badge bg-primary">{{ recommendations.all_cases|length }}</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if recommendations.all_cases %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Reference</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                                <th>Lawyer</th>
+                                <th>Priority</th>
+                                <th>Value</th>
+                                <th>Created</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for case in recommendations.all_cases %}
+                            <tr>
+                                <td>
+                                    <strong>{{ case.reference_number }}</strong>
+                                    <br><small class="text-muted">{{ case.case_id }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">{{ case.case_type }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge 
+                                        {% if case.case_status == 'Open' %}bg-success
+                                        {% elif case.case_status == 'Closed' %}bg-secondary
+                                        {% elif case.case_status == 'On Hold' %}bg-warning
+                                        {% else %}bg-info{% endif %}">
+                                        {{ case.case_status }}
+                                    </span>
+                                </td>
+                                <td>{{ case.assigned_lawyer }}</td>
+                                <td>
+                                    <span class="badge 
+                                        {% if case.priority == 'Critical' %}bg-danger
+                                        {% elif case.priority == 'High' %}bg-warning
+                                        {% elif case.priority == 'Medium' %}bg-info
+                                        {% else %}bg-secondary{% endif %}">
+                                        {{ case.priority }}
+                                    </span>
+                                </td>
+                                <td>${{ "%.0f"|format(case.estimated_value) }}</td>
+                                <td><small class="text-muted">{{ case.created_date }}</small></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No cases found for this client.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Related Files -->
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-folder-open me-2"></i>
+                        Related Files
+                        <span class="badge bg-info">{{ recommendations.file_count }} total</span>
+                    </h5>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="fileViewToggle">
+                            <i class="fas fa-th-large me-1"></i>Grid
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm active" id="fileListToggle">
+                            <i class="fas fa-list me-1"></i>List
+                        </button>
+                    </div>
+                </div>
+                <!-- File Filter and Search -->
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" class="form-control" id="fileSearchInput" placeholder="Search files...">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select form-select-sm" id="fileTypeFilter">
+                            <option value="">All Types</option>
+                            <option value="Contract">Contract</option>
+                            <option value="Evidence">Evidence</option>
+                            <option value="Correspondence">Correspondence</option>
+                            <option value="Court Filing">Court Filing</option>
+                            <option value="Research">Research</option>
+                            <option value="Client Records">Client Records</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select form-select-sm" id="fileCategoryFilter">
+                            <option value="">All Categories</option>
+                            <option value="Legal Documents">Legal Documents</option>
+                            <option value="Financial Records">Financial Records</option>
+                            <option value="Personal Documents">Personal Documents</option>
+                            <option value="Court Records">Court Records</option>
+                            <option value="Evidence Files">Evidence Files</option>
+                            <option value="Correspondence">Correspondence</option>
+                            <option value="Research Materials">Research Materials</option>
+                            <option value="Administrative">Administrative</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if recommendations.file_count > 0 %}
+                
+                <!-- File Statistics -->
+                <div class="row mb-4" id="fileStats">
+                    <div class="col-md-3">
+                        <div class="text-center p-2 border rounded">
+                            <i class="fas fa-file-contract text-primary fs-4"></i>
+                            <div class="mt-1">
+                                <strong id="contractCount">0</strong>
+                                <small class="d-block text-muted">Contracts</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center p-2 border rounded">
+                            <i class="fas fa-balance-scale text-success fs-4"></i>
+                            <div class="mt-1">
+                                <strong id="evidenceCount">0</strong>
+                                <small class="d-block text-muted">Evidence</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center p-2 border rounded">
+                            <i class="fas fa-envelope text-info fs-4"></i>
+                            <div class="mt-1">
+                                <strong id="correspondenceCount">0</strong>
+                                <small class="d-block text-muted">Correspondence</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center p-2 border rounded">
+                            <i class="fas fa-gavel text-warning fs-4"></i>
+                            <div class="mt-1">
+                                <strong id="courtFilingCount">0</strong>
+                                <small class="d-block text-muted">Court Filings</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Enhanced Files Display -->
+                <div id="filesDisplay">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>File Details</th>
+                                    <th>Type & Category</th>
+                                    <th>Case</th>
+                                    <th>Location</th>
+                                    <th>Last Activity</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for file in recommendations.all_files %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-start">
+                                            <i class="fas fa-file me-2 text-primary mt-1"></i>
+                                            <div>
+                                                <strong>{{ file.reference_number }}</strong>
+                                                <br><small class="text-muted">{{ file.file_id }}</small>
+                                                <br><small class="text-muted">{{ file.file_description }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary mb-1">{{ file.file_type }}</span>
+                                        <br><small class="text-muted">{{ file.document_category }}</small>
+                                    </td>
+                                    <td>
+                                        <strong>{{ file.case_id }}</strong>
+                                        <br><span class="badge bg-info">{{ file.confidentiality_level }}</span>
+                                    </td>
+                                    <td>
+                                        <strong>{{ file.warehouse_location }}</strong>
+                                        <br><small class="text-muted">Shelf: {{ file.shelf_number }}</small>
+                                        <br><small class="text-muted">Box: {{ file.box_number }}</small>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            <i class="fas fa-eye me-1"></i>{{ file.last_accessed }}
+                                            <br><i class="fas fa-edit me-1"></i>{{ file.last_modified }}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group-vertical">
+                                            <a href="{{ url_for('file_detail', file_id=file.file_id) }}" class="btn btn-outline-primary btn-sm">
+                                                <i class="fas fa-eye me-1"></i>View
+                                            </a>
+                                            <button class="btn btn-outline-secondary btn-sm" onclick="requestFile('{{ file.file_id }}')">
+                                                <i class="fas fa-download me-1"></i>Request
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No Files Found</h5>
+                    <p class="text-muted">This client doesn't have any files associated with their cases yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Initialize file statistics when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    updateFileStats();
+    setupFileFilters();
+});
+
+function updateFileStats() {
+    const rows = document.querySelectorAll('#filesDisplay tbody tr');
+    const stats = {
+        'Contract': 0, 'Evidence': 0, 'Correspondence': 0, 'Court Filing': 0
+    };
+    
+    rows.forEach(row => {
+        const typeCell = row.querySelector('td:nth-child(2) .badge');
+        if (typeCell) {
+            const fileType = typeCell.textContent.trim();
+            if (stats.hasOwnProperty(fileType)) {
+                stats[fileType]++;
+            }
+        }
+    });
+    
+    document.getElementById('contractCount').textContent = stats['Contract'];
+    document.getElementById('evidenceCount').textContent = stats['Evidence'];
+    document.getElementById('correspondenceCount').textContent = stats['Correspondence'];
+    document.getElementById('courtFilingCount').textContent = stats['Court Filing'];
+}
+
+function setupFileFilters() {
+    const searchInput = document.getElementById('fileSearchInput');
+    const typeFilter = document.getElementById('fileTypeFilter');
+    const categoryFilter = document.getElementById('fileCategoryFilter');
+    
+    if (searchInput) searchInput.addEventListener('input', filterFiles);
+    if (typeFilter) typeFilter.addEventListener('change', filterFiles);
+    if (categoryFilter) categoryFilter.addEventListener('change', filterFiles);
+}
+
+function filterFiles() {
+    const searchTerm = document.getElementById('fileSearchInput').value.toLowerCase();
+    const typeFilter = document.getElementById('fileTypeFilter').value;
+    const categoryFilter = document.getElementById('fileCategoryFilter').value;
+    const rows = document.querySelectorAll('#filesDisplay tbody tr');
+    
+    rows.forEach(row => {
+        const reference = row.querySelector('td:nth-child(1)').textContent.toLowerCase();
+        const type = row.querySelector('td:nth-child(2) .badge').textContent.trim();
+        const category = row.querySelector('td:nth-child(2) small').textContent.trim();
+        
+        const matchesSearch = !searchTerm || reference.includes(searchTerm);
+        const matchesType = !typeFilter || type === typeFilter;
+        const matchesCategory = !categoryFilter || category === categoryFilter;
+        
+        if (matchesSearch && matchesType && matchesCategory) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+function requestFile(fileId) {
+    alert(`File request submitted for ${fileId}. You will be notified when the file is ready for pickup from the warehouse.`);
+    // In a real application, this would submit a request to retrieve the physical file
+}
+</script>
+
+{% endblock %}

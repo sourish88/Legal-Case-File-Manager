@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Legal Case File Manager{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="h2 mb-4">
+            <i class="fas fa-tachometer-alt me-2"></i>
+            Dashboard
+        </h1>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="mb-1">{{ total_files }}</h4>
+                        <p class="mb-0">Total Files</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-file-alt fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="mb-1">{{ total_clients }}</h4>
+                        <p class="mb-0">Total Clients</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-users fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="mb-1">{{ total_cases }}</h4>
+                        <p class="mb-0">Total Cases</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-briefcase fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="mb-1">{{ active_cases }}</h4>
+                        <p class="mb-0">Active Cases</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-folder-open fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Interactive Quick Search -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-search me-2"></i>
+                    Quick Search
+                    <span class="badge bg-info ms-2">Interactive</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('search') }}" method="GET" id="dashboard-search-form">
+                    <div class="input-group position-relative">
+                        <input type="text" class="form-control" name="q" id="dashboard-search" 
+                               placeholder="Start typing to search: reference number, client name, case type, keywords..."
+                               autocomplete="off">
+                        <div id="dashboard-suggestions" class="position-absolute w-100 bg-white border rounded shadow-sm d-none" 
+                             style="z-index: 1000; top: 100%; left: 0;"></div>
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fas fa-search me-1"></i>Advanced Search
+                        </button>
+                    </div>
+                    <small class="text-muted mt-1 d-block">
+                        <i class="fas fa-lightbulb me-1"></i>
+                        Type 2+ characters for suggestions, press Enter for quick results, or click Advanced Search for filters
+                    </small>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity and Files -->
+<div class="row">
+    <div class="col-lg-9">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-clock me-2"></i>
+                    Recently Accessed Files
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if recent_files %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Reference #</th>
+                                <th>Client</th>
+                                <th>Case Type</th>
+                                <th>File Type</th>
+                                <th>Location</th>
+                                <th>Last Accessed</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for file in recent_files %}
+                            <tr>
+                                <td>
+                                    <span class="badge bg-secondary">{{ file.reference_number }}</span>
+                                </td>
+                                <td>{{ get_client_name(file.client_id) }}</td>
+                                <td>
+                                    <span class="badge bg-info">{{ get_case_type(file.case_id) }}</span>
+                                </td>
+                                <td>{{ file.file_type }}</td>
+                                <td>
+                                    <small class="text-muted">
+                                        {{ file.warehouse_location }}<br>
+                                        {{ file.shelf_number }} - {{ file.box_number }}
+                                    </small>
+                                </td>
+                                <td>
+                                    <small class="text-muted">{{ file.last_accessed }}</small>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('file_detail', file_id=file.file_id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye me-1"></i>View
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No recent files to display.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Activity Feed -->
+    <div class="col-lg-3">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-history me-2"></i>
+                    Recent Activity
+                </h5>
+            </div>
+            <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                {% if recent_accesses %}
+                {% for access in recent_accesses %}
+                <div class="d-flex align-items-start mb-3">
+                    <div class="me-3">
+                        <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            <i class="fas fa-{{ 'eye' if access.access_type == 'view' else 'search' if access.access_type == 'search' else 'download' }} text-white"></i>
+                        </div>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong class="text-primary">{{ access.user_name }}</strong>
+                                <span class="badge bg-info ms-1">{{ access.user_role }}</span>
+                                <div class="text-muted mt-1">
+                                    {{ access.access_type.title() }}d file
+                                    <a href="/file/{{ access.file_id }}" class="text-decoration-none fw-bold">
+                                        {{ access.file_id }}
+                                    </a>
+                                </div>
+                            </div>
+                            <small class="text-muted">
+                                <script>
+                                    document.write(LegalFileManager.formatRelativeTime('{{ access.access_timestamp }}'));
+                                </script>
+                                <noscript>{{ access.access_timestamp[:10] }}</noscript>
+                            </small>
+                        </div>
+                        {% if access.session_duration %}
+                        <small class="text-muted">
+                            <i class="fas fa-clock me-1"></i>{{ access.session_duration }}s session
+                        </small>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-history fa-3x text-muted mb-2"></i>
+                    <p class="text-muted">No recent activity</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
