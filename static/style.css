@@ -566,6 +566,8 @@ footer {
 
 .suggestion-item, .dashboard-suggestion-item {
     animation: suggestionFadeIn 0.2s ease-out;
+    /* Ensure items are clickable during and after animation */
+    pointer-events: auto;
 }
 
 /* Touch active states */

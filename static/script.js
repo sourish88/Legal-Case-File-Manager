@@ -739,7 +739,6 @@ class InteractiveSearch {
                 this.hideSuggestions();
             }
         } catch (error) {
-            console.error('Error fetching suggestions:', error);
             this.hideSuggestions();
         }
     }
@@ -1006,21 +1005,13 @@ class DashboardSearch {
             this.suggestionsContainer = document.getElementById('dashboard-suggestions');
             this.searchForm = document.getElementById('dashboard-search-form');
             
-            console.log('DashboardSearch elements:', {
-                searchInput: !!this.searchInput,
-                suggestionsContainer: !!this.suggestionsContainer,
-                searchForm: !!this.searchForm
-            });
-            
             this.suggestionTimeout = null;
-            
-            if (this.searchInput && this.suggestionsContainer) {
-                this.init();
-            } else {
-                console.error('DashboardSearch: Required elements not found');
-            }
+        
+        if (this.searchInput && this.suggestionsContainer) {
+            this.init();
+        }
         } catch (error) {
-            console.error('DashboardSearch constructor error:', error);
+            // Silently handle initialization errors
         }
     }
     
@@ -1029,46 +1020,8 @@ class DashboardSearch {
         
         this.bindEvents();
         
-        // Add single event delegation handler for all suggestion clicks
-        this.suggestionsContainer.addEventListener('click', (e) => {
-            console.log('🔍 Dashboard suggestions container clicked:', {
-                target: e.target.tagName + '.' + e.target.className,
-                clientX: e.clientX,
-                clientY: e.clientY
-            });
-            
-            const suggestionItem = e.target.closest('.dashboard-suggestion-item');
-            if (suggestionItem) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                const text = suggestionItem.getAttribute('data-text');
-                const type = suggestionItem.getAttribute('data-type');
-                const url = suggestionItem.getAttribute('data-url');
-                
-                // Find which item number this is
-                const allItems = this.suggestionsContainer.querySelectorAll('.dashboard-suggestion-item');
-                const itemIndex = Array.from(allItems).indexOf(suggestionItem) + 1;
-                
-                console.log(`✅ Dashboard suggestion ${itemIndex} clicked:`, {
-                    text: text,
-                    type: type, 
-                    url: url,
-                    element: suggestionItem.tagName
-                });
-                
-                if (!text) {
-                    console.error('No data-text found on suggestion item');
-                    return;
-                }
-                
-                this.handleSuggestionClick(text, type, url);
-            } else {
-                console.warn('❌ Click did not find .dashboard-suggestion-item ancestor');
-                console.log('Clicked element:', e.target);
-                console.log('Available suggestion items:', this.suggestionsContainer.querySelectorAll('.dashboard-suggestion-item').length);
-            }
-        });
+        // Add single event delegation handler for all suggestion clicks (using capture phase)
+        // Event listeners are added directly to suggestion items
     }
     
     handleSuggestionClick(text, type, url) {
@@ -1076,6 +1029,8 @@ class DashboardSearch {
          * Centralized handler for all suggestion clicks
          * Implements smart routing based on suggestion type
          */
+        console.log('🎯 handleSuggestionClick called with:', { text, type, url });
+        
         try {
             let targetUrl;
             
@@ -1083,34 +1038,39 @@ class DashboardSearch {
             if (type === 'client' && url) {
                 // Direct navigation to client page for client suggestions
                 targetUrl = url;
-                console.log('Navigating to client page:', targetUrl);
+                console.log('✅ Navigating to client page:', targetUrl);
             } else if (type === 'file' && url) {
                 // Direct navigation to file page for file suggestions  
                 targetUrl = url;
-                console.log('Navigating to file page:', targetUrl);
+                console.log('✅ Navigating to file page:', targetUrl);
             } else {
                 // Fallback to search for other types
                 targetUrl = `/search?q=${encodeURIComponent(text)}`;
-                console.log('Navigating to search:', targetUrl);
+                console.log('✅ Navigating to search:', targetUrl);
             }
             
             // Validate URL before navigation
             if (!targetUrl) {
-                console.error('No target URL determined for suggestion:', { text, type, url });
+                console.error('❌ No target URL determined for suggestion:', { text, type, url });
                 return;
             }
             
             // Hide suggestions and navigate
+            console.log('🔄 Hiding suggestions...');
             this.hideSuggestions();
-            console.log('Final navigation to:', targetUrl);
+            console.log('🚀 Final navigation to:', targetUrl);
+            
+            // Navigate to the target URL
+            console.log('🚀 Navigating to:', targetUrl);
             window.location.href = targetUrl;
             
         } catch (error) {
-            console.error('Error handling suggestion click:', error, { text, type, url });
+            console.error('❌ Error handling suggestion click:', error, { text, type, url });
             // Fallback to search if there's an error
             const fallbackUrl = `/search?q=${encodeURIComponent(text)}`;
-            console.log('Fallback navigation to:', fallbackUrl);
+            console.log('🔄 Fallback navigation to:', fallbackUrl);
             this.hideSuggestions();
+            
             window.location.href = fallbackUrl;
         }
     }
@@ -1126,12 +1086,9 @@ class DashboardSearch {
             }
         });
         
-        document.addEventListener('click', (e) => {
-            // Don't interfere with file detail links
-            if (e.target.closest('.file-detail-link')) {
-                return;
-            }
-            if (!this.searchInput.contains(e.target) && !this.suggestionsContainer.contains(e.target)) {
+        // Hide suggestions on ESC key
+        this.searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
                 this.hideSuggestions();
             }
         });
@@ -1158,11 +1115,9 @@ class DashboardSearch {
     }
     
     async showSuggestions(query) {
-        console.log('DashboardSearch showSuggestions called with:', query);
         
         try {
             const url = `/api/intelligent-suggestions?q=${encodeURIComponent(query)}&limit=8&categories=true`;
-            console.log('Fetching dashboard suggestions from:', url);
             
             const response = await fetch(url);
             if (!response.ok) {
@@ -1223,12 +1178,34 @@ class DashboardSearch {
                     const icon = icons[suggestion.type] || 'search';
                     const color = colors[suggestion.type] || 'primary';
                     
+                    // Create unique function name for this suggestion
+                    const functionName = `handleSuggestion${index + 1}Click`;
+                    
+                    // Add function to global scope
+                    window[functionName] = () => {
+                        // Hide suggestions immediately
+                        const suggestionsContainer = document.getElementById('dashboard-suggestions');
+                        if (suggestionsContainer) {
+                            suggestionsContainer.classList.add('d-none');
+                        }
+                        
+                        // Navigate based on suggestion type
+                        if (suggestion.type === 'file' && suggestion.url) {
+                            window.location.href = suggestion.url;
+                        } else if (suggestion.type === 'client' && suggestion.url) {
+                            window.location.href = suggestion.url;
+                        } else {
+                            window.location.href = `/search?q=${encodeURIComponent(suggestion.text)}`;
+                        }
+                    };
+                    
                     html += `
                         <div class="dashboard-suggestion-item px-3 py-2 border-bottom cursor-pointer d-flex align-items-center" 
                              data-text="${suggestion.text}" 
                              data-type="${suggestion.type || 'search'}"
                              data-url="${suggestion.url || ''}"
                              style="cursor: pointer; user-select: none;"
+                             data-handler="${functionName}"
                              onmouseover="this.style.backgroundColor='#f8f9fa'" 
                              onmouseout="this.style.backgroundColor='transparent'">
                             <i class="fas fa-${icon} me-2 text-${color}"></i>
@@ -1241,47 +1218,26 @@ class DashboardSearch {
                 this.suggestionsContainer.innerHTML = html;
                 this.suggestionsContainer.classList.remove('d-none');
                 
-                // Verify DOM update completed
+                // Add event listeners to rendered items
                 const renderedItems = this.suggestionsContainer.querySelectorAll('.dashboard-suggestion-item');
-                console.log('DOM updated with', renderedItems.length, 'suggestion items');
-                
-                // Verify each item has required data attributes and test clickability
                 renderedItems.forEach((item, index) => {
-                    const text = item.getAttribute('data-text');
-                    const type = item.getAttribute('data-type');
-                    const url = item.getAttribute('data-url');
+                    const handlerName = item.getAttribute('data-handler');
                     
-                    if (!text) {
-                        console.error(`Item ${index + 1} missing data-text attribute`);
+                    if (typeof window[handlerName] === 'function') {
+                        // Use multiple event types for better compatibility
+                        ['mousedown', 'click', 'touchstart'].forEach(eventType => {
+                            item.addEventListener(eventType, function(e) {
+                                // Prevent interference from other handlers
+                                e.preventDefault();
+                                e.stopPropagation();
+                                e.stopImmediatePropagation();
+                                
+                                // Call the handler function
+                                window[handlerName]();
+                            }, true); // capture phase
+                        });
                     }
-                    if (!type) {
-                        console.warn(`Item ${index + 1} missing data-type attribute`);
-                    }
-                    
-                    // Test if element is properly positioned and clickable
-                    const rect = item.getBoundingClientRect();
-                    const isVisible = rect.width > 0 && rect.height > 0;
-                    const hasClass = item.classList.contains('dashboard-suggestion-item');
-                    const hasPointer = window.getComputedStyle(item).cursor === 'pointer';
-                    
-                    console.log(`Item ${index + 1} ready:`, { 
-                        text, 
-                        type, 
-                        url,
-                        visible: isVisible,
-                        hasClass: hasClass,
-                        cursor: hasPointer,
-                        bounds: `${rect.width}x${rect.height}`,
-                        top: rect.top
-                    });
-                    
-                    // Add a test click listener to each item for debugging
-                    item.addEventListener('click', function(e) {
-                        console.log(`🔍 DIRECT CLICK on item ${index + 1}:`, text);
-                    }, { once: true });
                 });
-                
-                console.log('Event delegation active for all suggestion items');
             } else if (data.recent_searches && data.recent_searches.length > 0) {
                 // Show recent searches if no suggestions
                 let html = `
@@ -1306,33 +1262,25 @@ class DashboardSearch {
                 this.suggestionsContainer.innerHTML = html;
                 this.suggestionsContainer.classList.remove('d-none');
                 
-                // Verify DOM update for recent searches
+                // Recent searches use simple click handling
                 const renderedItems = this.suggestionsContainer.querySelectorAll('.dashboard-suggestion-item');
-                console.log('DOM updated with', renderedItems.length, 'recent search items');
-                console.log('Event delegation active for recent search items');
             } else {
                 this.hideSuggestions();
             }
         } catch (error) {
-            console.error('Error fetching suggestions:', error);
-                this.hideSuggestions();
+            this.hideSuggestions();
         }
     }
     
     hideSuggestions() {
-        try {
-            if (this.suggestionsContainer) {
-                this.suggestionsContainer.classList.add('d-none');
-                this.suggestionsContainer.innerHTML = '';
-                console.log('Dashboard suggestions hidden');
-            } else {
-                console.warn('Cannot hide suggestions: container not found');
-            }
-        } catch (error) {
-            console.error('Error hiding suggestions:', error);
+        if (this.suggestionsContainer) {
+            this.suggestionsContainer.classList.add('d-none');
+            this.suggestionsContainer.innerHTML = '';
         }
     }
 }
+
+
 
 // Utility functions
 window.LegalFileManager = {
