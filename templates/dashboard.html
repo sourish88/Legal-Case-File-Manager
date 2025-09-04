@@ -202,10 +202,7 @@
                                 </div>
                             </div>
                             <small class="text-muted">
-                                <script>
-                                    document.write(LegalFileManager.formatRelativeTime('{{ access.access_timestamp }}'));
-                                </script>
-                                <noscript>{{ access.access_timestamp[:10] }}</noscript>
+                                {{ access.relative_time or access.access_timestamp[:10] }}
                             </small>
                         </div>
                         {% if access.session_duration %}

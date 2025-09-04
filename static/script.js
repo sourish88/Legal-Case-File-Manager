@@ -2,23 +2,37 @@
 
 class InteractiveSearch {
     constructor() {
-        this.searchInput = document.getElementById('q');
-        this.searchForm = document.getElementById('search-form');
-        this.resultsContainer = document.getElementById('results-container');
-        this.resultsBody = document.getElementById('results-body');
-        this.resultsCount = document.getElementById('results-count');
-        this.searchStatus = document.getElementById('search-status');
-        this.searchIcon = document.getElementById('search-icon');
-        this.searchSpinner = document.getElementById('search-spinner');
-        this.suggestionsContainer = document.getElementById('search-suggestions');
-        this.clearButton = document.getElementById('clear-search');
-        
-        this.searchTimeout = null;
-        this.suggestionTimeout = null;
-        this.currentRequest = null;
-        this.isSearching = false;
-        
-        this.init();
+        try {
+            this.searchInput = document.getElementById('q');
+            this.searchForm = document.getElementById('search-form');
+            this.resultsContainer = document.getElementById('results-container');
+            this.resultsBody = document.getElementById('results-body');
+            this.resultsCount = document.getElementById('results-count');
+            this.searchStatus = document.getElementById('search-status');
+            this.searchIcon = document.getElementById('search-icon');
+            this.searchSpinner = document.getElementById('search-spinner');
+            this.suggestionsContainer = document.getElementById('search-suggestions');
+            this.clearButton = document.getElementById('clear-search');
+            
+            console.log('InteractiveSearch elements:', {
+                searchInput: !!this.searchInput,
+                suggestionsContainer: !!this.suggestionsContainer,
+                searchForm: !!this.searchForm
+            });
+            
+            this.searchTimeout = null;
+            this.suggestionTimeout = null;
+            this.currentRequest = null;
+            this.isSearching = false;
+            
+            if (this.searchInput && this.suggestionsContainer) {
+                this.init();
+            } else {
+                console.error('InteractiveSearch: Required elements not found');
+            }
+        } catch (error) {
+            console.error('InteractiveSearch constructor error:', error);
+        }
     }
     
     init() {
@@ -679,20 +693,29 @@ class InteractiveSearch {
     }
 
     async showSuggestions(query) {
+        console.log('showSuggestions called with:', query, 'Container exists:', !!this.suggestionsContainer);
+        
         if (query.length < 1) {
-        this.hideSuggestions();
+            this.hideSuggestions();
             return;
         }
         
         try {
-            const response = await fetch(`/api/intelligent-suggestions?q=${encodeURIComponent(query)}&limit=12&categories=true`);
+            const url = `/api/intelligent-suggestions?q=${encodeURIComponent(query)}&limit=12&categories=true`;
+            console.log('Fetching suggestions from:', url);
+            
+            const response = await fetch(url);
             const data = await response.json();
+            
+            console.log('Suggestions response:', data);
             
             if (data.suggestions && data.suggestions.length > 0) {
                 let html = this.renderIntelligentSuggestions(data);
                 
+                console.log('Setting suggestions HTML, container:', this.suggestionsContainer);
                 this.suggestionsContainer.innerHTML = html;
                 this.suggestionsContainer.classList.remove('d-none');
+                console.log('Suggestions container classes after show:', this.suggestionsContainer.className);
                 
                 // Add click handlers
                 this.suggestionsContainer.querySelectorAll('.suggestion-item').forEach(item => {
@@ -711,6 +734,7 @@ class InteractiveSearch {
                     </div>
                 `;
                 this.suggestionsContainer.classList.remove('d-none');
+                console.log('No suggestions message shown');
             } else {
                 this.hideSuggestions();
             }
@@ -977,19 +1001,118 @@ class InteractiveSearch {
 // Dashboard Search functionality
 class DashboardSearch {
     constructor() {
-        this.searchInput = document.getElementById('dashboard-search');
-        this.suggestionsContainer = document.getElementById('dashboard-suggestions');
-        this.searchForm = document.getElementById('dashboard-search-form');
-        
-        this.suggestionTimeout = null;
-        
-            this.init();
+        try {
+            this.searchInput = document.getElementById('dashboard-search');
+            this.suggestionsContainer = document.getElementById('dashboard-suggestions');
+            this.searchForm = document.getElementById('dashboard-search-form');
+            
+            console.log('DashboardSearch elements:', {
+                searchInput: !!this.searchInput,
+                suggestionsContainer: !!this.suggestionsContainer,
+                searchForm: !!this.searchForm
+            });
+            
+            this.suggestionTimeout = null;
+            
+            if (this.searchInput && this.suggestionsContainer) {
+                this.init();
+            } else {
+                console.error('DashboardSearch: Required elements not found');
+            }
+        } catch (error) {
+            console.error('DashboardSearch constructor error:', error);
+        }
     }
     
     init() {
         if (!this.searchInput) return;
         
         this.bindEvents();
+        
+        // Add single event delegation handler for all suggestion clicks
+        this.suggestionsContainer.addEventListener('click', (e) => {
+            console.log('🔍 Dashboard suggestions container clicked:', {
+                target: e.target.tagName + '.' + e.target.className,
+                clientX: e.clientX,
+                clientY: e.clientY
+            });
+            
+            const suggestionItem = e.target.closest('.dashboard-suggestion-item');
+            if (suggestionItem) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const text = suggestionItem.getAttribute('data-text');
+                const type = suggestionItem.getAttribute('data-type');
+                const url = suggestionItem.getAttribute('data-url');
+                
+                // Find which item number this is
+                const allItems = this.suggestionsContainer.querySelectorAll('.dashboard-suggestion-item');
+                const itemIndex = Array.from(allItems).indexOf(suggestionItem) + 1;
+                
+                console.log(`✅ Dashboard suggestion ${itemIndex} clicked:`, {
+                    text: text,
+                    type: type, 
+                    url: url,
+                    element: suggestionItem.tagName
+                });
+                
+                if (!text) {
+                    console.error('No data-text found on suggestion item');
+                    return;
+                }
+                
+                this.handleSuggestionClick(text, type, url);
+            } else {
+                console.warn('❌ Click did not find .dashboard-suggestion-item ancestor');
+                console.log('Clicked element:', e.target);
+                console.log('Available suggestion items:', this.suggestionsContainer.querySelectorAll('.dashboard-suggestion-item').length);
+            }
+        });
+    }
+    
+    handleSuggestionClick(text, type, url) {
+        /**
+         * Centralized handler for all suggestion clicks
+         * Implements smart routing based on suggestion type
+         */
+        try {
+            let targetUrl;
+            
+            // Smart routing based on suggestion type
+            if (type === 'client' && url) {
+                // Direct navigation to client page for client suggestions
+                targetUrl = url;
+                console.log('Navigating to client page:', targetUrl);
+            } else if (type === 'file' && url) {
+                // Direct navigation to file page for file suggestions  
+                targetUrl = url;
+                console.log('Navigating to file page:', targetUrl);
+            } else {
+                // Fallback to search for other types
+                targetUrl = `/search?q=${encodeURIComponent(text)}`;
+                console.log('Navigating to search:', targetUrl);
+            }
+            
+            // Validate URL before navigation
+            if (!targetUrl) {
+                console.error('No target URL determined for suggestion:', { text, type, url });
+                return;
+            }
+            
+            // Hide suggestions and navigate
+            this.hideSuggestions();
+            console.log('Final navigation to:', targetUrl);
+            window.location.href = targetUrl;
+            
+        } catch (error) {
+            console.error('Error handling suggestion click:', error, { text, type, url });
+            // Fallback to search if there's an error
+            const fallbackUrl = `/search?q=${encodeURIComponent(text)}`;
+            console.log('Fallback navigation to:', fallbackUrl);
+            this.hideSuggestions();
+            window.location.href = fallbackUrl;
+        }
     }
     
     bindEvents() {
@@ -1035,16 +1158,46 @@ class DashboardSearch {
     }
     
     async showSuggestions(query) {
+        console.log('DashboardSearch showSuggestions called with:', query);
+        
         try {
-            const response = await fetch(`/api/intelligent-suggestions?q=${encodeURIComponent(query)}&limit=8&categories=true`);
+            const url = `/api/intelligent-suggestions?q=${encodeURIComponent(query)}&limit=8&categories=true`;
+            console.log('Fetching dashboard suggestions from:', url);
+            
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
             const data = await response.json();
+            console.log('Dashboard suggestions response:', data);
+            
+            if (!data) {
+                console.warn('No data received from suggestions API');
+                this.hideSuggestions();
+                return;
+            }
             
             if (data.suggestions && data.suggestions.length > 0) {
                 let html = '';
-                data.suggestions.slice(0, 6).forEach(suggestion => {
+                console.log('Processing', data.suggestions.length, 'suggestions');
+                
+                data.suggestions.slice(0, 6).forEach((suggestion, index) => {
+                    // Validate suggestion data
+                    if (!suggestion.text) {
+                        console.warn(`Suggestion ${index + 1} missing text:`, suggestion);
+                        return;
+                    }
+                    
+                    console.log(`Suggestion ${index + 1}:`, {
+                        text: suggestion.text,
+                        type: suggestion.type,
+                        url: suggestion.url
+                    });
                     const icons = {
                         'contextual': 'lightbulb',
                         'client': 'user',
+                        'file': 'file-alt',  // Added missing 'file' type
                         'case_reference': 'briefcase',
                         'case_type': 'briefcase', 
                         'file_reference': 'file-alt',
@@ -1057,6 +1210,7 @@ class DashboardSearch {
                     const colors = {
                         'contextual': 'warning',
                         'client': 'success',
+                        'file': 'primary',  // Added missing 'file' type
                         'case_reference': 'info',
                         'case_type': 'info',
                         'file_reference': 'primary',
@@ -1070,7 +1224,13 @@ class DashboardSearch {
                     const color = colors[suggestion.type] || 'primary';
                     
                     html += `
-                        <div class="dashboard-suggestion-item px-3 py-2 border-bottom cursor-pointer d-flex align-items-center" data-text="${suggestion.text}">
+                        <div class="dashboard-suggestion-item px-3 py-2 border-bottom cursor-pointer d-flex align-items-center" 
+                             data-text="${suggestion.text}" 
+                             data-type="${suggestion.type || 'search'}"
+                             data-url="${suggestion.url || ''}"
+                             style="cursor: pointer; user-select: none;"
+                             onmouseover="this.style.backgroundColor='#f8f9fa'" 
+                             onmouseout="this.style.backgroundColor='transparent'">
                             <i class="fas fa-${icon} me-2 text-${color}"></i>
                             <span>${suggestion.text}</span>
                             ${suggestion.email ? `<small class="text-muted ms-auto">${suggestion.email}</small>` : ''}
@@ -1079,15 +1239,49 @@ class DashboardSearch {
                 });
                 
                 this.suggestionsContainer.innerHTML = html;
-        this.suggestionsContainer.classList.remove('d-none');
-        
-        // Add click handlers
-        this.suggestionsContainer.querySelectorAll('.dashboard-suggestion-item').forEach(item => {
-            item.addEventListener('click', () => {
-                        const text = item.getAttribute('data-text');
-                window.location.href = `/search?q=${encodeURIComponent(text)}`;
-            });
+                this.suggestionsContainer.classList.remove('d-none');
+                
+                // Verify DOM update completed
+                const renderedItems = this.suggestionsContainer.querySelectorAll('.dashboard-suggestion-item');
+                console.log('DOM updated with', renderedItems.length, 'suggestion items');
+                
+                // Verify each item has required data attributes and test clickability
+                renderedItems.forEach((item, index) => {
+                    const text = item.getAttribute('data-text');
+                    const type = item.getAttribute('data-type');
+                    const url = item.getAttribute('data-url');
+                    
+                    if (!text) {
+                        console.error(`Item ${index + 1} missing data-text attribute`);
+                    }
+                    if (!type) {
+                        console.warn(`Item ${index + 1} missing data-type attribute`);
+                    }
+                    
+                    // Test if element is properly positioned and clickable
+                    const rect = item.getBoundingClientRect();
+                    const isVisible = rect.width > 0 && rect.height > 0;
+                    const hasClass = item.classList.contains('dashboard-suggestion-item');
+                    const hasPointer = window.getComputedStyle(item).cursor === 'pointer';
+                    
+                    console.log(`Item ${index + 1} ready:`, { 
+                        text, 
+                        type, 
+                        url,
+                        visible: isVisible,
+                        hasClass: hasClass,
+                        cursor: hasPointer,
+                        bounds: `${rect.width}x${rect.height}`,
+                        top: rect.top
+                    });
+                    
+                    // Add a test click listener to each item for debugging
+                    item.addEventListener('click', function(e) {
+                        console.log(`🔍 DIRECT CLICK on item ${index + 1}:`, text);
+                    }, { once: true });
                 });
+                
+                console.log('Event delegation active for all suggestion items');
             } else if (data.recent_searches && data.recent_searches.length > 0) {
                 // Show recent searches if no suggestions
                 let html = `
@@ -1097,7 +1291,13 @@ class DashboardSearch {
                 `;
                 data.recent_searches.slice(0, 3).forEach(search => {
                     html += `
-                        <div class="dashboard-suggestion-item px-3 py-2 border-bottom cursor-pointer" data-text="${search}">
+                        <div class="dashboard-suggestion-item px-3 py-2 border-bottom cursor-pointer" 
+                             data-text="${search}"
+                             data-type="recent_search"
+                             data-url=""
+                             style="cursor: pointer; user-select: none;"
+                             onmouseover="this.style.backgroundColor='#f8f9fa'" 
+                             onmouseout="this.style.backgroundColor='transparent'">
                             <i class="fas fa-history me-2 text-info"></i>${search}
                         </div>
                     `;
@@ -1106,13 +1306,10 @@ class DashboardSearch {
                 this.suggestionsContainer.innerHTML = html;
                 this.suggestionsContainer.classList.remove('d-none');
                 
-                // Add click handlers
-                this.suggestionsContainer.querySelectorAll('.dashboard-suggestion-item').forEach(item => {
-                    item.addEventListener('click', () => {
-                        const text = item.getAttribute('data-text');
-                        window.location.href = `/search?q=${encodeURIComponent(text)}`;
-                    });
-                });
+                // Verify DOM update for recent searches
+                const renderedItems = this.suggestionsContainer.querySelectorAll('.dashboard-suggestion-item');
+                console.log('DOM updated with', renderedItems.length, 'recent search items');
+                console.log('Event delegation active for recent search items');
             } else {
                 this.hideSuggestions();
             }
@@ -1123,25 +1320,42 @@ class DashboardSearch {
     }
     
     hideSuggestions() {
-        this.suggestionsContainer.classList.add('d-none');
-        this.suggestionsContainer.innerHTML = '';
+        try {
+            if (this.suggestionsContainer) {
+                this.suggestionsContainer.classList.add('d-none');
+                this.suggestionsContainer.innerHTML = '';
+                console.log('Dashboard suggestions hidden');
+            } else {
+                console.warn('Cannot hide suggestions: container not found');
+            }
+        } catch (error) {
+            console.error('Error hiding suggestions:', error);
+        }
     }
 }
 
 // Utility functions
 window.LegalFileManager = {
     formatRelativeTime: function(timestamp) {
-        const date = new Date(timestamp);
-    const now = new Date();
-        const diffInSeconds = Math.floor((now - date) / 1000);
-        
-        if (diffInSeconds < 60) return 'Just now';
-        if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-        if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-        if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
-        return date.toLocaleDateString();
+        try {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diffInSeconds = Math.floor((now - date) / 1000);
+            
+            if (diffInSeconds < 60) return 'Just now';
+            if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+            if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+            if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+            return date.toLocaleDateString();
+        } catch (error) {
+            console.error('Error formatting relative time:', error);
+            return timestamp;
+        }
     }
 };
+
+// Debug: Confirm LegalFileManager is loaded
+console.log('LegalFileManager loaded:', !!window.LegalFileManager);
 
 // Date filter functions
 function toggleDateFilters() {

@@ -57,20 +57,35 @@ A comprehensive web application designed for legal service providers to catalogu
    pip install -r requirements.txt
    ```
 
-3. **Run the application**:
+3. **Set up database and generate sample data**:
    ```bash
-   python app.py
+   # Quick setup with default settings
+   python setup_dev_environment.py
+   
+   # Or manual setup
+   python database_setup.py
+   python generate_dummy_data.py --count 50 --clear
    ```
 
-4. **Access the application**:
+4. **Run the application**:
+   ```bash
+   python app_postgresql.py
+   ```
+
+5. **Access the application**:
    Open your browser and navigate to `http://localhost:5000`
 
 ## Application Structure
 
 ```
-├── app.py                 # Main Flask application
-├── requirements.txt       # Python dependencies
-├── README.md             # This file
+├── app_postgresql.py      # Main Flask application (PostgreSQL)
+├── database.py           # Database connection and queries
+├── database_setup.py     # Database schema creation
+├── generate_dummy_data.py # Dummy data generator for development
+├── setup_dev_environment.py # Complete development setup script
+├── add_performance_indexes.py # Database performance optimization
+├── requirements.txt      # Python dependencies
+├── README.md            # This file
 ├── templates/            # Jinja2 templates
 │   ├── base.html        # Base template with common layout
 │   ├── dashboard.html   # Main dashboard
@@ -165,7 +180,7 @@ Practice areas include:
 ## Customization
 
 ### Adding New Search Criteria
-To add new search fields, modify the `search_files` method in `app.py`:
+To add new search fields, modify the `search_files` method in `database.py`:
 ```python
 def search_files(self, query: str, filters: Dict[str, Any] = None) -> List[PhysicalFile]:
     # Add new search logic here
