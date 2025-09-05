@@ -173,7 +173,7 @@ def search():
     results = []
     if query or filters:
         try:
-            search_results = db_manager.search_files(query, filters)
+            search_results = db_manager.search_files(query, filters, limit=200)
             
             # Convert dictionaries to namespace objects for template dot notation
             class FileNamespace:
@@ -472,8 +472,7 @@ def get_client_name(client_id: str) -> str:
 def get_case_type(case_id: str) -> str:
     """Get case type by case ID (matching original app helper function)"""
     try:
-        all_cases = db_manager.get_all_cases()
-        case = next((c for c in all_cases if c['case_id'] == case_id), None)
+        case = db_manager.get_case_by_id(case_id)
         if case:
             return case['case_type']
         return "Unknown Case Type"
@@ -504,7 +503,7 @@ def api_search():
         filters['storage_status'] = storage_status_filter
     
     try:
-        results = db_manager.search_files(query, filters)
+        results = db_manager.search_files(query, filters, limit=100)
         
         # Convert datetime objects to strings for JSON serialization
         for result in results:
@@ -648,9 +647,9 @@ def unified_search_data(query: str, filters: Dict[str, Any] = None, include_priv
     }
     
     try:
-        # Search Files (enhanced scoring)
+        # Search Files (optimized)
         if query:
-            files = db_manager.search_files(query, filters or {})
+            files = db_manager.search_files(query, filters or {}, limit=20)
             for file in files:
                 score = 0
                 matches = []
@@ -673,14 +672,16 @@ def unified_search_data(query: str, filters: Dict[str, Any] = None, include_priv
                     matching_keywords = [kw for kw in file['keywords'] if query_lower in (kw or '').lower()]
                     matches.append(f"Keywords: {', '.join(matching_keywords)}")
                 
-                client_name = get_client_name(file['client_id'])
-                if query_lower in client_name.lower():
-                    score += 9
+                # Client name should already be included from optimized search_files
+                client_name = f"{file.get('first_name', '')} {file.get('last_name', '')}".strip()
+                if client_name and query_lower in client_name.lower():
+                    score = max(score, file.get('relevance_score', 0))
                     matches.append(f"Client: {client_name}")
                 
-                case_type = get_case_type(file['case_id'])
-                if query_lower in case_type.lower():
-                    score += 7
+                # Case type should already be included from optimized search_files
+                case_type = file.get('case_type', '')
+                if case_type and query_lower in case_type.lower():
+                    score = max(score, file.get('relevance_score', 0))
                     matches.append(f"Case Type: {case_type}")
                 
                 if score > 0:
@@ -695,34 +696,29 @@ def unified_search_data(query: str, filters: Dict[str, Any] = None, include_priv
                             file_result[key] = value.isoformat() if value else None
                     results['files'].append(file_result)
         
-        # Search Clients
+        # Search Clients (optimized)
         if query:
-            all_clients = db_manager.get_all_clients()
-            for client in all_clients:
-                score = 0
+            search_clients = db_manager.search_clients(query, limit=20)
+            for client in search_clients:
+                score = int(client.get('relevance_score', 0) * 10)  # Convert DB relevance to our scale
                 matches = []
                 
-                full_name = f"{client['first_name']} {client['last_name']}".lower()
-                if query_lower in full_name:
-                    score += 10
-                    matches.append(f"Name: {client['first_name']} {client['last_name']}")
+                # Add specific match details based on what was found
+                full_name = f"{client['first_name']} {client['last_name']}"
+                if query_lower in full_name.lower():
+                    matches.append(f"Name: {full_name}")
                 if query_lower in client['email'].lower():
-                    score += 9
                     matches.append(f"Email: {client['email']}")
                 if query_lower in (client.get('phone') or '').lower():
-                    score += 8
                     matches.append(f"Phone: {client.get('phone')}")
                 if query_lower in (client.get('address') or '').lower():
-                    score += 6
                     matches.append(f"Address: {(client.get('address') or '')[:100]}...")
                 if query_lower in (client.get('client_type') or '').lower():
-                    score += 5
                     matches.append(f"Type: {client.get('client_type')}")
                 if query_lower in (client.get('status') or '').lower():
-                    score += 4
                     matches.append(f"Status: {client.get('status')}")
                 
-                if score > 0:
+                if score > 0 or matches:  # Include if DB found a match
                     client_result = dict(client)
                     client_result['relevance_score'] = score
                     client_result['match_details'] = matches
@@ -732,10 +728,10 @@ def unified_search_data(query: str, filters: Dict[str, Any] = None, include_priv
                             client_result[key] = value.isoformat() if value else None
                     results['clients'].append(client_result)
         
-        # Search Cases
+        # Search Cases (optimized)
         if query:
-            all_cases = db_manager.get_all_cases()
-            for case in all_cases:
+            search_cases = db_manager.search_cases(query, limit=20)
+            for case in search_cases:
                 score = 0
                 matches = []
                 
@@ -755,9 +751,10 @@ def unified_search_data(query: str, filters: Dict[str, Any] = None, include_priv
                     score += 5
                     matches.append(f"Status: {case.get('case_status')}")
                 
-                client_name = get_client_name(case['client_id'])
-                if query_lower in client_name.lower():
-                    score += 9
+                # Client name should already be included from optimized search
+                client_name = case.get('client_name', '')
+                if client_name and query_lower in client_name.lower():
+                    score = max(score, case.get('relevance_score', 0))
                     matches.append(f"Client: {client_name}")
                 
                 if score > 0:
@@ -771,10 +768,10 @@ def unified_search_data(query: str, filters: Dict[str, Any] = None, include_priv
                             case_result[key] = value.isoformat() if value else None
                     results['cases'].append(case_result)
         
-        # Search Payments
+        # Search Payments (optimized)
         if query:
-            all_payments = db_manager.get_all_payments()
-            for payment in all_payments:
+            search_payments = db_manager.search_payments(query, limit=20)
+            for payment in search_payments:
                 score = 0
                 matches = []
                 
@@ -794,9 +791,10 @@ def unified_search_data(query: str, filters: Dict[str, Any] = None, include_priv
                     score += 7
                     matches.append(f"Amount: ${payment.get('amount')}")
                 
-                client_name = get_client_name(payment['client_id'])
-                if query_lower in client_name.lower():
-                    score += 9
+                # Client name should already be included from optimized search
+                client_name = payment.get('client_name', '')
+                if client_name and query_lower in client_name.lower():
+                    score = max(score, payment.get('relevance_score', 0))
                     matches.append(f"Client: {client_name}")
                 
                 if score > 0:
@@ -915,8 +913,8 @@ def api_intelligent_suggestions_data(query: str, limit: int = 8) -> Dict[str, An
         # Get suggestions from various sources
         suggestions = []
         
-        # Search files for matching terms
-        files = db_manager.search_files(query, {})[:limit//2]
+        # Search files for matching terms (optimized)
+        files = db_manager.search_files(query, {}, limit=limit//2)
         for file in files:
             suggestions.append({
                 'type': 'file',
@@ -925,9 +923,8 @@ def api_intelligent_suggestions_data(query: str, limit: int = 8) -> Dict[str, An
                 'url': f"/file/{file['file_id']}"
             })
         
-        # Search clients
-        all_clients = db_manager.get_all_clients()
-        matching_clients = [c for c in all_clients if query.lower() in f"{c['first_name']} {c['last_name']}".lower()][:limit//4]
+        # Search clients (optimized)
+        matching_clients = db_manager.search_clients(query, limit=limit//4)
         for client in matching_clients:
             suggestions.append({
                 'type': 'client',

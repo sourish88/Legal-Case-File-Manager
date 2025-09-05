@@ -76,6 +76,102 @@ class LegalFileManagerDB:
         query = "SELECT * FROM clients ORDER BY last_name, first_name"
         return self.db.execute_query(query)
     
+    def search_clients(self, search_query: str = "", limit: int = 50) -> List[Dict[str, Any]]:
+        """Efficiently search clients using database indexes"""
+        if not search_query:
+            return []
+            
+        query = """
+        SELECT *, 
+               ts_rank(to_tsvector('english', coalesce(first_name, '') || ' ' || coalesce(last_name, '')), 
+                      plainto_tsquery('english', %s)) as relevance_score
+        FROM clients 
+        WHERE to_tsvector('english', coalesce(first_name, '') || ' ' || coalesce(last_name, '')) @@ plainto_tsquery('english', %s)
+           OR first_name ILIKE %s 
+           OR last_name ILIKE %s
+           OR email ILIKE %s
+           OR phone ILIKE %s
+           OR address ILIKE %s
+           OR client_type ILIKE %s
+           OR status ILIKE %s
+        ORDER BY relevance_score DESC, last_name, first_name
+        LIMIT %s
+        """
+        search_param = f"%{search_query}%"
+        params = (search_query, search_query, search_param, search_param, search_param, 
+                 search_param, search_param, search_param, search_param, limit)
+        return self.db.execute_query(query, params)
+    
+    def search_cases(self, search_query: str = "", limit: int = 50) -> List[Dict[str, Any]]:
+        """Efficiently search cases with client names included"""
+        if not search_query:
+            return []
+            
+        query = """
+        SELECT c.*, cl.first_name, cl.last_name,
+               (cl.first_name || ' ' || cl.last_name) as client_name,
+               CASE 
+                   WHEN %s = '' THEN 0
+                   ELSE (
+                       CASE WHEN c.reference_number ILIKE %s THEN 10 ELSE 0 END +
+                       CASE WHEN c.case_type ILIKE %s THEN 8 ELSE 0 END +
+                       CASE WHEN c.description ILIKE %s THEN 7 ELSE 0 END +
+                       CASE WHEN c.assigned_lawyer ILIKE %s THEN 6 ELSE 0 END +
+                       CASE WHEN c.case_status ILIKE %s THEN 5 ELSE 0 END +
+                       CASE WHEN (cl.first_name || ' ' || cl.last_name) ILIKE %s THEN 9 ELSE 0 END
+                   )
+               END as relevance_score
+        FROM cases c
+        JOIN clients cl ON c.client_id = cl.client_id
+        WHERE c.reference_number ILIKE %s 
+           OR c.case_type ILIKE %s
+           OR c.description ILIKE %s
+           OR c.assigned_lawyer ILIKE %s
+           OR c.case_status ILIKE %s
+           OR (cl.first_name || ' ' || cl.last_name) ILIKE %s
+        ORDER BY relevance_score DESC, c.created_date DESC
+        LIMIT %s
+        """
+        search_param = f"%{search_query}%"
+        params = (search_query, search_param, search_param, search_param, search_param, 
+                 search_param, search_param, search_param, search_param, search_param, 
+                 search_param, search_param, search_param, limit)
+        return self.db.execute_query(query, params)
+    
+    def search_payments(self, search_query: str = "", limit: int = 50) -> List[Dict[str, Any]]:
+        """Efficiently search payments with client names included"""
+        if not search_query:
+            return []
+            
+        query = """
+        SELECT p.*, cl.first_name, cl.last_name,
+               (cl.first_name || ' ' || cl.last_name) as client_name,
+               CASE 
+                   WHEN %s = '' THEN 0
+                   ELSE (
+                       CASE WHEN p.payment_id ILIKE %s THEN 10 ELSE 0 END +
+                       CASE WHEN p.description ILIKE %s THEN 8 ELSE 0 END +
+                       CASE WHEN p.payment_method ILIKE %s THEN 6 ELSE 0 END +
+                       CASE WHEN p.status ILIKE %s THEN 5 ELSE 0 END +
+                       CASE WHEN (cl.first_name || ' ' || cl.last_name) ILIKE %s THEN 9 ELSE 0 END
+                   )
+               END as relevance_score
+        FROM payments p
+        JOIN clients cl ON p.client_id = cl.client_id
+        WHERE p.payment_id ILIKE %s 
+           OR p.description ILIKE %s
+           OR p.payment_method ILIKE %s
+           OR p.status ILIKE %s
+           OR (cl.first_name || ' ' || cl.last_name) ILIKE %s
+        ORDER BY relevance_score DESC, p.payment_date DESC
+        LIMIT %s
+        """
+        search_param = f"%{search_query}%"
+        params = (search_query, search_param, search_param, search_param, search_param, 
+                 search_param, search_param, search_param, search_param, search_param, 
+                 search_param, limit)
+        return self.db.execute_query(query, params)
+    
     def get_client_by_id(self, client_id: str) -> Optional[Dict[str, Any]]:
         """Get a client by ID"""
         query = "SELECT * FROM clients WHERE client_id = %s"
@@ -157,10 +253,21 @@ class LegalFileManagerDB:
         """
         return self.db.execute_query(query, (file_id,), fetch_one=True)
     
-    def search_files(self, search_query: str = "", filters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
-        """Search files with optional filters"""
+    def search_files(self, search_query: str = "", filters: Dict[str, Any] = None, limit: int = 100) -> List[Dict[str, Any]]:
+        """Search files with optional filters - optimized for performance"""
         base_query = """
-        SELECT f.*, c.case_type, c.case_status, cl.first_name, cl.last_name 
+        SELECT f.*, c.case_type, c.case_status, cl.first_name, cl.last_name,
+               CASE 
+                   WHEN %s = '' THEN 0
+                   ELSE (
+                       CASE WHEN f.reference_number ILIKE %s THEN 10 ELSE 0 END +
+                       CASE WHEN f.file_description ILIKE %s THEN 8 ELSE 0 END +
+                       CASE WHEN cl.first_name ILIKE %s THEN 7 ELSE 0 END +
+                       CASE WHEN cl.last_name ILIKE %s THEN 7 ELSE 0 END +
+                       CASE WHEN array_to_string(f.keywords, ' ') ILIKE %s THEN 6 ELSE 0 END +
+                       CASE WHEN c.case_type ILIKE %s THEN 5 ELSE 0 END
+                   )
+               END as relevance_score
         FROM physical_files f 
         JOIN cases c ON f.case_id = c.case_id 
         JOIN clients cl ON f.client_id = cl.client_id 
@@ -168,9 +275,12 @@ class LegalFileManagerDB:
         """
         
         conditions = []
-        params = []
+        params = [search_query or '']  # First param for relevance calculation
+        search_param = f"%{search_query}%" if search_query else "%"
+        params.extend([search_param] * 6)  # For relevance calculation
         
         if search_query:
+            # Use indexes for fast filtering
             search_condition = """
             AND (f.reference_number ILIKE %s 
                  OR f.file_description ILIKE %s 
@@ -180,7 +290,6 @@ class LegalFileManagerDB:
                  OR c.case_type ILIKE %s)
             """
             conditions.append(search_condition)
-            search_param = f"%{search_query}%"
             params.extend([search_param] * 6)
         
         if filters:
@@ -204,7 +313,11 @@ class LegalFileManagerDB:
                 conditions.append("AND f.storage_status = %s")
                 params.append(filters['storage_status'])
         
-        query = base_query + " ".join(conditions) + " ORDER BY f.last_accessed DESC NULLS LAST, f.created_date DESC"
+        # Order by relevance first, then by recency
+        order_clause = " ORDER BY relevance_score DESC, f.last_accessed DESC NULLS LAST, f.created_date DESC"
+        limit_clause = f" LIMIT {limit}"
+        
+        query = base_query + " ".join(conditions) + order_clause + limit_clause
         return self.db.execute_query(query, tuple(params) if params else None)
     
     def update_file_access_time(self, file_id: str) -> None:

@@ -447,11 +447,11 @@ class InteractiveSearch {
                                     ${client.status}
                                 </span>
                                 <small class="text-primary">Score: ${client.relevance_score}</small>
-                    </div>
+                            </div>
                             ${client.match_details ? `<small class="text-info mt-2 d-block">${client.match_details.slice(0,2).join(', ')}</small>` : ''}
                         </div>
                     </div>
-                        </div>
+                </div>
             `;
         });
         
