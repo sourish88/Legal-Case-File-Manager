@@ -66,7 +66,7 @@ A comprehensive web application designed for legal service providers to catalogu
    ```bash
    # Connect to PostgreSQL
    sudo -u postgres psql
-   
+
    # Create database and user
    CREATE DATABASE legal_case_manager;
    CREATE USER postgres WITH PASSWORD 'postgres';
@@ -108,7 +108,7 @@ A comprehensive web application designed for legal service providers to catalogu
    ```bash
    # Complete setup with default settings
    python scripts/setup_dev_environment.py
-   
+
    # Or manual setup
    python scripts/database_setup.py
    python scripts/generate_dummy_data.py --count 50 --clear
@@ -118,7 +118,7 @@ A comprehensive web application designed for legal service providers to catalogu
    ```bash
    python run.py
    ```
-   
+
    Or use the Makefile:
    ```bash
    make run
@@ -144,12 +144,12 @@ A comprehensive web application designed for legal service providers to catalogu
    DB_NAME=legal_case_manager # Database name
    DB_USER=postgres          # Database username
    DB_PASSWORD=your_password_here # Database password
-   
+
    # Application Configuration
    SECRET_KEY=your-secret-key-here # Flask secret key for sessions
    FLASK_ENV=development     # Environment (development/production)
    FLASK_DEBUG=True         # Enable debug mode
-   
+
    # Optional: Application Settings
    APP_HOST=0.0.0.0         # Host to bind the application
    APP_PORT=5000            # Port to run the application

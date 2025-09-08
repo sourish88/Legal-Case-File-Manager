@@ -78,7 +78,7 @@
                                         <span class="input-group-text bg-light">
                                             <i class="fas fa-server text-muted"></i>
                                         </span>
-                                        <input type="text" class="form-control" id="connection-string" 
+                                        <input type="text" class="form-control" id="connection-string"
                                                placeholder="Select database type to see format"
                                                value="">
                                     </div>
@@ -138,7 +138,7 @@
                                     <!-- Platform details will be populated here -->
                                 </div>
                             </div>
-                            
+
                             <div class="card">
                                 <div class="card-body">
                                     <h6 class="card-title">Platform Comparison</h6>
@@ -248,11 +248,11 @@
                                         <span id="migration-percentage">0%</span>
                                     </div>
                                     <div class="progress" style="height: 20px;">
-                                        <div class="progress-bar bg-success progress-bar-striped progress-bar-animated" 
+                                        <div class="progress-bar bg-success progress-bar-striped progress-bar-animated"
                                              id="migration-progress-bar" style="width: 0%"></div>
                                     </div>
                                 </div>
-                                
+
                                 <div class="row mb-3">
                                     <div class="col-md-4">
                                         <div class="text-center">
@@ -268,8 +268,8 @@
                                     </div>
                                     <div class="col-md-4">
                                         <div class="text-center">
-                                            <button id="estimated-cost-btn" class="btn btn-link p-0 text-decoration-none" 
-                                                    onclick="openCostSummary()" disabled 
+                                            <button id="estimated-cost-btn" class="btn btn-link p-0 text-decoration-none"
+                                                    onclick="openCostSummary()" disabled
                                                     title="Click to view detailed cost breakdown">
                                                 <h4 id="estimated-cost" class="text-primary mb-0">$0.00</h4>
                                             </button>
@@ -280,11 +280,11 @@
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <div id="terraform-status-log" class="border rounded p-3 bg-light" style="height: 200px; overflow-y: auto;">
                                     <div class="text-muted">Terraform generation status will appear here...</div>
                                 </div>
-                                
+
                                 <div class="mt-3">
                                     <button type="button" class="btn btn-success" onclick="exportTerraform()" id="export-terraform-btn" style="display: none;">
                                         <i class="fas fa-download me-2"></i>Download Terraform Files
@@ -305,7 +305,7 @@
                                     <li>Includes cost estimates and documentation</li>
                                 </ul>
                             </div>
-                            
+
                                         <div id="terraform-complete-alert" class="alert alert-success d-none">
                 <h6><i class="fas fa-robot me-2"></i>Data Pipeline Generated!</h6>
                 <p class="small">🤖 AI has analyzed your data and generated intelligent, optimized infrastructure code ready for deployment.</p>
@@ -323,7 +323,7 @@
                                     </button>
                                 </div>
                             </div>
-                            
+
                             <div id="terraform-failed-alert" class="alert alert-danger d-none">
                                 <h6><i class="fas fa-exclamation-circle me-2"></i>Generation Failed</h6>
                                 <p class="small">The Terraform generation process encountered errors.</p>
@@ -386,7 +386,7 @@
                     </div>
                     <p class="mt-2 text-muted">Loading field mappings used for this job...</p>
                 </div>
-                
+
                 <div id="historical-mappings-content" style="display: none;">
                     <!-- Job Information -->
                     <div class="row mb-4">
@@ -399,7 +399,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Mapping Summary -->
                     <div class="row mb-4">
                         <div class="col-12">
@@ -428,13 +428,13 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Field Mappings by Table -->
                     <div id="historical-mappings-tables">
                         <!-- Dynamically populated -->
                     </div>
                 </div>
-                
+
                 <div id="historical-mappings-error" style="display: none;">
                     <div class="alert alert-danger">
                         <h6><i class="fas fa-exclamation-circle me-2"></i>Error Loading Historical Mappings</h6>
@@ -475,7 +475,7 @@
                     </div>
                     <p class="mt-2 text-muted">Analyzing field mappings...</p>
                 </div>
-                
+
                 <div id="mappings-content" style="display: none;">
                     <!-- Mapping Summary -->
                     <div class="row mb-4">
@@ -505,13 +505,13 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Field Mappings by Table -->
                     <div id="mappings-tables">
                         <!-- Dynamically populated -->
                     </div>
                 </div>
-                
+
                 <div id="mappings-error" style="display: none;">
                     <div class="alert alert-danger">
                         <h6><i class="fas fa-exclamation-circle me-2"></i>Error Loading Mappings</h6>
@@ -533,7 +533,7 @@
                         </button>
                     </div>
                 </div>
-                
+
                 <div id="mappings-edit-mode" class="d-flex w-100 justify-content-between" style="display: none !important;">
                     <div>
                         <button type="button" class="btn btn-outline-warning" onclick="resetFieldMappings()">
@@ -603,7 +603,7 @@
                         </li>
                     </ul>
                 </div>
-                
+
                 <!-- Code content -->
                 <div class="tab-content" id="codePreviewTabContent">
                     <div class="tab-pane fade show active" id="readme-content" role="tabpanel">
@@ -622,7 +622,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="tab-pane fade" id="tfvars-content" role="tabpanel">
                         <div class="code-preview-container">
                             <div class="code-header d-flex justify-content-between align-items-center p-3 bg-light border-bottom">
@@ -639,7 +639,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="tab-pane fade" id="variables-tf-content" role="tabpanel">
                         <div class="code-preview-container">
                             <div class="code-header d-flex justify-content-between align-items-center p-3 bg-light border-bottom">
@@ -656,7 +656,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="tab-pane fade" id="main-tf-content" role="tabpanel">
                         <div class="code-preview-container">
                             <div class="code-header d-flex justify-content-between align-items-center p-3 bg-light border-bottom">
@@ -673,7 +673,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- ETL Scripts Tab Content -->
                     <div class="tab-pane fade" id="etl-scripts-content" role="tabpanel">
                         <div class="code-preview-container">
@@ -707,7 +707,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="tab-pane fade" id="services-content" role="tabpanel">
                         <div class="services-preview-container">
                             <div class="code-header d-flex justify-content-between align-items-center p-3 bg-light border-bottom">
@@ -757,7 +757,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadSupportedDatabases();
     loadCloudPlatforms();
     loadTerraformHistory();
-    
+
     // Add modal close handler to reset previewingJobId
     const terraformModal = document.getElementById('terraformPreviewModal');
     if (terraformModal) {
@@ -771,10 +771,10 @@ async function loadSupportedDatabases() {
     try {
         const response = await fetch('/api/database-types');
         const data = await response.json();
-        
+
         const databaseSelect = document.getElementById('database-type');
         databaseSelect.innerHTML = '<option value="">Select database type...</option>';
-        
+
         data.database_types.forEach(db => {
             const option = document.createElement('option');
             option.value = db.value;
@@ -784,11 +784,11 @@ async function loadSupportedDatabases() {
             option.dataset.icon = db.icon;
             databaseSelect.appendChild(option);
         });
-        
+
         // Set default to Oracle for demo
         databaseSelect.value = 'oracle';
         updateConnectionFormat();
-        
+
     } catch (error) {
         console.error('Failed to load database types:', error);
         showAlert('Failed to load database types', 'warning');
@@ -802,27 +802,27 @@ function updateConnectionFormat() {
     const databaseInfo = document.getElementById('database-info');
     const databaseDescription = document.getElementById('database-description');
     const testButton = document.getElementById('test-connection-btn');
-    
+
     const selectedOption = databaseSelect.options[databaseSelect.selectedIndex];
-    
+
     if (selectedOption.value) {
         const format = selectedOption.dataset.format;
         const description = selectedOption.dataset.description;
-        
+
         connectionInput.placeholder = format;
         connectionHelp.textContent = `Format: ${format}`;
         databaseDescription.textContent = `Compatible with ${description}`;
         databaseInfo.classList.remove('d-none');
         testButton.disabled = false;
-        
+
         // Set sample connection strings based on database type
         const sampleConnections = {
             'oracle': 'oracle://legal_user:password@oracle-server:1521/LEGAL_DB',
             'mysql': 'mysql://legal_user:password@mysql-server:3306/legal_system'
         };
-        
+
         connectionInput.value = sampleConnections[selectedOption.value] || '';
-        
+
     } else {
         connectionInput.placeholder = 'Select database type to see format';
         connectionHelp.textContent = 'Select a database type to see the connection format';
@@ -836,7 +836,7 @@ async function loadCloudPlatforms() {
     try {
         const response = await fetch('/api/cloud-platforms');
         const data = await response.json();
-        
+
         displayCloudPlatforms(data.cloud_platforms);
     } catch (error) {
         console.error('Failed to load cloud platforms:', error);
@@ -847,7 +847,7 @@ async function loadCloudPlatforms() {
 function displayCloudPlatforms(platforms) {
     const platformsList = document.getElementById('cloud-platforms-list');
     let html = '';
-    
+
     platforms.forEach(platform => {
         html += `
             <div class="col-md-6 mb-3">
@@ -866,7 +866,7 @@ function displayCloudPlatforms(platforms) {
             </div>
         `;
     });
-    
+
     platformsList.innerHTML = html;
 }
 
@@ -875,17 +875,17 @@ function selectPlatform(platformValue) {
     document.querySelectorAll('.platform-card').forEach(card => {
         card.classList.remove('border-primary', 'bg-light');
     });
-    
+
     // Add selection to clicked card
     const selectedCard = document.querySelector(`.platform-card[data-platform="${platformValue}"]`);
     selectedCard.classList.add('border-primary', 'bg-light');
-    
+
     selectedCloudPlatform = platformValue;
-    
+
     // Show platform info
     const platformInfo = document.getElementById('selected-platform-info');
     const platformDetails = document.getElementById('platform-details');
-    
+
     platformDetails.innerHTML = `
         <div class="small">
             <strong>Selected:</strong> ${platformValue.toUpperCase()}<br>
@@ -893,7 +893,7 @@ function selectPlatform(platformValue) {
         </div>
     `;
     platformInfo.style.display = 'block';
-    
+
     // Enable proceed button
     document.getElementById('proceed-to-tables-btn').disabled = false;
 }
@@ -903,14 +903,14 @@ function proceedToTableSelection() {
         showAlert('Please select a cloud platform', 'warning');
         return;
     }
-    
+
     displayTables(availableTables, currentDatabaseType);
     displayAIRecommendations({
         recommended_count: availableTables.filter(t => t.recommended).length,
         total_records: availableTables.filter(t => t.recommended).reduce((sum, t) => sum + t.rows, 0),
         estimated_time: `${availableTables.filter(t => t.recommended).length * 15}-${availableTables.filter(t => t.recommended).length * 25} minutes for Terraform generation`
     }, currentDatabaseType);
-    
+
     showStep('step-discovery');
     updateProgress(75);
 }
@@ -918,19 +918,19 @@ function proceedToTableSelection() {
 async function testConnection() {
     const dbType = document.getElementById('database-type').value;
     const connectionString = document.getElementById('connection-string').value;
-    
+
     if (!dbType) {
         showAlert('Please select a database type', 'warning');
         return;
     }
-    
+
     if (!connectionString.trim()) {
         showAlert('Please enter a connection string', 'warning');
         return;
     }
-    
+
     setButtonLoading('test-connection-btn', true);
-    
+
     try {
         const response = await fetch('/api/discover-tables', {
             method: 'POST',
@@ -940,16 +940,16 @@ async function testConnection() {
                 connection_string: connectionString
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
             availableTables = data.tables;
             currentDatabaseType = dbType;
-            
+
             // Add success feedback before transitioning
             showAlert('✅ Connection successful! Discovered ' + data.tables.length + ' tables.', 'success');
-            
+
             // Smooth transition to next step
             setTimeout(() => {
                 showStep('step-cloud-platform');
@@ -968,14 +968,14 @@ async function testConnection() {
 function displayTables(tables, dbType) {
     const tableList = document.getElementById('table-list');
     let html = '';
-    
+
     tables.forEach((table, index) => {
         const isRecommended = table.recommended;
         const relevance = table.ai_relevance;
-        
+
         html += `
             <div class="form-check mb-3 p-3 border rounded table-item ${isRecommended ? 'bg-success bg-opacity-10 border-success' : ''}" data-table="${table.name}">
-                <input class="form-check-input table-checkbox" type="checkbox" value="${table.name}" id="table-${index}" 
+                <input class="form-check-input table-checkbox" type="checkbox" value="${table.name}" id="table-${index}"
                        ${isRecommended ? 'checked' : ''} onchange="updateSelection()">
                 <label class="form-check-label w-100" for="table-${index}">
                     <div class="d-flex justify-content-between align-items-start">
@@ -998,7 +998,7 @@ function displayTables(tables, dbType) {
             </div>
         `;
     });
-    
+
     tableList.innerHTML = html;
     updateSelection(); // Initialize selection count
 }
@@ -1055,7 +1055,7 @@ function clearSelection() {
 function updateSelection() {
     const selectedTables = Array.from(document.querySelectorAll('.table-checkbox:checked'));
     const selectedCount = selectedTables.length;
-    
+
     let totalRecords = 0;
     selectedTables.forEach(checkbox => {
         const table = availableTables.find(t => t.name === checkbox.value);
@@ -1063,7 +1063,7 @@ function updateSelection() {
             totalRecords += table.rows;
         }
     });
-    
+
     document.getElementById('selected-count').textContent = selectedCount;
     document.getElementById('selected-records').textContent = totalRecords.toLocaleString();
     document.getElementById('start-terraform-btn').disabled = selectedCount === 0;
@@ -1073,19 +1073,19 @@ function updateSelection() {
 async function startTerraformGeneration() {
     const selectedTables = Array.from(document.querySelectorAll('.table-checkbox:checked'))
                                 .map(cb => cb.value);
-    
+
     if (selectedTables.length === 0) {
         showAlert('Please select at least one table', 'warning');
         return;
     }
-    
+
     if (!selectedCloudPlatform) {
         showAlert('Please select a cloud platform', 'warning');
         return;
     }
-    
+
     setButtonLoading('start-terraform-btn', true);
-    
+
     try {
         // Prepare request payload
         const payload = {
@@ -1094,27 +1094,27 @@ async function startTerraformGeneration() {
             connection_string: document.getElementById('connection-string').value,
             selected_tables: selectedTables
         };
-        
+
         // Include custom field mappings if available
         if (currentMappingsData && currentMappingsData.field_mappings) {
             payload.field_mappings = currentMappingsData.field_mappings;
             console.log('Including custom field mappings in generation request:', Object.keys(currentMappingsData.field_mappings).length, 'tables');
         }
-        
+
         const response = await fetch('/api/generate-terraform', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(payload)
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
             currentJobId = data.job_id;
-            
+
             // Add success feedback before transitioning
             showAlert('🤖 GenAI started! ' + data.message, 'success');
-            
+
             // Smooth transition to terraform step
             setTimeout(() => {
                 showStep('step-terraform');
@@ -1124,7 +1124,7 @@ async function startTerraformGeneration() {
         } else {
             showAlert('Failed to start Terraform generation: ' + (data.error || 'Unknown error'), 'danger');
         }
-        
+
     } catch (error) {
         showAlert('Terraform generation failed: ' + error.message, 'danger');
     } finally {
@@ -1137,7 +1137,7 @@ function startTerraformMonitoring() {
     terraformInterval = setInterval(async () => {
         try {
             const response = await fetch(`/api/terraform-status/${currentJobId}`);
-            
+
             if (!response.ok) {
                 if (response.status === 404) {
                     console.error('Terraform job not found');
@@ -1152,9 +1152,9 @@ function startTerraformMonitoring() {
                     return;
                 }
             }
-            
+
             const status = await response.json();
-            
+
             // Handle error status from server
             if (status.status === 'error') {
                 console.error('Server returned error status:', status);
@@ -1162,9 +1162,9 @@ function startTerraformMonitoring() {
                 showAlert('Error occurred during generation monitoring. Please try again.', 'danger');
                 return;
             }
-            
+
             updateTerraformDisplay(status);
-            
+
             if (status.status === 'completed') {
                 clearInterval(terraformInterval);
                 showTerraformComplete();
@@ -1173,7 +1173,7 @@ function startTerraformMonitoring() {
                 clearInterval(terraformInterval);
                 showTerraformError(status.errors);
             }
-            
+
         } catch (error) {
             console.error('Failed to get Terraform status:', error);
             // Don't stop monitoring for network errors, but log them
@@ -1193,22 +1193,22 @@ let originalMappingsData = null;
 async function showFieldMappings() {
     const selectedTables = Array.from(document.querySelectorAll('.table-checkbox:checked'))
                                 .map(cb => cb.value);
-    
+
     if (selectedTables.length === 0) {
         showAlert('Please select at least one table', 'warning');
         return;
     }
-    
+
     // Show modal
     const modal = new bootstrap.Modal(document.getElementById('fieldMappingsModal'));
     modal.show();
-    
+
     // Reset modal state
     document.getElementById('mappings-loading').style.display = 'block';
     document.getElementById('mappings-content').style.display = 'none';
     document.getElementById('mappings-error').style.display = 'none';
     resetEditMode();
-    
+
     try {
         const response = await fetch('/api/field-mappings', {
             method: 'POST',
@@ -1219,9 +1219,9 @@ async function showFieldMappings() {
                 job_id: currentJobId  // Pass current job ID to get user customizations
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (response.ok) {
             currentMappingsData = data;
             originalMappingsData = JSON.parse(JSON.stringify(data)); // Deep copy for reset
@@ -1229,7 +1229,7 @@ async function showFieldMappings() {
         } else {
             showMappingsError(data.error || 'Failed to load field mappings');
         }
-        
+
     } catch (error) {
         showMappingsError('Network error: ' + error.message);
     }
@@ -1239,7 +1239,7 @@ function displayFieldMappings(data) {
     // Hide loading, show content
     document.getElementById('mappings-loading').style.display = 'none';
     document.getElementById('mappings-content').style.display = 'block';
-    
+
     // Update summary
     const summary = data.mapping_summary;
     document.getElementById('summary-tables').textContent = summary.total_tables;
@@ -1248,7 +1248,7 @@ function displayFieldMappings(data) {
     document.getElementById('summary-transformations').textContent = summary.fields_with_transformations;
     document.getElementById('summary-foreign-keys').textContent = summary.foreign_keys || 0;
     document.getElementById('summary-customized').textContent = summary.user_customized || 0;
-    
+
     // Show customization indicator if there are user customizations
     const customizedIndicator = document.getElementById('mappings-customized-indicator');
     if (data.has_user_customizations) {
@@ -1256,7 +1256,7 @@ function displayFieldMappings(data) {
     } else {
         customizedIndicator.style.display = 'none';
     }
-    
+
     // Display field mappings by table
     generateMappingsHTML(data);
 }
@@ -1264,12 +1264,12 @@ function displayFieldMappings(data) {
 function generateMappingsHTML(data) {
     const mappingsContainer = document.getElementById('mappings-tables');
     let html = '';
-    
+
     for (const [tableName, tableData] of Object.entries(data.field_mappings)) {
         const isCustomizedTable = tableData.is_customized;
-        const customizedBadge = isCustomizedTable ? 
+        const customizedBadge = isCustomizedTable ?
             '<span class="badge bg-info ms-2"><i class="fas fa-user-edit me-1"></i>Customized</span>' : '';
-        
+
         html += `
             <div class="card mb-4" data-table="${tableName}">
                 <div class="card-header ${isCustomizedTable ? 'bg-info' : 'bg-primary'} text-white">
@@ -1281,7 +1281,7 @@ function generateMappingsHTML(data) {
                 </div>
                 <div class="card-body">
         `;
-        
+
         // Display mappings grouped by app entities
         for (const [entityName, fields] of Object.entries(tableData.app_entities)) {
             html += `
@@ -1304,17 +1304,17 @@ function generateMappingsHTML(data) {
                             </thead>
                             <tbody>
             `;
-            
+
             fields.forEach((field, fieldIndex) => {
                 const fieldId = `${tableName}_${field.source_field}`.replace(/[^a-zA-Z0-9]/g, '_');
-                
+
                 if (isEditMode) {
                     html += generateEditableFieldRow(tableName, field, fieldId);
                 } else {
                     html += generateViewOnlyFieldRow(field);
                 }
             });
-            
+
             html += `
                             </tbody>
                         </table>
@@ -1322,27 +1322,27 @@ function generateMappingsHTML(data) {
                 </div>
             `;
         }
-        
+
         html += `
                 </div>
             </div>
         `;
     }
-    
+
     mappingsContainer.innerHTML = html;
 }
 
 function generateViewOnlyFieldRow(field) {
-    const requiredBadge = field.required ? 
-        '<span class="badge bg-danger">Required</span>' : 
+    const requiredBadge = field.required ?
+        '<span class="badge bg-danger">Required</span>' :
         '<span class="badge bg-secondary">Optional</span>';
-    
+
     const typeBadge = getTypeBadge(field.type);
-    
-    const transformation = field.transformation ? 
-        `<small class="text-primary">${field.transformation}</small>` : 
+
+    const transformation = field.transformation ?
+        `<small class="text-primary">${field.transformation}</small>` :
         '<small class="text-muted">Direct mapping</small>';
-    
+
     let details = '';
     if (field.values && field.values.length > 0) {
         details += `<small><strong>Values:</strong> ${field.values.slice(0, 3).join(', ')}${field.values.length > 3 ? '...' : ''}</small><br>`;
@@ -1353,7 +1353,7 @@ function generateViewOnlyFieldRow(field) {
     if (field.default) {
         details += `<small><strong>Default:</strong> ${field.default}</small>`;
     }
-    
+
     return `
         <tr>
             <td><code>${field.source_field}</code></td>
@@ -1368,49 +1368,49 @@ function generateViewOnlyFieldRow(field) {
 
 function generateEditableFieldRow(tableName, field, fieldId) {
     const typeOptions = ['text', 'integer', 'boolean', 'date', 'foreign_key', 'email', 'phone'];
-    const typeSelect = typeOptions.map(type => 
+    const typeSelect = typeOptions.map(type =>
         `<option value="${type}" ${field.type === type ? 'selected' : ''}>${type}</option>`
     ).join('');
-    
+
     return `
         <tr data-field-id="${fieldId}">
             <td><code>${field.source_field}</code></td>
             <td>
-                <input type="text" class="form-control form-control-sm" 
-                       value="${field.app_field}" 
+                <input type="text" class="form-control form-control-sm"
+                       value="${field.app_field}"
                        onchange="updateFieldMapping('${tableName}', '${field.source_field}', 'app_field', this.value)">
             </td>
             <td>
-                <select class="form-select form-select-sm" 
+                <select class="form-select form-select-sm"
                         onchange="updateFieldMapping('${tableName}', '${field.source_field}', 'type', this.value)">
                     ${typeSelect}
                 </select>
             </td>
             <td>
                 <div class="form-check">
-                    <input class="form-check-input" type="checkbox" 
+                    <input class="form-check-input" type="checkbox"
                            ${field.required ? 'checked' : ''}
                            onchange="updateFieldMapping('${tableName}', '${field.source_field}', 'required', this.checked)">
                     <label class="form-check-label">Required</label>
                 </div>
             </td>
             <td>
-                <input type="text" class="form-control form-control-sm" 
-                       value="${field.transformation || ''}" 
+                <input type="text" class="form-control form-control-sm"
+                       value="${field.transformation || ''}"
                        placeholder="Direct mapping"
                        onchange="updateFieldMapping('${tableName}', '${field.source_field}', 'transformation', this.value)">
             </td>
             <td>
                 <div class="row g-1">
                     <div class="col-12">
-                        <input type="text" class="form-control form-control-sm" 
-                               value="${field.default || ''}" 
+                        <input type="text" class="form-control form-control-sm"
+                               value="${field.default || ''}"
                                placeholder="Default value"
                                onchange="updateFieldMapping('${tableName}', '${field.source_field}', 'default', this.value)">
                     </div>
                     <div class="col-12 mt-1">
-                        <input type="text" class="form-control form-control-sm" 
-                               value="${field.references || ''}" 
+                        <input type="text" class="form-control form-control-sm"
+                               value="${field.references || ''}"
                                placeholder="References (e.g., clients.id)"
                                onchange="updateFieldMapping('${tableName}', '${field.source_field}', 'references', this.value)">
                     </div>
@@ -1450,17 +1450,17 @@ function enterEditMode() {
         showAlert('No mappings data available', 'warning');
         return;
     }
-    
+
     isEditMode = true;
-    
+
     // Update UI elements
     document.getElementById('mappings-view-mode').style.display = 'none';
     document.getElementById('mappings-edit-mode').style.display = 'flex';
     document.getElementById('mappings-mode-indicator').style.display = 'inline-block';
-    
+
     // Regenerate the mappings HTML in edit mode
     generateMappingsHTML(currentMappingsData);
-    
+
     showAlert('Edit mode activated. You can now modify field mappings.', 'info');
 }
 
@@ -1469,20 +1469,20 @@ function cancelEditMode() {
         resetEditMode();
         return;
     }
-    
+
     // Restore original data
     currentMappingsData = JSON.parse(JSON.stringify(originalMappingsData));
     resetEditMode();
-    
+
     // Regenerate the mappings HTML in view mode
     generateMappingsHTML(currentMappingsData);
-    
+
     showAlert('Changes cancelled. Mappings restored to original values.', 'info');
 }
 
 function resetEditMode() {
     isEditMode = false;
-    
+
     // Update UI elements
     document.getElementById('mappings-view-mode').style.display = 'flex';
     document.getElementById('mappings-edit-mode').style.display = 'none';
@@ -1495,11 +1495,11 @@ function updateFieldMapping(tableName, sourceField, property, value) {
         console.error('Cannot update field mapping: table not found');
         return;
     }
-    
+
     // Update in the fields object
     if (currentMappingsData.field_mappings[tableName].fields[sourceField]) {
         currentMappingsData.field_mappings[tableName].fields[sourceField][property] = value;
-        
+
         // Also update in app_entities for display
         for (const [entityName, fields] of Object.entries(currentMappingsData.field_mappings[tableName].app_entities)) {
             const fieldIndex = fields.findIndex(f => f.source_field === sourceField);
@@ -1508,10 +1508,10 @@ function updateFieldMapping(tableName, sourceField, property, value) {
                 break;
             }
         }
-        
+
         // Mark table as customized
         currentMappingsData.field_mappings[tableName].is_customized = true;
-        
+
         console.log(`Updated ${tableName}.${sourceField}.${property} to:`, value);
     }
 }
@@ -1521,7 +1521,7 @@ async function saveFieldMappings() {
         showAlert('No active job found. Please start a new migration process.', 'warning');
         return;
     }
-    
+
     try {
         const response = await fetch(`/api/field-mappings/${currentJobId}`, {
             method: 'PUT',
@@ -1530,31 +1530,31 @@ async function saveFieldMappings() {
                 field_mappings: currentMappingsData.field_mappings
             })
         });
-        
+
         const result = await response.json();
-        
+
         if (response.ok) {
             // Update original data to reflect saved changes
             originalMappingsData = JSON.parse(JSON.stringify(currentMappingsData));
-            
+
             // Update customization indicators
             currentMappingsData.has_user_customizations = true;
             document.getElementById('mappings-customized-indicator').style.display = 'inline-block';
-            
+
             // Update summary
             const customizedCount = Object.values(currentMappingsData.field_mappings)
                 .filter(table => table.is_customized).length;
             document.getElementById('summary-customized').textContent = customizedCount;
             currentMappingsData.mapping_summary.user_customized = customizedCount;
-            
+
             resetEditMode();
             generateMappingsHTML(currentMappingsData);
-            
+
             showAlert(`✅ Field mappings saved successfully! Updated ${result.update_info.total_fields} fields across ${result.update_info.updated_tables.length} tables.`, 'success');
         } else {
             showAlert(`Failed to save mappings: ${result.error}`, 'danger');
         }
-        
+
     } catch (error) {
         showAlert(`Network error while saving mappings: ${error.message}`, 'danger');
     }
@@ -1565,26 +1565,26 @@ async function resetFieldMappings() {
         showAlert('No active job found. Please start a new migration process.', 'warning');
         return;
     }
-    
+
     if (!confirm('Are you sure you want to reset all field mappings to their default values? This will remove all your customizations.')) {
         return;
     }
-    
+
     try {
         const response = await fetch(`/api/field-mappings/${currentJobId}/reset`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'}
         });
-        
+
         const result = await response.json();
-        
+
         if (response.ok) {
             showAlert('✅ Field mappings reset to defaults successfully!', 'success');
-            
+
             // Reload the field mappings to get fresh default values
             const selectedTables = Array.from(document.querySelectorAll('.table-checkbox:checked'))
                                         .map(cb => cb.value);
-            
+
             if (selectedTables.length > 0) {
                 // Refresh the mappings display
                 showFieldMappings();
@@ -1592,7 +1592,7 @@ async function resetFieldMappings() {
         } else {
             showAlert(`Failed to reset mappings: ${result.error}`, 'danger');
         }
-        
+
     } catch (error) {
         showAlert(`Network error while resetting mappings: ${error.message}`, 'danger');
     }
@@ -1604,29 +1604,29 @@ async function viewJobFieldMappings(jobId) {
         showAlert('Invalid job ID', 'warning');
         return;
     }
-    
+
     // Show modal
     const modal = new bootstrap.Modal(document.getElementById('historicalMappingsModal'));
     modal.show();
-    
+
     // Reset modal state
     document.getElementById('historical-mappings-loading').style.display = 'block';
     document.getElementById('historical-mappings-content').style.display = 'none';
     document.getElementById('historical-mappings-error').style.display = 'none';
-    
+
     // Update modal title with job ID
     document.getElementById('historical-job-info').textContent = jobId;
-    
+
     try {
         const response = await fetch(`/api/job-field-mappings/${jobId}`);
         const data = await response.json();
-        
+
         if (response.ok) {
             displayHistoricalFieldMappings(data);
         } else {
             showHistoricalMappingsError(data.error || 'Failed to load historical field mappings');
         }
-        
+
     } catch (error) {
         showHistoricalMappingsError('Network error: ' + error.message);
     }
@@ -1636,14 +1636,14 @@ function displayHistoricalFieldMappings(data) {
     // Hide loading, show content
     document.getElementById('historical-mappings-loading').style.display = 'none';
     document.getElementById('historical-mappings-content').style.display = 'block';
-    
+
     // Update job details
     const jobDetails = document.getElementById('historical-job-details');
     const createdDate = new Date(data.job_info.created_at).toLocaleString();
     const dbBadge = getDatabaseBadge(data.database_type);
     const cloudBadge = getCloudBadge(data.target_cloud);
     const statusBadge = getStatusBadge(data.job_info.status);
-    
+
     jobDetails.innerHTML = `
         <div class="col-md-2">
             <strong>Database:</strong> ${dbBadge}
@@ -1661,7 +1661,7 @@ function displayHistoricalFieldMappings(data) {
             <strong>Progress:</strong> ${Math.round(data.job_info.progress)}%
         </div>
     `;
-    
+
     // Update summary
     const summary = data.mapping_summary;
     document.getElementById('hist-summary-tables').textContent = summary.total_tables;
@@ -1669,7 +1669,7 @@ function displayHistoricalFieldMappings(data) {
     document.getElementById('hist-summary-required').textContent = summary.required_fields;
     document.getElementById('hist-summary-transformations').textContent = summary.fields_with_transformations;
     document.getElementById('hist-summary-foreign-keys').textContent = summary.foreign_keys || 0;
-    
+
     // Generate historical mappings HTML (read-only)
     generateHistoricalMappingsHTML(data);
 }
@@ -1677,7 +1677,7 @@ function displayHistoricalFieldMappings(data) {
 function generateHistoricalMappingsHTML(data) {
     const mappingsContainer = document.getElementById('historical-mappings-tables');
     let html = '';
-    
+
     for (const [tableName, tableData] of Object.entries(data.field_mappings)) {
         html += `
             <div class="card mb-4">
@@ -1692,7 +1692,7 @@ function generateHistoricalMappingsHTML(data) {
                 </div>
                 <div class="card-body">
         `;
-        
+
         // Display mappings grouped by app entities (read-only)
         for (const [entityName, fields] of Object.entries(tableData.app_entities)) {
             html += `
@@ -1715,11 +1715,11 @@ function generateHistoricalMappingsHTML(data) {
                             </thead>
                             <tbody>
             `;
-            
+
             fields.forEach(field => {
                 html += generateHistoricalFieldRow(field);
             });
-            
+
             html += `
                             </tbody>
                         </table>
@@ -1727,27 +1727,27 @@ function generateHistoricalMappingsHTML(data) {
                 </div>
             `;
         }
-        
+
         html += `
                 </div>
             </div>
         `;
     }
-    
+
     mappingsContainer.innerHTML = html;
 }
 
 function generateHistoricalFieldRow(field) {
-    const requiredBadge = field.required ? 
-        '<span class="badge bg-danger">Required</span>' : 
+    const requiredBadge = field.required ?
+        '<span class="badge bg-danger">Required</span>' :
         '<span class="badge bg-secondary">Optional</span>';
-    
+
     const typeBadge = getTypeBadge(field.type);
-    
-    const transformation = field.transformation ? 
-        `<small class="text-primary">${field.transformation}</small>` : 
+
+    const transformation = field.transformation ?
+        `<small class="text-primary">${field.transformation}</small>` :
         '<small class="text-muted">Direct mapping</small>';
-    
+
     let details = '';
     if (field.values && field.values.length > 0) {
         details += `<small><strong>Values:</strong> ${field.values.slice(0, 3).join(', ')}${field.values.length > 3 ? '...' : ''}</small><br>`;
@@ -1758,7 +1758,7 @@ function generateHistoricalFieldRow(field) {
     if (field.default) {
         details += `<small><strong>Default:</strong> ${field.default}</small>`;
     }
-    
+
     return `
         <tr class="table-light">
             <td><code>${field.source_field}</code></td>
@@ -1780,12 +1780,12 @@ function showHistoricalMappingsError(errorMessage) {
 
 function exportHistoricalMappings() {
     const jobId = document.getElementById('historical-job-info').textContent;
-    
+
     if (!jobId) {
         showAlert('No job selected for export', 'warning');
         return;
     }
-    
+
     fetch(`/api/job-field-mappings/${jobId}`)
     .then(response => response.json())
     .then(data => {
@@ -1797,7 +1797,7 @@ function exportHistoricalMappings() {
                 mapping_summary: data.mapping_summary,
                 field_mappings: data.field_mappings
             };
-            
+
             const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -1807,7 +1807,7 @@ function exportHistoricalMappings() {
             a.click();
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
-            
+
             showAlert(`✅ Historical field mappings exported successfully for job ${jobId}`, 'success');
         } else {
             showAlert('Failed to export historical mappings: No data available', 'danger');
@@ -1821,12 +1821,12 @@ function exportHistoricalMappings() {
 function exportMappings() {
     const selectedTables = Array.from(document.querySelectorAll('.table-checkbox:checked'))
                                 .map(cb => cb.value);
-    
+
     if (selectedTables.length === 0) {
         showAlert('No tables selected for export', 'warning');
         return;
     }
-    
+
     fetch('/api/field-mappings', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -1862,7 +1862,7 @@ function openCostSummary() {
         showAlert('No Terraform job available for cost analysis', 'warning');
         return;
     }
-    
+
     // Open the preview modal and navigate directly to Services & Cost tab
     previewDataPipelineCode(() => {
         // Callback to switch to Services & Cost tab after modal opens
@@ -1882,11 +1882,11 @@ function openJobCostSummary(jobId) {
         showAlert('Invalid job ID for cost analysis', 'warning');
         return;
     }
-    
+
     // Set the current job ID temporarily to preview this specific job
     const originalJobId = currentJobId;
     currentJobId = jobId;
-    
+
     // Open the preview modal for this job and navigate to Services & Cost tab
     previewDataPipelineCode(() => {
         // Callback to switch to Services & Cost tab after modal opens
@@ -1895,7 +1895,7 @@ function openJobCostSummary(jobId) {
             if (servicesTab) {
                 servicesTab.click();
             }
-            
+
             // Restore the original current job ID
             currentJobId = originalJobId;
         }, 500);
@@ -1909,7 +1909,7 @@ function previewDataPipelineCode(callback = null) {
         showAlert('No Terraform job available for preview', 'warning');
         return;
     }
-    
+
     previewJobTerraform(currentJobId, callback);
 }
 
@@ -1927,19 +1927,19 @@ function previewJobTerraform(jobId, callback = null) {
     const modal = new bootstrap.Modal(document.getElementById('terraformPreviewModal'));
     const cloudLogo = document.getElementById('preview-cloud-logo');
     const previewTitle = document.getElementById('preview-title');
-    
+
     // Set initial loading state
     cloudLogo.className = 'fas fa-spinner fa-spin me-2';
     cloudLogo.style.color = '#ffffff';
-    
+
     previewTitle.innerHTML = `Loading Terraform Code for Job ${jobId}...`;
-    
+
     // Clear existing content
     document.getElementById('main-tf-code').textContent = '';
     document.getElementById('variables-tf-code').textContent = '';
     document.getElementById('tfvars-code').textContent = '';
     document.getElementById('readme-code').innerHTML = '';
-    
+
     modal.show();
 
     // Fetch Terraform files for preview
@@ -1957,7 +1957,7 @@ function previewJobTerraform(jobId, callback = null) {
                 displayTerraformPreview(data.files, data);
                 displayServicesSummary(data.service_summary, data.cost_breakdown);
                 displayETLScripts(data.etl_scripts, data);
-                
+
                 // Execute callback if provided (e.g., to switch tabs)
                 if (callback && typeof callback === 'function') {
                     callback();
@@ -1979,10 +1979,10 @@ function displayTerraformPreview(files, jobData = null) {
     // Update title and cloud provider logo
     const cloudLogo = document.getElementById('preview-cloud-logo');
     const previewTitle = document.getElementById('preview-title');
-    
+
     // Determine cloud platform from job data or current selection
     const cloudPlatform = (jobData && jobData.cloud_platform) ? jobData.cloud_platform : selectedCloudPlatform;
-    
+
     // Set appropriate logo based on cloud platform
     if (cloudPlatform.toLowerCase() === 'aws') {
         cloudLogo.className = 'fab fa-aws me-2';
@@ -1994,7 +1994,7 @@ function displayTerraformPreview(files, jobData = null) {
         cloudLogo.className = 'fas fa-cloud me-2';
         cloudLogo.style.color = '#ffffff';
     }
-    
+
     previewTitle.textContent = `Data Pipeline Code Preview - ${cloudPlatform.toUpperCase()}`;
 
     // Display main.tf
@@ -2003,7 +2003,7 @@ function displayTerraformPreview(files, jobData = null) {
         mainTfCode.textContent = files['main.tf'];
         mainTfCode.className = 'language-hcl'; // Ensure HCL class is set
         document.getElementById('main-tf-lines').textContent = countLines(files['main.tf']);
-        
+
         // Force syntax highlighting
         if (typeof Prism !== 'undefined') {
             Prism.highlightElement(mainTfCode);
@@ -2016,7 +2016,7 @@ function displayTerraformPreview(files, jobData = null) {
         variablesTfCode.textContent = files['variables.tf'];
         variablesTfCode.className = 'language-hcl'; // Ensure HCL class is set
         document.getElementById('variables-tf-lines').textContent = countLines(files['variables.tf']);
-        
+
         if (typeof Prism !== 'undefined') {
             Prism.highlightElement(variablesTfCode);
         }
@@ -2028,7 +2028,7 @@ function displayTerraformPreview(files, jobData = null) {
         tfvarsCode.textContent = files['terraform.tfvars.example'];
         tfvarsCode.className = 'language-hcl'; // Ensure HCL class is set
         document.getElementById('tfvars-lines').textContent = countLines(files['terraform.tfvars.example']);
-        
+
         if (typeof Prism !== 'undefined') {
             Prism.highlightElement(tfvarsCode);
         }
@@ -2045,7 +2045,7 @@ function displayTerraformPreview(files, jobData = null) {
                 readmeContainer.innerHTML = '<pre>' + files['README.md'].replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>';
             }
             document.getElementById('readme-lines').textContent = countLines(files['README.md']);
-            
+
             // Add markdown styling
             readmeContainer.classList.add('markdown-body');
         } catch (error) {
@@ -2058,7 +2058,7 @@ function displayTerraformPreview(files, jobData = null) {
 function copyToClipboard(elementId) {
     const element = document.getElementById(elementId);
     let textToCopy = '';
-    
+
     if (elementId === 'readme-code') {
         // For README, get the original markdown content
         const jobIdToUse = previewingJobId || currentJobId;
@@ -2075,7 +2075,7 @@ function copyToClipboard(elementId) {
     } else {
         textToCopy = element.textContent;
     }
-    
+
     navigator.clipboard.writeText(textToCopy).then(() => {
         showCopySuccess();
     }).catch(err => {
@@ -2097,9 +2097,9 @@ function showCopySuccess() {
     tooltip.style.borderRadius = '4px';
     tooltip.style.zIndex = '9999';
     tooltip.style.fontSize = '14px';
-    
+
     document.body.appendChild(tooltip);
-    
+
     setTimeout(() => {
         document.body.removeChild(tooltip);
     }, 2000);
@@ -2107,12 +2107,12 @@ function showCopySuccess() {
 
 function displayServicesSummary(serviceSummary, costBreakdown) {
     const container = document.getElementById('services-summary');
-    
+
     if (!serviceSummary || !costBreakdown) {
         container.innerHTML = '<div class="alert alert-warning">Service summary not available</div>';
         return;
     }
-    
+
     container.innerHTML = `
         <!-- Service Summary Header -->
         <div class="row mb-4">
@@ -2130,7 +2130,7 @@ function displayServicesSummary(serviceSummary, costBreakdown) {
                         </h4>
                     </div>
                 </div>
-                
+
                 <!-- Data Characteristics -->
                 <div class="row g-3">
                     <div class="col-md-3">
@@ -2168,7 +2168,7 @@ function displayServicesSummary(serviceSummary, costBreakdown) {
                 </div>
             </div>
         </div>
-        
+
         <!-- Services List -->
         <div class="row mb-4">
             <div class="col-12">
@@ -2192,7 +2192,7 @@ function displayServicesSummary(serviceSummary, costBreakdown) {
                                     <td><small>${service.purpose}</small></td>
                                     <td><small class="text-muted">${service.configuration}</small></td>
                                     <td>
-                                        ${service.monthly_cost_range === 'Free' 
+                                        ${service.monthly_cost_range === 'Free'
                                             ? '<span class="badge bg-success">Free</span>'
                                             : `<span class="text-success fw-bold">${service.monthly_cost_range}</span>`
                                         }
@@ -2204,7 +2204,7 @@ function displayServicesSummary(serviceSummary, costBreakdown) {
                 </div>
             </div>
         </div>
-        
+
         <!-- Cost Breakdown -->
         <div class="row">
             <div class="col-md-6">
@@ -2214,7 +2214,7 @@ function displayServicesSummary(serviceSummary, costBreakdown) {
                         <h5 class="text-primary mb-0">Total Estimated: ${costBreakdown.total_estimated_monthly}</h5>
                     </div>
                 </div>
-                
+
                 ${costBreakdown.cost_categories.map(category => `
                     <div class="mb-3">
                         <div class="d-flex justify-content-between align-items-center mb-1">
@@ -2225,8 +2225,8 @@ function displayServicesSummary(serviceSummary, costBreakdown) {
                             </div>
                         </div>
                         <div class="progress mb-1" style="height: 8px;">
-                            <div class="progress-bar bg-primary" role="progressbar" 
-                                 style="width: ${category.percentage}" aria-valuenow="${category.percentage}" 
+                            <div class="progress-bar bg-primary" role="progressbar"
+                                 style="width: ${category.percentage}" aria-valuenow="${category.percentage}"
                                  aria-valuemin="0" aria-valuemax="100">
                             </div>
                         </div>
@@ -2234,7 +2234,7 @@ function displayServicesSummary(serviceSummary, costBreakdown) {
                     </div>
                 `).join('')}
             </div>
-            
+
             <div class="col-md-6">
                 <h6><i class="fas fa-lightbulb me-2"></i>Cost Optimization</h6>
                 <div class="card border-0 bg-light">
@@ -2247,7 +2247,7 @@ function displayServicesSummary(serviceSummary, costBreakdown) {
                                 </li>
                             `).join('')}
                         </ul>
-                        
+
                         <h6 class="mb-2">Pricing Factors:</h6>
                         <div class="row g-2">
                             ${Object.entries(costBreakdown.pricing_factors).map(([key, value]) => `
@@ -2281,7 +2281,7 @@ function exportServicesSummary() {
                     cost_breakdown: data.cost_breakdown,
                     generated_at: new Date().toISOString()
                 };
-                
+
                 const blob = new Blob([JSON.stringify(summaryData, null, 2)], { type: 'application/json' });
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -2292,7 +2292,7 @@ function exportServicesSummary() {
                 a.click();
                 window.URL.revokeObjectURL(url);
                 document.body.removeChild(a);
-                
+
                 showAlert('Services summary exported successfully!', 'success');
             }
         })
@@ -2311,10 +2311,10 @@ function updateTerraformDisplay(status) {
     // Update progress bar
     const progressBar = document.getElementById('migration-progress-bar');
     const percentage = document.getElementById('migration-percentage');
-    
+
     progressBar.style.width = status.progress + '%';
     percentage.textContent = Math.round(status.progress) + '%';
-    
+
     // Remove animation when completed to make progress bar solid
     if (status.status === 'completed' || status.progress >= 100) {
         progressBar.classList.remove('progress-bar-striped', 'progress-bar-animated');
@@ -2323,19 +2323,19 @@ function updateTerraformDisplay(status) {
         // Ensure animation is present during progress
         progressBar.classList.add('progress-bar-striped', 'progress-bar-animated');
     }
-    
+
     // Update counters
     document.getElementById('generated-files').textContent = status.terraform_config ? Object.keys(status.terraform_config).length : 0;
     document.getElementById('selected-tables').textContent = status.target_tables.length;
-    
+
     // Update estimated cost with interactive link
     const estimatedCost = status.estimated_cost ? status.estimated_cost.monthly_estimate : '$0.00';
     document.getElementById('estimated-cost').textContent = estimatedCost;
-    
+
     // Enable/disable cost button and show/hide link icon based on completion status
     const costButton = document.getElementById('estimated-cost-btn');
     const costIcon = document.getElementById('cost-link-icon');
-    
+
     if (status.status === 'completed' && status.terraform_config) {
         costButton.disabled = false;
         costButton.classList.add('text-primary');
@@ -2351,7 +2351,7 @@ function updateTerraformDisplay(status) {
         costButton.title = 'Cost analysis available after generation completes';
         costIcon.style.display = 'none';
     }
-    
+
     // Update status log
     addToTerraformLog(getTerraformStatusMessage(status));
 }
@@ -2363,17 +2363,17 @@ function clearTerraformLog() {
 
 function addToTerraformLog(statusMessage) {
     if (!statusMessage) return;
-    
+
     const statusLog = document.getElementById('terraform-status-log');
     const timestamp = new Date().toLocaleTimeString();
-    
+
     const logEntry = document.createElement('div');
     logEntry.className = 'small mb-1';
     logEntry.innerHTML = `
-        <span class="text-muted">[${timestamp}]</span> 
+        <span class="text-muted">[${timestamp}]</span>
         <span class="text-${statusMessage.type}">${statusMessage.message}</span>
     `;
-    
+
     statusLog.appendChild(logEntry);
     statusLog.scrollTop = statusLog.scrollHeight;
 }
@@ -2399,7 +2399,7 @@ function showTerraformComplete() {
     document.getElementById('terraform-complete-alert').classList.remove('d-none');
     document.getElementById('export-terraform-btn').style.display = 'inline-block';
     document.getElementById('cancel-terraform-btn').style.display = 'none';
-    
+
     addToTerraformLog({
         type: 'success',
         message: '✅ GenAI has successfully generated optimized Terraform configuration!'
@@ -2409,10 +2409,10 @@ function showTerraformComplete() {
 function showTerraformError(errors) {
     document.getElementById('terraform-failed-alert').classList.remove('d-none');
     document.getElementById('cancel-terraform-btn').style.display = 'none';
-    
+
     const errorDetails = document.getElementById('error-details');
     errorDetails.innerHTML = errors.map(error => `<div>• ${error}</div>`).join('');
-    
+
     errors.forEach(error => {
         addToTerraformLog({
             type: 'danger',
@@ -2426,10 +2426,10 @@ async function exportTerraform() {
         showAlert('No Terraform configuration to export', 'warning');
         return;
     }
-    
+
     try {
         const response = await fetch(`/api/export-terraform/${currentJobId}`);
-        
+
         if (response.ok) {
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
@@ -2453,25 +2453,25 @@ async function loadTerraformHistory() {
     try {
         const response = await fetch('/api/terraform-jobs');
         const data = await response.json();
-        
+
         const historyDiv = document.getElementById('migration-history');
-        
+
         if (data.jobs && data.jobs.length > 0) {
             let html = '<div class="table-responsive"><table class="table table-hover"><thead><tr>';
             html += '<th>Job ID</th><th>Database</th><th>Cloud</th><th>Status</th><th>Progress</th><th>Tables</th><th>Field Mappings</th><th>Cost</th><th>Created</th><th>Actions</th></tr></thead><tbody>';
-            
+
             data.jobs.forEach(job => {
                 const statusBadge = getStatusBadge(job.status);
                 const createdDate = new Date(job.created_at).toLocaleString();
                 const dbTypeBadge = getDatabaseBadge(job.source_db_type || 'oracle');
                 const cloudBadge = getCloudBadge(job.target_cloud || 'aws');
-                
+
                 html += `
                     <tr>
                         <td>
-                            ${job.status === 'completed' 
-                                ? `<button class="btn btn-link p-0 text-decoration-none" 
-                                           onclick="previewJobTerraform('${job.job_id}')" 
+                            ${job.status === 'completed'
+                                ? `<button class="btn btn-link p-0 text-decoration-none"
+                                           onclick="previewJobTerraform('${job.job_id}')"
                                            title="Click to preview generated code">
                                        <code class="small text-primary">${job.job_id}</code>
                                        <i class="fas fa-external-link-alt ms-1" style="font-size: 0.6em;"></i>
@@ -2492,13 +2492,13 @@ async function loadTerraformHistory() {
                         </td>
                         <td><span class="badge bg-secondary">${job.table_count} tables</span></td>
                         <td>
-                            ${job.mappings_summary && job.mappings_summary.has_mappings 
+                            ${job.mappings_summary && job.mappings_summary.has_mappings
                                 ? `<div class="d-flex align-items-center">
                                      <div>
                                        <small class="text-primary fw-bold">${job.mappings_summary.total_fields} fields</small><br>
                                        <small class="text-muted">${job.mappings_summary.required_fields} req, ${job.mappings_summary.transformations} trans</small>
                                      </div>
-                                     <button class="btn btn-sm btn-outline-info ms-2" onclick="viewJobFieldMappings('${job.job_id}')" 
+                                     <button class="btn btn-sm btn-outline-info ms-2" onclick="viewJobFieldMappings('${job.job_id}')"
                                              title="View field mappings used for this job">
                                        <i class="fas fa-sitemap"></i>
                                      </button>
@@ -2507,9 +2507,9 @@ async function loadTerraformHistory() {
                             }
                         </td>
                         <td>
-                            ${job.status === 'completed' 
-                                ? `<button class="btn btn-link p-0 text-success text-decoration-none" 
-                                           onclick="openJobCostSummary('${job.job_id}')" 
+                            ${job.status === 'completed'
+                                ? `<button class="btn btn-link p-0 text-success text-decoration-none"
+                                           onclick="openJobCostSummary('${job.job_id}')"
                                            title="Click to view cost breakdown">
                                        <small>${job.estimated_cost}</small>
                                        <i class="fas fa-external-link-alt ms-1" style="font-size: 0.7em;"></i>
@@ -2524,7 +2524,7 @@ async function loadTerraformHistory() {
                     </tr>
                 `;
             });
-            
+
             html += '</tbody></table></div>';
             historyDiv.innerHTML = html;
         } else {
@@ -2558,7 +2558,7 @@ function getCloudBadge(cloudType) {
 async function downloadTerraform(jobId) {
     try {
         const response = await fetch(`/api/export-terraform/${jobId}`);
-        
+
         if (response.ok) {
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
@@ -2581,10 +2581,10 @@ function updateMigrationDisplay(status) {
     // Update progress bar
     const progressBar = document.getElementById('migration-progress-bar');
     const percentage = document.getElementById('migration-percentage');
-    
+
     progressBar.style.width = status.progress + '%';
     percentage.textContent = Math.round(status.progress) + '%';
-    
+
     // Remove animation when completed to make progress bar solid
     if (status.status === 'completed' || status.progress >= 100) {
         progressBar.classList.remove('progress-bar-striped', 'progress-bar-animated');
@@ -2593,15 +2593,15 @@ function updateMigrationDisplay(status) {
         // Ensure animation is present during progress
         progressBar.classList.add('progress-bar-striped', 'progress-bar-animated');
     }
-    
+
     // Update counters
     document.getElementById('migrated-records').textContent = status.migrated_records.toLocaleString();
     document.getElementById('total-records').textContent = status.total_records.toLocaleString();
-    
+
     // Calculate speed (records per minute)
     const speed = Math.round(status.migrated_records / 2); // Approximate based on 2-second intervals
     document.getElementById('migration-speed').textContent = speed.toLocaleString();
-    
+
     // Update status log
     addToMigrationLog(getStatusMessage(status));
 }
@@ -2635,17 +2635,17 @@ function getStatusMessage(status) {
 
 function addToMigrationLog(statusMessage) {
     if (!statusMessage) return;
-    
+
     const statusLog = document.getElementById('migration-status-log');
     const timestamp = new Date().toLocaleTimeString();
-    
+
     const logEntry = document.createElement('div');
     logEntry.className = 'small mb-1';
     logEntry.innerHTML = `
-        <span class="text-muted">[${timestamp}]</span> 
+        <span class="text-muted">[${timestamp}]</span>
         <span class="text-${statusMessage.type}">${statusMessage.message}</span>
     `;
-    
+
     statusLog.appendChild(logEntry);
     statusLog.scrollTop = statusLog.scrollHeight;
 }
@@ -2658,7 +2658,7 @@ function clearMigrationLog() {
 function showMigrationComplete() {
     document.getElementById('migration-complete-alert').classList.remove('d-none');
     document.getElementById('cancel-migration-btn').style.display = 'none';
-    
+
     // Add completion message to log
     addToMigrationLog({
         type: 'success',
@@ -2669,10 +2669,10 @@ function showMigrationComplete() {
 function showMigrationError(errors) {
     document.getElementById('migration-failed-alert').classList.remove('d-none');
     document.getElementById('cancel-migration-btn').style.display = 'none';
-    
+
     const errorDetails = document.getElementById('error-details');
     errorDetails.innerHTML = errors.map(error => `<div>• ${error}</div>`).join('');
-    
+
     errors.forEach(error => {
         addToMigrationLog({
             type: 'danger',
@@ -2683,14 +2683,14 @@ function showMigrationError(errors) {
 
 async function cancelMigration() {
     if (!currentJobId) return;
-    
+
     try {
         const response = await fetch(`/api/cancel-migration/${currentJobId}`, {
             method: 'POST'
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
             clearInterval(migrationInterval);
             showAlert('Migration cancelled', 'warning');
@@ -2709,18 +2709,18 @@ function startNewMigration() {
     showStep('step-connection');
     updateProgress(25);
     currentJobId = null;
-    
+
     // Hide alerts
     document.getElementById('migration-complete-alert').classList.add('d-none');
     document.getElementById('migration-failed-alert').classList.add('d-none');
     document.getElementById('cancel-migration-btn').style.display = 'inline-block';
-    
+
     // Clear previous data
     clearMigrationLog();
     const progressBar = document.getElementById('migration-progress-bar');
     progressBar.style.width = '0%';
     document.getElementById('migration-percentage').textContent = '0%';
-    
+
     // Reset progress bar to animated striped state for new generation
     progressBar.classList.add('progress-bar-striped', 'progress-bar-animated', 'bg-success');
     progressBar.classList.remove('bg-primary'); // Remove any other background classes
@@ -2738,37 +2738,37 @@ function startNewGeneration() {
     selectedCloudPlatform = '';
     selectedDatabaseType = '';
     availableTables = [];
-    
+
     // Hide completion alerts
     document.getElementById('terraform-complete-alert').classList.add('d-none');
     document.getElementById('terraform-failed-alert').classList.add('d-none');
     document.getElementById('terraform-in-progress-alert').classList.add('d-none');
-    
+
     // Clear status and progress
     clearTerraformLog();
     const progressBar = document.getElementById('migration-progress-bar');
     progressBar.style.width = '0%';
     document.getElementById('migration-percentage').textContent = '0%';
-    
+
     // Reset progress bar to animated striped state for new generation
     progressBar.classList.add('progress-bar-striped', 'progress-bar-animated', 'bg-success');
     progressBar.classList.remove('bg-primary');
-    
+
     // Clear form inputs
     document.getElementById('database-host').value = '';
     document.getElementById('database-user').value = '';
     document.getElementById('database-password').value = '';
     document.getElementById('database-name').value = '';
-    
+
     // Clear table selection
     document.getElementById('available-tables').innerHTML = '';
     document.getElementById('selected-tables-count').textContent = '0';
-    
+
     // Reset counters
     document.getElementById('generated-files').textContent = '0';
     document.getElementById('selected-tables').textContent = '0';
     document.getElementById('estimated-cost').textContent = '$0.00';
-    
+
     // Disable cost button
     const costButton = document.getElementById('estimated-cost-btn');
     const costIcon = document.getElementById('cost-link-icon');
@@ -2788,18 +2788,18 @@ async function loadMigrationHistory() {
     try {
         const response = await fetch('/api/migration-jobs');
         const data = await response.json();
-        
+
         const historyDiv = document.getElementById('migration-history');
-        
+
         if (data.jobs && data.jobs.length > 0) {
             let html = '<div class="table-responsive"><table class="table table-hover"><thead><tr>';
             html += '<th>Job ID</th><th>Database</th><th>Status</th><th>Progress</th><th>Tables</th><th>Records</th><th>Created</th></tr></thead><tbody>';
-            
+
             data.jobs.forEach(job => {
                 const statusBadge = getStatusBadge(job.status);
                 const createdDate = new Date(job.created_at).toLocaleString();
                 const dbTypeBadge = getDatabaseBadge(job.source_db_type || 'oracle');
-                
+
                 html += `
                     <tr>
                         <td><code class="small">${job.job_id}</code></td>
@@ -2821,7 +2821,7 @@ async function loadMigrationHistory() {
                     </tr>
                 `;
             });
-            
+
             html += '</tbody></table></div>';
             historyDiv.innerHTML = html;
         } else {
@@ -2870,15 +2870,15 @@ function showStep(stepId) {
     document.querySelectorAll('.wizard-step').forEach(step => {
         step.classList.remove('active');
     });
-    
+
     // Show target step
     document.getElementById(stepId).classList.add('active');
-    
+
     // Update step indicators
     document.querySelectorAll('.step-indicator').forEach(indicator => {
         indicator.classList.remove('active');
     });
-    
+
     // Map wizard steps to step indicators
     if (stepId === 'step-connection') {
         document.getElementById('step-1-indicator').classList.add('active');
@@ -2905,9 +2905,9 @@ function showAlert(message, type) {
         ${message}
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     `;
-    
+
     document.body.appendChild(alertDiv);
-    
+
     // Auto dismiss after 5 seconds
     setTimeout(() => {
         if (alertDiv.parentNode) {
@@ -2919,10 +2919,10 @@ function showAlert(message, type) {
 // ETL Scripts Functions
 function displayETLScripts(etlScripts, jobData = null) {
     console.log('Displaying ETL scripts:', etlScripts);
-    
+
     const etlList = document.getElementById('etl-scripts-list');
     etlList.innerHTML = '';
-    
+
     if (!etlScripts || Object.keys(etlScripts).length === 0) {
         etlList.innerHTML = `
             <div class="list-group-item">
@@ -2934,7 +2934,7 @@ function displayETLScripts(etlScripts, jobData = null) {
         `;
         return;
     }
-    
+
     // Sort scripts to show main orchestrator first
     const sortedScripts = Object.entries(etlScripts).sort(([nameA], [nameB]) => {
         if (nameA === 'etl_orchestrator.py') return -1;
@@ -2947,12 +2947,12 @@ function displayETLScripts(etlScripts, jobData = null) {
         if (nameB === 'requirements.txt') return -1;
         return nameA.localeCompare(nameB);
     });
-    
+
     sortedScripts.forEach(([filename, content]) => {
         const icon = getETLFileIcon(filename);
         const description = getETLFileDescription(filename);
         const lines = content.split('\n').length;
-        
+
         const listItem = document.createElement('div');
         listItem.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
         listItem.style.cursor = 'pointer';
@@ -2967,11 +2967,11 @@ function displayETLScripts(etlScripts, jobData = null) {
             </div>
             <i class="fas fa-chevron-right text-muted"></i>
         `;
-        
+
         listItem.addEventListener('click', () => {
             viewETLScript(filename, content);
         });
-        
+
         etlList.appendChild(listItem);
     });
 }
@@ -2990,12 +2990,12 @@ function getETLFileDescription(filename) {
         'config.py': 'Environment configuration and settings management',
         'requirements.txt': 'Python package dependencies for ETL pipeline'
     };
-    
+
     if (filename.startsWith('etl_') && filename.endsWith('.py')) {
         const tableName = filename.replace('etl_', '').replace('.py', '');
         return `Table-specific ETL processor for ${tableName}`;
     }
-    
+
     return descriptions[filename] || 'AI-generated ETL component';
 }
 
@@ -3004,15 +3004,15 @@ function viewETLScript(filename, content) {
     const scriptViewer = document.getElementById('etl-script-viewer');
     const currentFileSpan = document.getElementById('current-etl-file');
     const codeElement = document.getElementById('etl-script-code');
-    
+
     // Hide list, show viewer
     scriptsList.classList.add('d-none');
     scriptViewer.classList.remove('d-none');
-    
+
     // Update content
     currentFileSpan.textContent = filename;
     codeElement.textContent = content;
-    
+
     // Apply syntax highlighting
     if (filename.endsWith('.py')) {
         codeElement.className = 'language-python';
@@ -3021,12 +3021,12 @@ function viewETLScript(filename, content) {
     } else {
         codeElement.className = 'language-text';
     }
-    
+
     // Trigger syntax highlighting
     if (window.Prism) {
         Prism.highlightElement(codeElement);
     }
-    
+
     // Store current script for copy function
     window.currentETLScript = { filename, content };
 }
@@ -3034,10 +3034,10 @@ function viewETLScript(filename, content) {
 function closeETLViewer() {
     const scriptsList = document.getElementById('etl-scripts-list');
     const scriptViewer = document.getElementById('etl-script-viewer');
-    
+
     scriptsList.classList.remove('d-none');
     scriptViewer.classList.add('d-none');
-    
+
     window.currentETLScript = null;
 }
 
@@ -3057,7 +3057,7 @@ function exportETLScripts() {
         showAlert('No current job to export ETL scripts from', 'warning');
         return;
     }
-    
+
     // Trigger download of ETL scripts only
     const downloadUrl = `/migration/api/export-terraform/${currentJobId}`;
     const link = document.createElement('a');
@@ -3066,7 +3066,7 @@ function exportETLScripts() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+
     showAlert('ETL scripts download started!', 'success');
 }
 
@@ -3089,17 +3089,17 @@ function debounce(func, wait = 300) {
 function setButtonLoading(buttonId, loading = true, originalText = '') {
     const button = document.getElementById(buttonId);
     if (!button) return;
-    
+
     if (loading) {
         // Store original text if not provided
         if (!originalText && !button.dataset.originalText) {
             button.dataset.originalText = button.innerHTML;
         }
-        
+
         button.classList.add('loading');
         button.disabled = true;
         button.style.minWidth = button.offsetWidth + 'px'; // Prevent width change
-        
+
         // Add loading spinner
         const spinner = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>';
         button.innerHTML = spinner + (button.dataset.loadingText || 'Loading...');
@@ -3107,7 +3107,7 @@ function setButtonLoading(buttonId, loading = true, originalText = '') {
         button.classList.remove('loading');
         button.disabled = false;
         button.style.minWidth = '';
-        
+
         // Restore original text
         const original = originalText || button.dataset.originalText || button.innerHTML;
         button.innerHTML = original;
@@ -3139,23 +3139,23 @@ function addRippleEffect(event) {
 function enhanceButtonClick(buttonId, clickHandler, options = {}) {
     const button = document.getElementById(buttonId);
     if (!button) return;
-    
+
     const {
         loadingText = 'Loading...',
         debounceMs = 300,
         showRipple = true,
         preventDoubleClick = true
     } = options;
-    
+
     // Store loading text
     button.dataset.loadingText = loadingText;
-    
+
     // Create debounced handler
     const debouncedHandler = debounce(async (event) => {
         if (preventDoubleClick && button.disabled) return;
-        
+
         if (showRipple) addRippleEffect(event);
-        
+
         try {
             setButtonLoading(buttonId, true);
             await clickHandler(event);
@@ -3166,7 +3166,7 @@ function enhanceButtonClick(buttonId, clickHandler, options = {}) {
             setButtonLoading(buttonId, false);
         }
     }, debounceMs);
-    
+
     button.addEventListener('click', debouncedHandler);
 }
 
@@ -3181,26 +3181,26 @@ function autoEnhanceButtons() {
                 button.click();
             }
         });
-        
+
         // Add ripple on click
         button.addEventListener('click', addRippleEffect);
-        
+
         // Prevent text selection
         button.style.userSelect = 'none';
         button.style.webkitUserSelect = 'none';
     });
-    
+
     // Add smooth form interactions
     document.querySelectorAll('.form-control, .form-select').forEach(input => {
         input.addEventListener('focus', () => {
             input.parentElement?.classList.add('form-focus');
         });
-        
+
         input.addEventListener('blur', () => {
             input.parentElement?.classList.remove('form-focus');
         });
     });
-    
+
     // Add smooth checkbox interactions
     document.querySelectorAll('.form-check-input').forEach(checkbox => {
         checkbox.addEventListener('change', () => {
@@ -3218,29 +3218,29 @@ function autoEnhanceButtons() {
 // Performance optimization: Use RAF for smooth animations
 function smoothTransition(element, property, startValue, endValue, duration = 300) {
     const startTime = performance.now();
-    
+
     function animate(currentTime) {
         const elapsed = currentTime - startTime;
         const progress = Math.min(elapsed / duration, 1);
-        
+
         // Easing function (ease-out cubic)
         const easing = 1 - Math.pow(1 - progress, 3);
         const currentValue = startValue + (endValue - startValue) * easing;
-        
+
         element.style[property] = currentValue + (typeof startValue === 'number' ? 'px' : '');
-        
+
         if (progress < 1) {
             requestAnimationFrame(animate);
         }
     }
-    
+
     requestAnimationFrame(animate);
 }
 
 // Initialize smooth interactions when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     autoEnhanceButtons();
-    
+
     // Add CSS for ripple effect
     if (!document.getElementById('ripple-styles')) {
         const style = document.createElement('style');
@@ -3250,7 +3250,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 position: relative;
                 overflow: hidden;
             }
-            
+
             .ripple {
                 position: absolute;
                 border-radius: 50%;
@@ -3258,14 +3258,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 animation: ripple-animation 0.6s linear;
                 pointer-events: none;
             }
-            
+
             @keyframes ripple-animation {
                 to {
                     transform: scale(4);
                     opacity: 0;
                 }
             }
-            
+
             .form-focus {
                 transform: scale(1.01);
                 transition: transform 0.2s ease;
@@ -3408,7 +3408,7 @@ document.addEventListener('DOMContentLoaded', () => {
         font-size: 0.75rem;
         padding: 0.25rem 0.5rem;
     }
-    
+
     .step-indicator i {
         display: block;
         margin-bottom: 0.25rem;
@@ -3711,9 +3711,9 @@ document.addEventListener('DOMContentLoaded', () => {
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(90deg, 
-        transparent 0%, 
-        rgba(255, 255, 255, 0.2) 50%, 
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.2) 50%,
         transparent 100%
     );
     animation: shimmer 2s ease-in-out;

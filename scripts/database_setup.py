@@ -1,49 +1,45 @@
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import json
 import os
 from datetime import datetime
-import json
+
+import psycopg2
+from psycopg2.extras import RealDictCursor
+
 
 class PostgreSQLSetup:
-    def __init__(self, host='localhost', port=5432, database='legal_case_manager', 
-                 user='postgres', password='postgres'):
-        self.connection_params = {
-            'host': host,
-            'port': port,
-            'database': database,
-            'user': user,
-            'password': password
-        }
-        
+    def __init__(
+        self, host="localhost", port=5432, database="legal_case_manager", user="postgres", password="postgres"
+    ):
+        self.connection_params = {"host": host, "port": port, "database": database, "user": user, "password": password}
+
     def create_database_if_not_exists(self):
         """Create the database if it doesn't exist"""
         # Connect to default postgres database first
         temp_params = self.connection_params.copy()
-        temp_params['database'] = 'postgres'
-        
+        temp_params["database"] = "postgres"
+
         try:
             conn = psycopg2.connect(**temp_params)
             conn.autocommit = True
             cursor = conn.cursor()
-            
+
             # Check if database exists
-            cursor.execute("SELECT 1 FROM pg_database WHERE datname = %s", 
-                          (self.connection_params['database'],))
+            cursor.execute("SELECT 1 FROM pg_database WHERE datname = %s", (self.connection_params["database"],))
             exists = cursor.fetchone()
-            
+
             if not exists:
                 cursor.execute(f"CREATE DATABASE {self.connection_params['database']}")
                 print(f"Database '{self.connection_params['database']}' created successfully")
             else:
                 print(f"Database '{self.connection_params['database']}' already exists")
-                
+
             cursor.close()
             conn.close()
-            
+
         except psycopg2.Error as e:
             print(f"Error creating database: {e}")
             raise
-    
+
     def drop_existing_triggers(self):
         """Drop existing triggers to avoid conflicts"""
         drop_triggers_sql = """
@@ -55,7 +51,7 @@ class PostgreSQLSetup:
         DROP TRIGGER IF EXISTS update_terraform_jobs_updated_at ON terraform_jobs;
         DROP TRIGGER IF EXISTS update_migration_jobs_updated_at ON migration_jobs;
         """
-        
+
         try:
             conn = psycopg2.connect(**self.connection_params)
             cursor = conn.cursor()
@@ -82,7 +78,7 @@ class PostgreSQLSetup:
         DROP TABLE IF EXISTS recent_searches CASCADE;
         DROP TABLE IF EXISTS popular_searches CASCADE;
         """
-        
+
         try:
             conn = psycopg2.connect(**self.connection_params)
             cursor = conn.cursor()
@@ -93,10 +89,10 @@ class PostgreSQLSetup:
             conn.close()
         except psycopg2.Error as e:
             print(f"Note: Some tables may not have existed: {e}")
-    
+
     def create_tables(self):
         """Create all necessary tables"""
-        
+
         create_tables_sql = """
         -- Clients table
         CREATE TABLE IF NOT EXISTS clients (
@@ -214,7 +210,7 @@ class PostgreSQLSetup:
         CREATE INDEX IF NOT EXISTS idx_clients_email ON clients(email);
         CREATE INDEX IF NOT EXISTS idx_clients_status ON clients(status);
         CREATE INDEX IF NOT EXISTS idx_clients_type ON clients(client_type);
-        
+
         -- Performance indexes for client name searches
         CREATE INDEX IF NOT EXISTS idx_clients_first_name ON clients(first_name);
         CREATE INDEX IF NOT EXISTS idx_clients_last_name ON clients(last_name);
@@ -222,20 +218,20 @@ class PostgreSQLSetup:
         CREATE INDEX IF NOT EXISTS idx_clients_last_name_pattern ON clients(last_name varchar_pattern_ops);
         CREATE INDEX IF NOT EXISTS idx_clients_full_name ON clients(first_name, last_name);
         CREATE INDEX IF NOT EXISTS idx_clients_fulltext ON clients USING gin(to_tsvector('english', coalesce(first_name, '') || ' ' || coalesce(last_name, '')));
-        
+
         CREATE INDEX IF NOT EXISTS idx_cases_client_id ON cases(client_id);
         CREATE INDEX IF NOT EXISTS idx_cases_status ON cases(case_status);
         CREATE INDEX IF NOT EXISTS idx_cases_type ON cases(case_type);
         CREATE INDEX IF NOT EXISTS idx_cases_reference ON cases(reference_number);
         CREATE INDEX IF NOT EXISTS idx_cases_type_pattern ON cases(case_type varchar_pattern_ops);
-        
+
         CREATE INDEX IF NOT EXISTS idx_files_case_id ON physical_files(case_id);
         CREATE INDEX IF NOT EXISTS idx_files_client_id ON physical_files(client_id);
         CREATE INDEX IF NOT EXISTS idx_files_warehouse ON physical_files(warehouse_location);
         CREATE INDEX IF NOT EXISTS idx_files_reference ON physical_files(reference_number);
         CREATE INDEX IF NOT EXISTS idx_files_keywords ON physical_files USING GIN(keywords);
         CREATE INDEX IF NOT EXISTS idx_files_description ON physical_files(file_description);
-        
+
         CREATE INDEX IF NOT EXISTS idx_payments_client_id ON payments(client_id);
         CREATE INDEX IF NOT EXISTS idx_payments_case_id ON payments(case_id);
         CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
@@ -285,12 +281,12 @@ class PostgreSQLSetup:
         CREATE INDEX IF NOT EXISTS idx_terraform_jobs_created_at ON terraform_jobs(created_at);
         CREATE INDEX IF NOT EXISTS idx_terraform_jobs_source_db ON terraform_jobs(source_db_type);
         CREATE INDEX IF NOT EXISTS idx_terraform_jobs_target_cloud ON terraform_jobs(target_cloud);
-        
+
         CREATE INDEX IF NOT EXISTS idx_migration_jobs_status ON migration_jobs(status);
         CREATE INDEX IF NOT EXISTS idx_migration_jobs_created_at ON migration_jobs(created_at);
         CREATE INDEX IF NOT EXISTS idx_migration_jobs_source_db ON migration_jobs(source_db_type);
         """
-        
+
         try:
             conn = psycopg2.connect(**self.connection_params)
             cursor = conn.cursor()
@@ -302,10 +298,10 @@ class PostgreSQLSetup:
         except psycopg2.Error as e:
             print(f"Error creating tables: {e}")
             raise
-    
+
     def create_triggers(self):
         """Create triggers separately with proper error handling"""
-        
+
         trigger_function_sql = """
         -- Create function for updating timestamps
         CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -316,7 +312,7 @@ class PostgreSQLSetup:
         END;
         $$ language 'plpgsql';
         """
-        
+
         triggers = [
             "CREATE TRIGGER update_clients_updated_at BEFORE UPDATE ON clients FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();",
             "CREATE TRIGGER update_cases_updated_at BEFORE UPDATE ON cases FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();",
@@ -324,16 +320,16 @@ class PostgreSQLSetup:
             "CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON payments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();",
             "CREATE TRIGGER update_comments_updated_at BEFORE UPDATE ON user_comments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();",
             "CREATE TRIGGER update_terraform_jobs_updated_at BEFORE UPDATE ON terraform_jobs FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();",
-            "CREATE TRIGGER update_migration_jobs_updated_at BEFORE UPDATE ON migration_jobs FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();"
+            "CREATE TRIGGER update_migration_jobs_updated_at BEFORE UPDATE ON migration_jobs FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();",
         ]
-        
+
         try:
             conn = psycopg2.connect(**self.connection_params)
             cursor = conn.cursor()
-            
+
             # Create the function first
             cursor.execute(trigger_function_sql)
-            
+
             # Create each trigger individually
             for trigger in triggers:
                 try:
@@ -344,32 +340,32 @@ class PostgreSQLSetup:
                         print(f"Trigger already exists: {trigger.split()[2]}")
                     else:
                         print(f"Error creating trigger: {e}")
-            
+
             conn.commit()
             cursor.close()
             conn.close()
             print("Trigger setup completed")
-            
+
         except psycopg2.Error as e:
             print(f"Error setting up triggers: {e}")
             # Don't raise - triggers are not critical for basic functionality
-    
+
     def setup_database(self, reset_triggers=False, drop_tables=False):
         """Complete database setup"""
         self.create_database_if_not_exists()
-        
+
         if reset_triggers:
             print("Dropping existing triggers...")
             self.drop_existing_triggers()
-        
+
         if drop_tables:
             print("Dropping existing tables...")
             self.drop_existing_tables()
-        
+
         self.create_tables()
         self.create_triggers()
         print("PostgreSQL database setup completed successfully!")
-    
+
     def clear_all_data(self):
         """Clear all data from tables (useful for re-migration)"""
         clear_sql = """
@@ -384,7 +380,7 @@ class PostgreSQLSetup:
         TRUNCATE TABLE recent_searches CASCADE;
         TRUNCATE TABLE popular_searches CASCADE;
         """
-        
+
         try:
             conn = psycopg2.connect(**self.connection_params)
             cursor = conn.cursor()
@@ -397,18 +393,19 @@ class PostgreSQLSetup:
             print(f"Error clearing data: {e}")
             raise
 
+
 if __name__ == "__main__":
     import sys
-    
+
     # You can modify these connection parameters as needed
     db_setup = PostgreSQLSetup(
-        host='localhost',
+        host="localhost",
         port=5432,
-        database='legal_case_manager',
-        user='postgres',
-        password='postgres'  # Change this to your PostgreSQL password
+        database="legal_case_manager",
+        user="postgres",
+        password="postgres",  # Change this to your PostgreSQL password
     )
-    
+
     # Check for command line arguments
     if len(sys.argv) > 1:
         if sys.argv[1] == "--reset":
@@ -421,4 +418,3 @@ if __name__ == "__main__":
             print("Usage: python database_setup.py [--reset|--clear-data]")
     else:
         db_setup.setup_database()
-

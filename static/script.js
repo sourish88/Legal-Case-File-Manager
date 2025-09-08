@@ -13,18 +13,18 @@ class InteractiveSearch {
             this.searchSpinner = document.getElementById('search-spinner');
             this.suggestionsContainer = document.getElementById('search-suggestions');
             this.clearButton = document.getElementById('clear-search');
-            
+
             console.log('InteractiveSearch elements:', {
                 searchInput: !!this.searchInput,
                 suggestionsContainer: !!this.suggestionsContainer,
                 searchForm: !!this.searchForm
             });
-            
+
             this.searchTimeout = null;
             this.suggestionTimeout = null;
             this.currentRequest = null;
             this.isSearching = false;
-            
+
             if (this.searchInput && this.suggestionsContainer) {
                 this.init();
             } else {
@@ -34,10 +34,10 @@ class InteractiveSearch {
             console.error('InteractiveSearch constructor error:', error);
         }
     }
-    
+
     init() {
         this.bindEvents();
-        
+
         // Trigger initial search if there are existing params
         const urlParams = new URLSearchParams(window.location.search);
         const query = urlParams.get('q');
@@ -45,20 +45,20 @@ class InteractiveSearch {
             this.performSearch();
         }
     }
-    
+
     bindEvents() {
         // Real-time search as you type
         this.searchInput.addEventListener('input', (e) => {
             this.handleSearchInput(e.target.value);
         });
-        
+
         // Handle suggestions
         this.searchInput.addEventListener('focus', () => {
             if (this.searchInput.value.length >= 2) {
                 this.showSuggestions(this.searchInput.value);
             }
         });
-        
+
         // Hide suggestions when clicking outside
         document.addEventListener('click', (e) => {
             // Don't interfere with file detail links
@@ -69,47 +69,47 @@ class InteractiveSearch {
                 this.hideSuggestions();
             }
         });
-        
+
         // Handle filter changes
         document.querySelectorAll('.interactive-filter').forEach(filter => {
             filter.addEventListener('change', () => {
                 this.handleFilterChange();
             });
         });
-        
+
         // Clear search button
         if (this.clearButton) {
             this.clearButton.addEventListener('click', () => {
                 this.clearSearch();
             });
         }
-        
+
         // Prevent form submission
         this.searchForm.addEventListener('submit', (e) => {
             e.preventDefault();
         });
-        
+
         // Keyboard navigation for suggestions
         this.searchInput.addEventListener('keydown', (e) => {
             this.handleKeyNavigation(e);
         });
     }
-    
+
     handleSearchInput(query) {
         clearTimeout(this.searchTimeout);
-        
+
         if (query.length >= 2) {
             // Show suggestions
             clearTimeout(this.suggestionTimeout);
             this.suggestionTimeout = setTimeout(() => {
                 this.showSuggestions(query);
             }, 200);
-            
+
             // Perform search
             this.searchTimeout = setTimeout(() => {
                 this.performSearch();
             }, 500);
-            
+
             this.updateSearchStatus('Searching...');
         } else if (query.length === 0) {
             this.hideSuggestions();
@@ -124,12 +124,12 @@ class InteractiveSearch {
             this.updateSearchStatus('Type at least 2 characters...');
         }
     }
-    
+
     hasActiveFilters() {
         const filters = document.querySelectorAll('.interactive-filter');
         return Array.from(filters).some(filter => filter.value);
     }
-    
+
     getActiveFilters() {
         const filters = {};
         document.querySelectorAll('.interactive-filter').forEach(filter => {
@@ -139,13 +139,13 @@ class InteractiveSearch {
         });
         return filters;
     }
-    
+
     handleKeyNavigation(e) {
         const suggestions = this.suggestionsContainer.querySelectorAll('.suggestion-item');
         if (suggestions.length === 0) return;
-        
+
         const activeIndex = Array.from(suggestions).findIndex(s => s.classList.contains('active'));
-        
+
         switch(e.key) {
             case 'ArrowDown':
                 e.preventDefault();
@@ -170,55 +170,55 @@ class InteractiveSearch {
                 break;
         }
     }
-    
+
     setActiveSuggestion(suggestions, index) {
         suggestions.forEach(s => s.classList.remove('active'));
         suggestions[index].classList.add('active');
         this.searchInput.value = suggestions[index].textContent;
     }
-    
+
     handleFilterChange() {
         clearTimeout(this.searchTimeout);
         this.searchTimeout = setTimeout(() => {
             this.performSearch();
         }, 300);
     }
-    
+
     async performSearch() {
         if (this.isSearching) {
             if (this.currentRequest) {
                 this.currentRequest.abort();
             }
         }
-        
+
         this.isSearching = true;
         this.showLoadingState();
-        
+
         const query = this.searchInput.value.trim();
         const filters = this.getActiveFilters();
-        
+
         // Build query parameters
         const params = new URLSearchParams();
         if (query) params.set('q', query);
         Object.entries(filters).forEach(([key, value]) => {
             if (value) params.set(key, value);
         });
-        
+
         try {
             const controller = new AbortController();
             this.currentRequest = controller;
-            
+
             const response = await fetch(`/api/unified-search?${params}`, {
                 signal: controller.signal
             });
-            
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            
+
             const data = await response.json();
             this.renderUnifiedResults(data);
-            
+
         } catch (error) {
             if (error.name !== 'AbortError') {
                 console.error('Search error:', error);
@@ -230,19 +230,19 @@ class InteractiveSearch {
             this.currentRequest = null;
         }
     }
-    
+
     renderUnifiedResults(data) {
         const { files, clients, cases, payments, access_history, comments, total_results, query, category_counts } = data;
-        
+
         // Update search status
         const searchStatus = document.getElementById('search-status');
         const resultsCount = document.getElementById('results-count');
         const resultsBody = document.getElementById('results-body');
-        
+
         if (total_results === 0) {
             searchStatus.textContent = query ? `No results for "${query}"` : 'Start typing to search...';
             resultsCount.textContent = '0 results';
-            
+
             resultsBody.innerHTML = `
                 <div class="text-center py-5" id="no-results">
                     <i class="fas fa-search fa-3x text-muted mb-3"></i>
@@ -253,14 +253,14 @@ class InteractiveSearch {
         } else {
             searchStatus.textContent = query ? `Found results for "${query}"` : 'Search results';
             resultsCount.textContent = `${total_results} result${total_results !== 1 ? 's' : ''}`;
-            
+
             let html = '';
-            
+
             // Add category summary
             if (total_results > 0) {
                 html += this.renderCategorySummary(category_counts);
             }
-            
+
             // Render each category
             if (files && files.length > 0) {
                 html += this.renderFileResults(files, data.files_truncated);
@@ -280,11 +280,11 @@ class InteractiveSearch {
             if (comments && comments.length > 0) {
                 html += this.renderCommentResults(comments, data.comments_truncated);
             }
-            
+
             resultsBody.innerHTML = html || '<div class="text-center py-5"><p class="text-muted">No results found</p></div>';
         }
     }
-    
+
     renderCategorySummary(categoryCounts) {
         const categories = [
             { key: 'files', label: 'Files', icon: 'file-alt', color: 'primary' },
@@ -294,7 +294,7 @@ class InteractiveSearch {
             { key: 'access_history', label: 'Access History', icon: 'history', color: 'secondary' },
             { key: 'comments', label: 'Comments', icon: 'comments', color: 'dark' }
         ];
-        
+
         let html = `
             <div class="row mb-4">
                 <div class="col-12">
@@ -305,7 +305,7 @@ class InteractiveSearch {
                             </h6>
                             <div class="row">
         `;
-        
+
         categories.forEach(category => {
             const count = categoryCounts[category.key] || 0;
             if (count > 0) {
@@ -324,7 +324,7 @@ class InteractiveSearch {
                 `;
             }
         });
-        
+
         html += `
                             </div>
                         </div>
@@ -332,10 +332,10 @@ class InteractiveSearch {
                 </div>
             </div>
         `;
-        
+
         return html;
     }
-    
+
     renderFileResults(files, truncated) {
         let html = `
             <div class="card mb-4">
@@ -362,7 +362,7 @@ class InteractiveSearch {
                     </thead>
                     <tbody>
         `;
-        
+
         files.forEach(file => {
             html += `
                 <tr class="result-row">
@@ -399,7 +399,7 @@ class InteractiveSearch {
             </tr>
         `;
         });
-        
+
         html += `
                             </tbody>
                         </table>
@@ -407,10 +407,10 @@ class InteractiveSearch {
                 </div>
             </div>
         `;
-        
+
         return html;
     }
-    
+
     renderClientResults(clients, truncated) {
         let html = `
             <div class="card mb-4">
@@ -424,7 +424,7 @@ class InteractiveSearch {
                 <div class="card-body">
                     <div class="row">
         `;
-        
+
         clients.forEach(client => {
             html += `
                 <div class="col-md-6 col-lg-4 mb-3">
@@ -454,16 +454,16 @@ class InteractiveSearch {
                 </div>
             `;
         });
-        
+
         html += `
                     </div>
                 </div>
             </div>
         `;
-        
+
         return html;
     }
-    
+
     renderCaseResults(cases, truncated) {
         let html = `
             <div class="card mb-4">
@@ -476,7 +476,7 @@ class InteractiveSearch {
             </div>
                 <div class="card-body">
         `;
-        
+
         cases.forEach(case_item => {
             html += `
                 <div class="card mb-3">
@@ -488,7 +488,7 @@ class InteractiveSearch {
                                     <span class="badge bg-info ms-2">${case_item.case_type}</span>
                                 </h6>
                                 <p class="card-text">
-                                    <strong>Client:</strong> 
+                                    <strong>Client:</strong>
                                     <a href="/client/${case_item.client_id}" class="text-decoration-none">
                                         ${case_item.client_name}
                                     </a><br>
@@ -516,15 +516,15 @@ class InteractiveSearch {
                 </div>
             `;
         });
-        
+
         html += `
                 </div>
             </div>
         `;
-        
+
         return html;
     }
-    
+
     renderPaymentResults(payments, truncated) {
         let html = `
             <div class="card mb-4">
@@ -551,7 +551,7 @@ class InteractiveSearch {
                             </thead>
                             <tbody>
         `;
-        
+
         payments.forEach(payment => {
             html += `
                 <tr>
@@ -576,7 +576,7 @@ class InteractiveSearch {
                 </tr>
             `;
         });
-        
+
         html += `
                             </tbody>
                         </table>
@@ -584,10 +584,10 @@ class InteractiveSearch {
                 </div>
             </div>
         `;
-        
+
         return html;
     }
-    
+
     renderAccessHistoryResults(accessHistory, truncated) {
         let html = `
             <div class="card mb-4">
@@ -600,7 +600,7 @@ class InteractiveSearch {
                 </div>
                 <div class="card-body">
         `;
-        
+
         accessHistory.forEach(access => {
             html += `
                 <div class="d-flex align-items-start mb-3 p-2 border rounded">
@@ -615,7 +615,7 @@ class InteractiveSearch {
                                 <strong class="text-primary">${access.user_name}</strong>
                                 <span class="badge bg-info ms-1">${access.user_role}</span>
                                 <div class="text-muted mt-1">
-                                    ${access.access_type.charAt(0).toUpperCase() + access.access_type.slice(1)}ed file 
+                                    ${access.access_type.charAt(0).toUpperCase() + access.access_type.slice(1)}ed file
                                     <a href="/file/${access.file_id}" class="text-decoration-none fw-bold">
                                         ${access.file_reference}
                                     </a>
@@ -634,15 +634,15 @@ class InteractiveSearch {
                 </div>
             `;
         });
-        
+
         html += `
                 </div>
             </div>
         `;
-        
+
         return html;
     }
-    
+
     renderCommentResults(comments, truncated) {
         let html = `
             <div class="card mb-4">
@@ -655,7 +655,7 @@ class InteractiveSearch {
                 </div>
                 <div class="card-body">
         `;
-        
+
         comments.forEach(comment => {
             html += `
                 <div class="card mb-3">
@@ -683,40 +683,40 @@ class InteractiveSearch {
                 </div>
             `;
         });
-        
+
         html += `
                 </div>
             </div>
         `;
-        
+
         return html;
     }
 
     async showSuggestions(query) {
         console.log('showSuggestions called with:', query, 'Container exists:', !!this.suggestionsContainer);
-        
+
         if (query.length < 1) {
             this.hideSuggestions();
             return;
         }
-        
+
         try {
             const url = `/api/intelligent-suggestions?q=${encodeURIComponent(query)}&limit=12&categories=true`;
             console.log('Fetching suggestions from:', url);
-            
+
             const response = await fetch(url);
             const data = await response.json();
-            
+
             console.log('Suggestions response:', data);
-            
+
             if (data.suggestions && data.suggestions.length > 0) {
                 let html = this.renderIntelligentSuggestions(data);
-                
+
                 console.log('Setting suggestions HTML, container:', this.suggestionsContainer);
                 this.suggestionsContainer.innerHTML = html;
                 this.suggestionsContainer.classList.remove('d-none');
                 console.log('Suggestions container classes after show:', this.suggestionsContainer.className);
-                
+
                 // Add click handlers
                 this.suggestionsContainer.querySelectorAll('.suggestion-item').forEach(item => {
                     item.addEventListener('click', () => {
@@ -742,11 +742,11 @@ class InteractiveSearch {
             this.hideSuggestions();
         }
     }
-    
+
     renderIntelligentSuggestions(data) {
         let html = '';
         const { suggestions, recent_searches, popular_searches } = data;
-        
+
         // Group suggestions by type for better display
         const grouped = {
             contextual: [],
@@ -759,10 +759,10 @@ class InteractiveSearch {
             payments: [],
             popular: []
         };
-        
+
         suggestions.forEach(suggestion => {
             const type = suggestion.type;
-            const category = type.includes('client') ? 'clients' : 
+            const category = type.includes('client') ? 'clients' :
                            type.includes('case') ? 'cases' :
                            type.includes('file') || type.includes('keyword') || type.includes('document') ? 'files' :
                            type.includes('payment') ? 'payments' :
@@ -773,7 +773,7 @@ class InteractiveSearch {
                            'contextual';
             grouped[category].push(suggestion);
         });
-        
+
         // Show suggestions by priority
         const sections = [
             { key: 'contextual', label: 'Suggested', icon: 'lightbulb', color: 'warning' },
@@ -786,16 +786,16 @@ class InteractiveSearch {
             { key: 'payments', label: 'Payments', icon: 'dollar-sign', color: 'warning' },
             { key: 'popular', label: 'Popular', icon: 'star', color: 'secondary' }
         ];
-        
+
         let hasAnyResults = false;
-        
+
         sections.forEach(section => {
             const items = grouped[section.key];
             if (items && items.length > 0) {
                 if (hasAnyResults) {
                     html += `<div class="border-top my-1"></div>`;
                 }
-                
+
                 // Section header (only show for multiple sections)
                 if (Object.values(grouped).filter(g => g.length > 0).length > 1) {
                     html += `
@@ -805,15 +805,15 @@ class InteractiveSearch {
                         </div>
                     `;
                 }
-                
+
                 items.slice(0, 4).forEach(item => { // Limit per section
                     html += this.renderSuggestionItem(item);
                 });
-                
+
                 hasAnyResults = true;
             }
         });
-        
+
         // If no suggestions but we have recent or popular searches, show them
         if (!hasAnyResults && (recent_searches.length > 0 || popular_searches.length > 0)) {
             if (recent_searches.length > 0) {
@@ -831,7 +831,7 @@ class InteractiveSearch {
                     `;
                 });
             }
-            
+
             if (popular_searches.length > 0) {
                 html += `
                     <div class="px-3 py-1 bg-light text-muted small">
@@ -851,10 +851,10 @@ class InteractiveSearch {
                 });
             }
         }
-        
+
         return html;
     }
-    
+
     renderSuggestionItem(suggestion) {
         const icons = {
             'contextual': 'lightbulb',
@@ -874,7 +874,7 @@ class InteractiveSearch {
             'file_type_completion': 'file-check',
             'typo_correction': 'spell-check'
         };
-        
+
         const colors = {
             'contextual': 'warning',
             'client': 'success',
@@ -893,10 +893,10 @@ class InteractiveSearch {
             'file_type_completion': 'primary',
             'typo_correction': 'danger'
         };
-        
+
         const icon = icons[suggestion.type] || 'search';
         const color = colors[suggestion.type] || 'muted';
-        
+
         let subtitle = '';
         if (suggestion.email) {
             subtitle = `<small class="text-muted d-block">${suggestion.email}</small>`;
@@ -909,7 +909,7 @@ class InteractiveSearch {
         } else if (suggestion.original && suggestion.type === 'typo_correction') {
             subtitle = `<small class="text-muted d-block">Instead of "${suggestion.original}"</small>`;
         }
-        
+
         return `
             <div class="suggestion-item px-3 py-2 border-bottom cursor-pointer d-flex align-items-center" data-text="${suggestion.text}">
                 <i class="fas fa-${icon} me-3 text-${color}"></i>
@@ -921,12 +921,12 @@ class InteractiveSearch {
             </div>
         `;
     }
-    
+
     hideSuggestions() {
         this.suggestionsContainer.classList.add('d-none');
         this.suggestionsContainer.innerHTML = '';
     }
-    
+
     clearSearch() {
         this.searchInput.value = '';
         document.querySelectorAll('.interactive-filter').forEach(filter => {
@@ -936,7 +936,7 @@ class InteractiveSearch {
         this.showWelcomeMessage();
         this.updateSearchStatus('Start typing to search...');
     }
-    
+
     showWelcomeMessage() {
         this.resultsBody.innerHTML = `
             <div class="text-center py-5" id="welcome-message">
@@ -969,17 +969,17 @@ class InteractiveSearch {
             </div>
         `;
     }
-    
+
     showLoadingState() {
         this.searchIcon.classList.add('d-none');
         this.searchSpinner.classList.remove('d-none');
     }
-    
+
     hideLoadingState() {
         this.searchIcon.classList.remove('d-none');
         this.searchSpinner.classList.add('d-none');
     }
-    
+
     showErrorState() {
         this.resultsBody.innerHTML = `
             <div class="text-center py-5">
@@ -989,7 +989,7 @@ class InteractiveSearch {
             </div>
         `;
     }
-    
+
     updateSearchStatus(message) {
         if (this.searchStatus) {
             this.searchStatus.textContent = message;
@@ -1004,9 +1004,9 @@ class DashboardSearch {
             this.searchInput = document.getElementById('dashboard-search');
             this.suggestionsContainer = document.getElementById('dashboard-suggestions');
             this.searchForm = document.getElementById('dashboard-search-form');
-            
+
             this.suggestionTimeout = null;
-        
+
         if (this.searchInput && this.suggestionsContainer) {
             this.init();
         }
@@ -1014,33 +1014,33 @@ class DashboardSearch {
             // Silently handle initialization errors
         }
     }
-    
+
     init() {
         if (!this.searchInput) return;
-        
+
         this.bindEvents();
-        
+
         // Add single event delegation handler for all suggestion clicks (using capture phase)
         // Event listeners are added directly to suggestion items
     }
-    
+
     handleSuggestionClick(text, type, url) {
         /**
          * Centralized handler for all suggestion clicks
          * Implements smart routing based on suggestion type
          */
         console.log('🎯 handleSuggestionClick called with:', { text, type, url });
-        
+
         try {
             let targetUrl;
-            
+
             // Smart routing based on suggestion type
             if (type === 'client' && url) {
                 // Direct navigation to client page for client suggestions
                 targetUrl = url;
                 console.log('✅ Navigating to client page:', targetUrl);
             } else if (type === 'file' && url) {
-                // Direct navigation to file page for file suggestions  
+                // Direct navigation to file page for file suggestions
                 targetUrl = url;
                 console.log('✅ Navigating to file page:', targetUrl);
             } else {
@@ -1048,51 +1048,51 @@ class DashboardSearch {
                 targetUrl = `/search?q=${encodeURIComponent(text)}`;
                 console.log('✅ Navigating to search:', targetUrl);
             }
-            
+
             // Validate URL before navigation
             if (!targetUrl) {
                 console.error('❌ No target URL determined for suggestion:', { text, type, url });
                 return;
             }
-            
+
             // Hide suggestions and navigate
             console.log('🔄 Hiding suggestions...');
             this.hideSuggestions();
             console.log('🚀 Final navigation to:', targetUrl);
-            
+
             // Navigate to the target URL
             console.log('🚀 Navigating to:', targetUrl);
             window.location.href = targetUrl;
-            
+
         } catch (error) {
             console.error('❌ Error handling suggestion click:', error, { text, type, url });
             // Fallback to search if there's an error
             const fallbackUrl = `/search?q=${encodeURIComponent(text)}`;
             console.log('🔄 Fallback navigation to:', fallbackUrl);
             this.hideSuggestions();
-            
+
             window.location.href = fallbackUrl;
         }
     }
-    
+
     bindEvents() {
         this.searchInput.addEventListener('input', (e) => {
             this.handleInput(e.target.value);
         });
-        
+
         this.searchInput.addEventListener('focus', () => {
             if (this.searchInput.value.length >= 2) {
                 this.showSuggestions(this.searchInput.value);
             }
         });
-        
+
         // Hide suggestions on ESC key
         this.searchInput.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 this.hideSuggestions();
             }
         });
-        
+
         this.searchForm.addEventListener('submit', (e) => {
                 e.preventDefault();
             const query = this.searchInput.value.trim();
@@ -1101,10 +1101,10 @@ class DashboardSearch {
             }
         });
     }
-    
+
     handleInput(value) {
         clearTimeout(this.suggestionTimeout);
-        
+
         if (value.length >= 2) {
             this.suggestionTimeout = setTimeout(() => {
                 this.showSuggestions(value);
@@ -1113,37 +1113,37 @@ class DashboardSearch {
             this.hideSuggestions();
         }
     }
-    
+
     async showSuggestions(query) {
-        
+
         try {
             const url = `/api/intelligent-suggestions?q=${encodeURIComponent(query)}&limit=8&categories=true`;
-            
+
             const response = await fetch(url);
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
-            
+
             const data = await response.json();
             console.log('Dashboard suggestions response:', data);
-            
+
             if (!data) {
                 console.warn('No data received from suggestions API');
                 this.hideSuggestions();
                 return;
             }
-            
+
             if (data.suggestions && data.suggestions.length > 0) {
                 let html = '';
                 console.log('Processing', data.suggestions.length, 'suggestions');
-                
+
                 data.suggestions.slice(0, 6).forEach((suggestion, index) => {
                     // Validate suggestion data
                     if (!suggestion.text) {
                         console.warn(`Suggestion ${index + 1} missing text:`, suggestion);
                         return;
                     }
-                    
+
                     console.log(`Suggestion ${index + 1}:`, {
                         text: suggestion.text,
                         type: suggestion.type,
@@ -1154,14 +1154,14 @@ class DashboardSearch {
                         'client': 'user',
                         'file': 'file-alt',  // Added missing 'file' type
                         'case_reference': 'briefcase',
-                        'case_type': 'briefcase', 
+                        'case_type': 'briefcase',
                         'file_reference': 'file-alt',
                         'file_type': 'file',
                         'keyword': 'tag',
                         'recent_search': 'history',
                         'popular_search': 'star'
                     };
-                    
+
                     const colors = {
                         'contextual': 'warning',
                         'client': 'success',
@@ -1169,18 +1169,18 @@ class DashboardSearch {
                         'case_reference': 'info',
                         'case_type': 'info',
                         'file_reference': 'primary',
-                        'file_type': 'primary', 
+                        'file_type': 'primary',
                         'keyword': 'secondary',
                         'recent_search': 'info',
                         'popular_search': 'warning'
                     };
-                    
+
                     const icon = icons[suggestion.type] || 'search';
                     const color = colors[suggestion.type] || 'primary';
-                    
+
                     // Create unique function name for this suggestion
                     const functionName = `handleSuggestion${index + 1}Click`;
-                    
+
                     // Add function to global scope
                     window[functionName] = () => {
                         // Hide suggestions immediately
@@ -1188,7 +1188,7 @@ class DashboardSearch {
                         if (suggestionsContainer) {
                             suggestionsContainer.classList.add('d-none');
                         }
-                        
+
                         // Navigate based on suggestion type
                         if (suggestion.type === 'file' && suggestion.url) {
                             window.location.href = suggestion.url;
@@ -1198,15 +1198,15 @@ class DashboardSearch {
                             window.location.href = `/search?q=${encodeURIComponent(suggestion.text)}`;
                         }
                     };
-                    
+
                     html += `
-                        <div class="dashboard-suggestion-item px-3 py-2 border-bottom cursor-pointer d-flex align-items-center" 
-                             data-text="${suggestion.text}" 
+                        <div class="dashboard-suggestion-item px-3 py-2 border-bottom cursor-pointer d-flex align-items-center"
+                             data-text="${suggestion.text}"
                              data-type="${suggestion.type || 'search'}"
                              data-url="${suggestion.url || ''}"
                              style="cursor: pointer; user-select: none;"
                              data-handler="${functionName}"
-                             onmouseover="this.style.backgroundColor='#f8f9fa'" 
+                             onmouseover="this.style.backgroundColor='#f8f9fa'"
                              onmouseout="this.style.backgroundColor='transparent'">
                             <i class="fas fa-${icon} me-2 text-${color}"></i>
                             <span>${suggestion.text}</span>
@@ -1214,15 +1214,15 @@ class DashboardSearch {
                         </div>
                     `;
                 });
-                
+
                 this.suggestionsContainer.innerHTML = html;
                 this.suggestionsContainer.classList.remove('d-none');
-                
+
                 // Add event listeners to rendered items
                 const renderedItems = this.suggestionsContainer.querySelectorAll('.dashboard-suggestion-item');
                 renderedItems.forEach((item, index) => {
                     const handlerName = item.getAttribute('data-handler');
-                    
+
                     if (typeof window[handlerName] === 'function') {
                         // Use multiple event types for better compatibility
                         ['mousedown', 'click', 'touchstart'].forEach(eventType => {
@@ -1231,7 +1231,7 @@ class DashboardSearch {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 e.stopImmediatePropagation();
-                                
+
                                 // Call the handler function
                                 window[handlerName]();
                             }, true); // capture phase
@@ -1247,21 +1247,21 @@ class DashboardSearch {
                 `;
                 data.recent_searches.slice(0, 3).forEach(search => {
                     html += `
-                        <div class="dashboard-suggestion-item px-3 py-2 border-bottom cursor-pointer" 
+                        <div class="dashboard-suggestion-item px-3 py-2 border-bottom cursor-pointer"
                              data-text="${search}"
                              data-type="recent_search"
                              data-url=""
                              style="cursor: pointer; user-select: none;"
-                             onmouseover="this.style.backgroundColor='#f8f9fa'" 
+                             onmouseover="this.style.backgroundColor='#f8f9fa'"
                              onmouseout="this.style.backgroundColor='transparent'">
                             <i class="fas fa-history me-2 text-info"></i>${search}
                         </div>
                     `;
                 });
-                
+
                 this.suggestionsContainer.innerHTML = html;
                 this.suggestionsContainer.classList.remove('d-none');
-                
+
                 // Recent searches use simple click handling
                 const renderedItems = this.suggestionsContainer.querySelectorAll('.dashboard-suggestion-item');
             } else {
@@ -1271,7 +1271,7 @@ class DashboardSearch {
             this.hideSuggestions();
         }
     }
-    
+
     hideSuggestions() {
         if (this.suggestionsContainer) {
             this.suggestionsContainer.classList.add('d-none');
@@ -1289,7 +1289,7 @@ window.LegalFileManager = {
             const date = new Date(timestamp);
             const now = new Date();
             const diffInSeconds = Math.floor((now - date) / 1000);
-            
+
             if (diffInSeconds < 60) return 'Just now';
             if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
             if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
@@ -1310,7 +1310,7 @@ function toggleDateFilters() {
     const dateFilters = document.getElementById('date-filters');
     const datePresets = document.getElementById('date-presets');
     const toggleIcon = document.getElementById('date-toggle-icon');
-    
+
     if (dateFilters.classList.contains('d-none')) {
         dateFilters.classList.remove('d-none');
         datePresets.classList.remove('d-none');
@@ -1325,7 +1325,7 @@ function toggleDateFilters() {
 function setDatePreset(preset) {
     const today = new Date();
     let startDate, endDate = today;
-    
+
     switch(preset) {
         case 'today':
             startDate = today;
@@ -1343,11 +1343,11 @@ function setDatePreset(preset) {
             startDate = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000);
             break;
     }
-    
+
     if (startDate) {
         document.getElementById('accessed_from').value = startDate.toISOString().split('T')[0];
         document.getElementById('accessed_to').value = endDate.toISOString().split('T')[0];
-        
+
         // Trigger search
         if (window.interactiveSearch) {
             window.interactiveSearch.performSearch();
@@ -1361,7 +1361,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('search-form')) {
         window.interactiveSearch = new InteractiveSearch();
     }
-    
+
     if (document.getElementById('dashboard-search')) {
         window.dashboardSearch = new DashboardSearch();
     }

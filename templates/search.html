@@ -30,8 +30,8 @@
                         <div class="col-md-12 mb-3">
                             <label for="q" class="form-label">Search Query</label>
                             <div class="position-relative">
-                                <input type="text" class="form-control" id="q" name="q" 
-                                       value="{{ query }}" 
+                                <input type="text" class="form-control" id="q" name="q"
+                                       value="{{ query }}"
                                        placeholder="Search files, clients, cases, payments, access history, comments..."
                                        autocomplete="off">
                                 <div id="search-suggestions" class="position-absolute w-100 bg-white border rounded shadow-sm d-none" style="z-index: 1000; top: 100%;"></div>
@@ -44,7 +44,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="row" id="filters-container">
                         <div class="col-md-3 mb-3">
                             <label for="case_type" class="form-label">Case Type</label>
@@ -91,7 +91,7 @@
                             </select>
                         </div>
                     </div>
-                    
+
                     <!-- Date Range Filters -->
                     <div class="row mt-3">
                         <div class="col-12">
@@ -104,7 +104,7 @@
                             </h6>
                         </div>
                     </div>
-                    
+
                     <div id="date-filters" class="row d-none">
                         <!-- Created Date Range -->
                         <div class="col-md-4 mb-3">
@@ -113,20 +113,20 @@
                             </label>
                             <div class="row">
                                 <div class="col-6">
-                                    <input type="date" class="form-control form-control-sm interactive-filter" 
-                                           name="created_from" id="created_from" 
+                                    <input type="date" class="form-control form-control-sm interactive-filter"
+                                           name="created_from" id="created_from"
                                            placeholder="From" title="Created from">
                                     <small class="text-muted">From</small>
                                 </div>
                                 <div class="col-6">
-                                    <input type="date" class="form-control form-control-sm interactive-filter" 
-                                           name="created_to" id="created_to" 
+                                    <input type="date" class="form-control form-control-sm interactive-filter"
+                                           name="created_to" id="created_to"
                                            placeholder="To" title="Created to">
                                     <small class="text-muted">To</small>
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Last Accessed Date Range -->
                         <div class="col-md-4 mb-3">
                             <label class="form-label text-muted">
@@ -134,20 +134,20 @@
                             </label>
                             <div class="row">
                                 <div class="col-6">
-                                    <input type="date" class="form-control form-control-sm interactive-filter" 
-                                           name="accessed_from" id="accessed_from" 
+                                    <input type="date" class="form-control form-control-sm interactive-filter"
+                                           name="accessed_from" id="accessed_from"
                                            placeholder="From" title="Accessed from">
                                     <small class="text-muted">From</small>
                                 </div>
                                 <div class="col-6">
-                                    <input type="date" class="form-control form-control-sm interactive-filter" 
-                                           name="accessed_to" id="accessed_to" 
+                                    <input type="date" class="form-control form-control-sm interactive-filter"
+                                           name="accessed_to" id="accessed_to"
                                            placeholder="To" title="Accessed to">
                                     <small class="text-muted">To</small>
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Last Modified Date Range -->
                         <div class="col-md-4 mb-3">
                             <label class="form-label text-muted">
@@ -155,21 +155,21 @@
                             </label>
                             <div class="row">
                                 <div class="col-6">
-                                    <input type="date" class="form-control form-control-sm interactive-filter" 
-                                           name="modified_from" id="modified_from" 
+                                    <input type="date" class="form-control form-control-sm interactive-filter"
+                                           name="modified_from" id="modified_from"
                                            placeholder="From" title="Modified from">
                                     <small class="text-muted">From</small>
                                 </div>
                                 <div class="col-6">
-                                    <input type="date" class="form-control form-control-sm interactive-filter" 
-                                           name="modified_to" id="modified_to" 
+                                    <input type="date" class="form-control form-control-sm interactive-filter"
+                                           name="modified_to" id="modified_to"
                                            placeholder="To" title="Modified to">
                                     <small class="text-muted">To</small>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Quick Date Presets -->
                     <div id="date-presets" class="row mt-2 d-none">
                         <div class="col-12">
@@ -181,7 +181,7 @@
                             <button type="button" class="btn btn-sm btn-outline-info me-1" onclick="setDatePreset('year')">Last year</button>
                         </div>
                     </div>
-                    
+
                                             <div class="d-flex gap-2 align-items-center flex-wrap mt-3">
                         <button type="button" class="btn btn-outline-secondary" id="clear-search">
                             <i class="fas fa-times me-1"></i>Clear All
@@ -256,7 +256,7 @@
                                         <small class="text-muted">{{ file.shelf_number }} - {{ file.box_number }}</small>
                                     </td>
                                     <td>
-                                        <span class="badge 
+                                        <span class="badge
                                             {% if file.confidentiality_level == 'Public' %}bg-success
                                             {% elif file.confidentiality_level == 'Internal' %}bg-warning
                                             {% elif file.confidentiality_level == 'Confidential' %}bg-danger
@@ -265,7 +265,7 @@
                                         </span>
                                     </td>
                                     <td>
-                                        <span class="badge 
+                                        <span class="badge
                                             {% if file.storage_status == 'Active' %}bg-success
                                             {% elif file.storage_status == 'Archived' %}bg-secondary
                                             {% else %}bg-warning{% endif %}">

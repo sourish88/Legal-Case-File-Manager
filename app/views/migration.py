@@ -1,31 +1,38 @@
-from flask import Blueprint, request, jsonify, render_template, send_file
-from datetime import datetime
-from typing import Dict, List, Any, Optional
-from dataclasses import dataclass, asdict
-import logging
 import json
+import logging
+import os
+import random
+import tempfile
 import threading
 import time
-import random
-from enum import Enum
-import os
-import tempfile
 import zipfile
+from dataclasses import asdict, dataclass
+from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, List, Optional
+
 import openai
+from flask import Blueprint, jsonify, render_template, request, send_file
 from openai import OpenAI
-from app.services.database import LegalFileManagerDB, DatabaseConnection
-from app.models.entities import TerraformJob as TerraformJobEntity, MigrationJob as MigrationJobEntity
+
+from app.models.entities import MigrationJob as MigrationJobEntity
+from app.models.entities import TerraformJob as TerraformJobEntity
+from app.services.database import DatabaseConnection, LegalFileManagerDB
+
 
 class DatabaseType(Enum):
     ORACLE = "oracle"
     MYSQL = "mysql"
 
+
 class CloudPlatform(Enum):
     AWS = "aws"
     AZURE = "azure"
 
+
 # Create migration blueprint
-migration_bp = Blueprint('migration', __name__)
+migration_bp = Blueprint("migration", __name__)
+
 
 @dataclass
 class TerraformJob:
@@ -46,432 +53,1139 @@ class TerraformJob:
     estimated_cost: Optional[Dict] = None
     completed_at: Optional[str] = None  # Add missing completed_at field
 
+
 class TerraformGenerator:
     def __init__(self):
         # Initialize database connection for job persistence
         self.db_connection = DatabaseConnection()
         self.db_manager = LegalFileManagerDB(self.db_connection)
-        
+
         # Keep in-memory jobs for backward compatibility during migration
         self.terraform_jobs: Dict[str, TerraformJob] = {}
-        
+
         # Initialize OpenAI client (demo mode - using mock responses for safety)
         self.use_real_ai = False  # Set to True to use actual OpenAI API
         if self.use_real_ai:
-            self.openai_client = OpenAI(
-                api_key=os.getenv('OPENAI_API_KEY', 'demo-key')
-            )
-        
+            self.openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", "demo-key"))
+
         self.sample_database_tables = {
             DatabaseType.ORACLE.value: [
-                {'name': 'CLIENTS', 'rows': 15000, 'description': 'Client master data', 'ai_relevance': 'high', 'recommended': True},
-                {'name': 'CASES', 'rows': 8500, 'description': 'Legal cases information', 'ai_relevance': 'high', 'recommended': True},
-                {'name': 'DOCUMENTS', 'rows': 45000, 'description': 'Document metadata', 'ai_relevance': 'high', 'recommended': True},
-                {'name': 'PAYMENTS', 'rows': 12000, 'description': 'Payment transactions', 'ai_relevance': 'medium', 'recommended': True},
-                {'name': 'CASE_HISTORY', 'rows': 25000, 'description': 'Case activity log', 'ai_relevance': 'medium', 'recommended': False},
-                {'name': 'CLIENT_CONTACTS', 'rows': 18000, 'description': 'Client contact details', 'ai_relevance': 'low', 'recommended': False},
-                {'name': 'ATTORNEYS', 'rows': 150, 'description': 'Attorney information', 'ai_relevance': 'high', 'recommended': True},
-                {'name': 'COURT_SCHEDULES', 'rows': 5200, 'description': 'Court hearing schedules', 'ai_relevance': 'medium', 'recommended': False},
-                {'name': 'BILLING_RATES', 'rows': 800, 'description': 'Hourly billing rates', 'ai_relevance': 'low', 'recommended': False},
-                {'name': 'ARCHIVE_LOG', 'rows': 95000, 'description': 'System archive log', 'ai_relevance': 'low', 'recommended': False}
+                {
+                    "name": "CLIENTS",
+                    "rows": 15000,
+                    "description": "Client master data",
+                    "ai_relevance": "high",
+                    "recommended": True,
+                },
+                {
+                    "name": "CASES",
+                    "rows": 8500,
+                    "description": "Legal cases information",
+                    "ai_relevance": "high",
+                    "recommended": True,
+                },
+                {
+                    "name": "DOCUMENTS",
+                    "rows": 45000,
+                    "description": "Document metadata",
+                    "ai_relevance": "high",
+                    "recommended": True,
+                },
+                {
+                    "name": "PAYMENTS",
+                    "rows": 12000,
+                    "description": "Payment transactions",
+                    "ai_relevance": "medium",
+                    "recommended": True,
+                },
+                {
+                    "name": "CASE_HISTORY",
+                    "rows": 25000,
+                    "description": "Case activity log",
+                    "ai_relevance": "medium",
+                    "recommended": False,
+                },
+                {
+                    "name": "CLIENT_CONTACTS",
+                    "rows": 18000,
+                    "description": "Client contact details",
+                    "ai_relevance": "low",
+                    "recommended": False,
+                },
+                {
+                    "name": "ATTORNEYS",
+                    "rows": 150,
+                    "description": "Attorney information",
+                    "ai_relevance": "high",
+                    "recommended": True,
+                },
+                {
+                    "name": "COURT_SCHEDULES",
+                    "rows": 5200,
+                    "description": "Court hearing schedules",
+                    "ai_relevance": "medium",
+                    "recommended": False,
+                },
+                {
+                    "name": "BILLING_RATES",
+                    "rows": 800,
+                    "description": "Hourly billing rates",
+                    "ai_relevance": "low",
+                    "recommended": False,
+                },
+                {
+                    "name": "ARCHIVE_LOG",
+                    "rows": 95000,
+                    "description": "System archive log",
+                    "ai_relevance": "low",
+                    "recommended": False,
+                },
             ],
             DatabaseType.MYSQL.value: [
-                {'name': 'clients', 'rows': 12800, 'description': 'Client information table', 'ai_relevance': 'high', 'recommended': True},
-                {'name': 'cases', 'rows': 7200, 'description': 'Legal cases data', 'ai_relevance': 'high', 'recommended': True},
-                {'name': 'documents', 'rows': 38500, 'description': 'Document records', 'ai_relevance': 'high', 'recommended': True},
-                {'name': 'payments', 'rows': 9800, 'description': 'Payment transactions', 'ai_relevance': 'medium', 'recommended': True},
-                {'name': 'case_activities', 'rows': 22000, 'description': 'Case activity tracking', 'ai_relevance': 'medium', 'recommended': False},
-                {'name': 'client_addresses', 'rows': 14500, 'description': 'Client address information', 'ai_relevance': 'low', 'recommended': False},
-                {'name': 'lawyers', 'rows': 85, 'description': 'Attorney/lawyer profiles', 'ai_relevance': 'high', 'recommended': True},
-                {'name': 'court_dates', 'rows': 4100, 'description': 'Scheduled court appearances', 'ai_relevance': 'medium', 'recommended': False},
-                {'name': 'billing_history', 'rows': 18900, 'description': 'Historical billing records', 'ai_relevance': 'low', 'recommended': False},
-                {'name': 'system_logs', 'rows': 156000, 'description': 'Application system logs', 'ai_relevance': 'low', 'recommended': False}
-            ]
+                {
+                    "name": "clients",
+                    "rows": 12800,
+                    "description": "Client information table",
+                    "ai_relevance": "high",
+                    "recommended": True,
+                },
+                {
+                    "name": "cases",
+                    "rows": 7200,
+                    "description": "Legal cases data",
+                    "ai_relevance": "high",
+                    "recommended": True,
+                },
+                {
+                    "name": "documents",
+                    "rows": 38500,
+                    "description": "Document records",
+                    "ai_relevance": "high",
+                    "recommended": True,
+                },
+                {
+                    "name": "payments",
+                    "rows": 9800,
+                    "description": "Payment transactions",
+                    "ai_relevance": "medium",
+                    "recommended": True,
+                },
+                {
+                    "name": "case_activities",
+                    "rows": 22000,
+                    "description": "Case activity tracking",
+                    "ai_relevance": "medium",
+                    "recommended": False,
+                },
+                {
+                    "name": "client_addresses",
+                    "rows": 14500,
+                    "description": "Client address information",
+                    "ai_relevance": "low",
+                    "recommended": False,
+                },
+                {
+                    "name": "lawyers",
+                    "rows": 85,
+                    "description": "Attorney/lawyer profiles",
+                    "ai_relevance": "high",
+                    "recommended": True,
+                },
+                {
+                    "name": "court_dates",
+                    "rows": 4100,
+                    "description": "Scheduled court appearances",
+                    "ai_relevance": "medium",
+                    "recommended": False,
+                },
+                {
+                    "name": "billing_history",
+                    "rows": 18900,
+                    "description": "Historical billing records",
+                    "ai_relevance": "low",
+                    "recommended": False,
+                },
+                {
+                    "name": "system_logs",
+                    "rows": 156000,
+                    "description": "Application system logs",
+                    "ai_relevance": "low",
+                    "recommended": False,
+                },
+            ],
         }
-    
+
     def test_database_connection(self, db_type: str, connection_string: str) -> Dict[str, Any]:
         """Test database connection (demo mode)"""
         time.sleep(1)
-        
+
         if connection_string.strip() and db_type in [dt.value for dt in DatabaseType]:
             db_info = {
                 DatabaseType.ORACLE.value: {
-                    'version': 'Oracle Database 19c Enterprise Edition',
-                    'host': 'oracle-server.legal-firm.com',
-                    'service': 'LEGAL_DB',
-                    'port': '1521'
+                    "version": "Oracle Database 19c Enterprise Edition",
+                    "host": "oracle-server.legal-firm.com",
+                    "service": "LEGAL_DB",
+                    "port": "1521",
                 },
                 DatabaseType.MYSQL.value: {
-                    'version': 'MySQL 8.0.35',
-                    'host': 'mysql-server.legal-firm.com',
-                    'database': 'legal_system',
-                    'port': '3306'
-                }
+                    "version": "MySQL 8.0.35",
+                    "host": "mysql-server.legal-firm.com",
+                    "database": "legal_system",
+                    "port": "3306",
+                },
             }
-            
+
             return {
-                'success': True,
-                'message': f'Connection to {db_type.upper()} successful',
-                'server_info': db_info.get(db_type, {}),
-                'database_type': db_type
+                "success": True,
+                "message": f"Connection to {db_type.upper()} successful",
+                "server_info": db_info.get(db_type, {}),
+                "database_type": db_type,
             }
         else:
-            return {
-                'success': False,
-                'error': 'Invalid connection string or unsupported database type'
-            }
-    
+            return {"success": False, "error": "Invalid connection string or unsupported database type"}
+
     def analyze_database_schema(self, db_type: str, tables: List[str]) -> Dict[str, Any]:
         """AI-powered schema analysis for Terraform generation"""
         analysis = {
-            'field_mappings': {},
-            'transformation_rules': [],
-            'data_quality_issues': [],
-            'migration_complexity': 'Medium',
-            'estimated_time': f'{len(tables) * 15}-{len(tables) * 25} minutes for Terraform generation',
-            'confidence_score': 0.94,
-            'database_type': db_type,
-            'infrastructure_recommendations': []
+            "field_mappings": {},
+            "transformation_rules": [],
+            "data_quality_issues": [],
+            "migration_complexity": "Medium",
+            "estimated_time": f"{len(tables) * 15}-{len(tables) * 25} minutes for Terraform generation",
+            "confidence_score": 0.94,
+            "database_type": db_type,
+            "infrastructure_recommendations": [],
         }
-        
+
         # Database-specific field mappings
         table_mappings = self._get_database_field_mappings(db_type)
-        
+
         for table in tables:
             table_key = self._normalize_table_name(table, db_type)
-            
+
             if table_key in table_mappings:
-                analysis['field_mappings'][table] = table_mappings[table_key]
-                analysis['transformation_rules'].extend(self._get_transformation_rules(db_type, table))
-                analysis['data_quality_issues'].extend(self._get_data_quality_issues(db_type, table))
-        
+                analysis["field_mappings"][table] = table_mappings[table_key]
+                analysis["transformation_rules"].extend(self._get_transformation_rules(db_type, table))
+                analysis["data_quality_issues"].extend(self._get_data_quality_issues(db_type, table))
+
         # Add infrastructure recommendations
-        analysis['infrastructure_recommendations'] = self._get_infrastructure_recommendations(db_type, tables)
-        
+        analysis["infrastructure_recommendations"] = self._get_infrastructure_recommendations(db_type, tables)
+
         return analysis
-    
+
     def _get_infrastructure_recommendations(self, db_type: str, tables: List[str]) -> List[Dict]:
         """Generate infrastructure recommendations for cloud deployment"""
         recommendations = []
-        
-        total_rows = sum(t['rows'] for t in self.sample_database_tables.get(db_type, []) if t['name'] in tables)
-        
+
+        total_rows = sum(t["rows"] for t in self.sample_database_tables.get(db_type, []) if t["name"] in tables)
+
         if total_rows > 50000:
-            recommendations.append({
-                'type': 'performance',
-                'message': 'Large dataset detected - recommend distributed processing',
-                'aws_service': 'AWS Glue with multiple DPUs',
-                'azure_service': 'Azure Data Factory with parallel execution'
-            })
-        
-        if any('PAYMENT' in table.upper() or 'CLIENT' in table.upper() for table in tables):
-            recommendations.append({
-                'type': 'security',
-                'message': 'Sensitive data detected - recommend encryption at rest and in transit',
-                'aws_service': 'KMS encryption + VPC endpoints',
-                'azure_service': 'Key Vault encryption + Private endpoints'
-            })
-        
+            recommendations.append(
+                {
+                    "type": "performance",
+                    "message": "Large dataset detected - recommend distributed processing",
+                    "aws_service": "AWS Glue with multiple DPUs",
+                    "azure_service": "Azure Data Factory with parallel execution",
+                }
+            )
+
+        if any("PAYMENT" in table.upper() or "CLIENT" in table.upper() for table in tables):
+            recommendations.append(
+                {
+                    "type": "security",
+                    "message": "Sensitive data detected - recommend encryption at rest and in transit",
+                    "aws_service": "KMS encryption + VPC endpoints",
+                    "azure_service": "Key Vault encryption + Private endpoints",
+                }
+            )
+
         if len(tables) > 5:
-            recommendations.append({
-                'type': 'orchestration',
-                'message': 'Complex multi-table migration - recommend workflow orchestration',
-                'aws_service': 'AWS Step Functions',
-                'azure_service': 'Azure Logic Apps'
-            })
-        
+            recommendations.append(
+                {
+                    "type": "orchestration",
+                    "message": "Complex multi-table migration - recommend workflow orchestration",
+                    "aws_service": "AWS Step Functions",
+                    "azure_service": "Azure Logic Apps",
+                }
+            )
+
         return recommendations
-    
+
     def _get_database_field_mappings(self, db_type: str) -> Dict[str, Dict]:
         """Get comprehensive database-specific field mappings to app schema"""
-        
+
         if db_type == DatabaseType.ORACLE.value:
             return {
-                'clients': {
-                    'CLIENT_ID': {'target': 'Client.client_id', 'type': 'string', 'required': True, 'app_field': 'client_id'},
-                    'FIRST_NAME': {'target': 'Client.first_name', 'type': 'string', 'required': True, 'app_field': 'first_name'},
-                    'LAST_NAME': {'target': 'Client.last_name', 'type': 'string', 'required': True, 'app_field': 'last_name'},
-                    'EMAIL_ADDRESS': {'target': 'Client.email', 'type': 'email', 'required': True, 'app_field': 'email'},
-                    'PHONE_NUM': {'target': 'Client.phone', 'type': 'phone', 'required': True, 'app_field': 'phone'},
-                    'ADDRESS_LINE1': {'target': 'Client.address', 'type': 'string', 'required': True, 'app_field': 'address'},
-                    'BIRTH_DATE': {'target': 'Client.date_of_birth', 'type': 'date', 'required': True, 'app_field': 'date_of_birth'},
-                    'CLIENT_TYPE': {'target': 'Client.client_type', 'type': 'enum', 'required': True, 'app_field': 'client_type', 'values': ['Individual', 'Corporation', 'Non-Profit']},
-                    'REGISTRATION_DATE': {'target': 'Client.registration_date', 'type': 'date', 'required': True, 'app_field': 'registration_date'},
-                    'STATUS': {'target': 'Client.status', 'type': 'enum', 'required': True, 'app_field': 'status', 'values': ['Active', 'Inactive', 'Suspended']}
+                "clients": {
+                    "CLIENT_ID": {
+                        "target": "Client.client_id",
+                        "type": "string",
+                        "required": True,
+                        "app_field": "client_id",
+                    },
+                    "FIRST_NAME": {
+                        "target": "Client.first_name",
+                        "type": "string",
+                        "required": True,
+                        "app_field": "first_name",
+                    },
+                    "LAST_NAME": {
+                        "target": "Client.last_name",
+                        "type": "string",
+                        "required": True,
+                        "app_field": "last_name",
+                    },
+                    "EMAIL_ADDRESS": {
+                        "target": "Client.email",
+                        "type": "email",
+                        "required": True,
+                        "app_field": "email",
+                    },
+                    "PHONE_NUM": {"target": "Client.phone", "type": "phone", "required": True, "app_field": "phone"},
+                    "ADDRESS_LINE1": {
+                        "target": "Client.address",
+                        "type": "string",
+                        "required": True,
+                        "app_field": "address",
+                    },
+                    "BIRTH_DATE": {
+                        "target": "Client.date_of_birth",
+                        "type": "date",
+                        "required": True,
+                        "app_field": "date_of_birth",
+                    },
+                    "CLIENT_TYPE": {
+                        "target": "Client.client_type",
+                        "type": "enum",
+                        "required": True,
+                        "app_field": "client_type",
+                        "values": ["Individual", "Corporation", "Non-Profit"],
+                    },
+                    "REGISTRATION_DATE": {
+                        "target": "Client.registration_date",
+                        "type": "date",
+                        "required": True,
+                        "app_field": "registration_date",
+                    },
+                    "STATUS": {
+                        "target": "Client.status",
+                        "type": "enum",
+                        "required": True,
+                        "app_field": "status",
+                        "values": ["Active", "Inactive", "Suspended"],
+                    },
                 },
-                'cases': {
-                    'CASE_ID': {'target': 'Case.case_id', 'type': 'string', 'required': True, 'app_field': 'case_id'},
-                    'CASE_REF_NUM': {'target': 'Case.reference_number', 'type': 'string', 'required': True, 'app_field': 'reference_number'},
-                    'CLIENT_ID': {'target': 'Case.client_id', 'type': 'foreign_key', 'required': True, 'app_field': 'client_id', 'references': 'Client.client_id'},
-                    'CASE_TYPE': {'target': 'Case.case_type', 'type': 'enum', 'required': True, 'app_field': 'case_type', 'values': ['Personal Injury', 'Corporate Law', 'Criminal Defense', 'Family Law', 'Real Estate', 'Employment Law', 'Immigration', 'Intellectual Property', 'Tax Law', 'Environmental Law', 'Contract Dispute', 'Bankruptcy']},
-                    'CASE_STATUS': {'target': 'Case.case_status', 'type': 'enum', 'required': True, 'app_field': 'case_status', 'values': ['Open', 'Closed', 'On Hold', 'Under Review', 'Settled']},
-                    'CREATED_DATE': {'target': 'Case.created_date', 'type': 'date', 'required': True, 'app_field': 'created_date'},
-                    'LAST_UPDATED': {'target': 'Case.last_updated', 'type': 'datetime', 'required': True, 'app_field': 'last_updated'},
-                    'ASSIGNED_ATTORNEY': {'target': 'Case.assigned_lawyer', 'type': 'string', 'required': True, 'app_field': 'assigned_lawyer'},
-                    'PRIORITY_LEVEL': {'target': 'Case.priority', 'type': 'enum', 'required': True, 'app_field': 'priority', 'values': ['Low', 'Medium', 'High', 'Critical']},
-                    'ESTIMATED_VALUE': {'target': 'Case.estimated_value', 'type': 'decimal', 'required': True, 'app_field': 'estimated_value'},
-                    'DESCRIPTION': {'target': 'Case.description', 'type': 'text', 'required': True, 'app_field': 'description'}
+                "cases": {
+                    "CASE_ID": {"target": "Case.case_id", "type": "string", "required": True, "app_field": "case_id"},
+                    "CASE_REF_NUM": {
+                        "target": "Case.reference_number",
+                        "type": "string",
+                        "required": True,
+                        "app_field": "reference_number",
+                    },
+                    "CLIENT_ID": {
+                        "target": "Case.client_id",
+                        "type": "foreign_key",
+                        "required": True,
+                        "app_field": "client_id",
+                        "references": "Client.client_id",
+                    },
+                    "CASE_TYPE": {
+                        "target": "Case.case_type",
+                        "type": "enum",
+                        "required": True,
+                        "app_field": "case_type",
+                        "values": [
+                            "Personal Injury",
+                            "Corporate Law",
+                            "Criminal Defense",
+                            "Family Law",
+                            "Real Estate",
+                            "Employment Law",
+                            "Immigration",
+                            "Intellectual Property",
+                            "Tax Law",
+                            "Environmental Law",
+                            "Contract Dispute",
+                            "Bankruptcy",
+                        ],
+                    },
+                    "CASE_STATUS": {
+                        "target": "Case.case_status",
+                        "type": "enum",
+                        "required": True,
+                        "app_field": "case_status",
+                        "values": ["Open", "Closed", "On Hold", "Under Review", "Settled"],
+                    },
+                    "CREATED_DATE": {
+                        "target": "Case.created_date",
+                        "type": "date",
+                        "required": True,
+                        "app_field": "created_date",
+                    },
+                    "LAST_UPDATED": {
+                        "target": "Case.last_updated",
+                        "type": "datetime",
+                        "required": True,
+                        "app_field": "last_updated",
+                    },
+                    "ASSIGNED_ATTORNEY": {
+                        "target": "Case.assigned_lawyer",
+                        "type": "string",
+                        "required": True,
+                        "app_field": "assigned_lawyer",
+                    },
+                    "PRIORITY_LEVEL": {
+                        "target": "Case.priority",
+                        "type": "enum",
+                        "required": True,
+                        "app_field": "priority",
+                        "values": ["Low", "Medium", "High", "Critical"],
+                    },
+                    "ESTIMATED_VALUE": {
+                        "target": "Case.estimated_value",
+                        "type": "decimal",
+                        "required": True,
+                        "app_field": "estimated_value",
+                    },
+                    "DESCRIPTION": {
+                        "target": "Case.description",
+                        "type": "text",
+                        "required": True,
+                        "app_field": "description",
+                    },
                 },
-                'documents': {
-                    'DOC_ID': {'target': 'PhysicalFile.file_id', 'type': 'string', 'required': True, 'app_field': 'file_id'},
-                    'REF_NUMBER': {'target': 'PhysicalFile.reference_number', 'type': 'string', 'required': True, 'app_field': 'reference_number'},
-                    'CASE_ID': {'target': 'PhysicalFile.case_id', 'type': 'foreign_key', 'required': True, 'app_field': 'case_id', 'references': 'Case.case_id'},
-                    'CLIENT_ID': {'target': 'PhysicalFile.client_id', 'type': 'foreign_key', 'required': True, 'app_field': 'client_id', 'references': 'Client.client_id'},
-                    'DOC_TYPE': {'target': 'PhysicalFile.file_type', 'type': 'enum', 'required': True, 'app_field': 'file_type', 'values': ['Contract', 'Evidence', 'Correspondence', 'Court Filing', 'Research', 'Client Records']},
-                    'CATEGORY': {'target': 'PhysicalFile.document_category', 'type': 'enum', 'required': True, 'app_field': 'document_category', 'values': ['Legal Documents', 'Financial Records', 'Personal Documents', 'Court Records', 'Evidence Files', 'Correspondence', 'Research Materials', 'Administrative']},
-                    'WAREHOUSE_LOC': {'target': 'PhysicalFile.warehouse_location', 'type': 'string', 'required': True, 'app_field': 'warehouse_location'},
-                    'SHELF_NUM': {'target': 'PhysicalFile.shelf_number', 'type': 'string', 'required': True, 'app_field': 'shelf_number'},
-                    'BOX_NUM': {'target': 'PhysicalFile.box_number', 'type': 'string', 'required': True, 'app_field': 'box_number'},
-                    'FILE_SIZE': {'target': 'PhysicalFile.file_size', 'type': 'string', 'required': True, 'app_field': 'file_size'},
-                    'CREATED_DATE': {'target': 'PhysicalFile.created_date', 'type': 'date', 'required': True, 'app_field': 'created_date'},
-                    'LAST_ACCESS': {'target': 'PhysicalFile.last_accessed', 'type': 'datetime', 'required': True, 'app_field': 'last_accessed'},
-                    'LAST_MODIFIED': {'target': 'PhysicalFile.last_modified', 'type': 'datetime', 'required': True, 'app_field': 'last_modified'},
-                    'STORAGE_STATUS': {'target': 'PhysicalFile.storage_status', 'type': 'enum', 'required': True, 'app_field': 'storage_status', 'values': ['Active', 'Archived', 'Pending Review', 'Scheduled for Destruction']},
-                    'CONFIDENTIAL_LEVEL': {'target': 'PhysicalFile.confidentiality_level', 'type': 'enum', 'required': True, 'app_field': 'confidentiality_level', 'values': ['Public', 'Internal', 'Confidential', 'Highly Confidential']},
-                    'DESCRIPTION': {'target': 'PhysicalFile.file_description', 'type': 'text', 'required': True, 'app_field': 'file_description'}
+                "documents": {
+                    "DOC_ID": {
+                        "target": "PhysicalFile.file_id",
+                        "type": "string",
+                        "required": True,
+                        "app_field": "file_id",
+                    },
+                    "REF_NUMBER": {
+                        "target": "PhysicalFile.reference_number",
+                        "type": "string",
+                        "required": True,
+                        "app_field": "reference_number",
+                    },
+                    "CASE_ID": {
+                        "target": "PhysicalFile.case_id",
+                        "type": "foreign_key",
+                        "required": True,
+                        "app_field": "case_id",
+                        "references": "Case.case_id",
+                    },
+                    "CLIENT_ID": {
+                        "target": "PhysicalFile.client_id",
+                        "type": "foreign_key",
+                        "required": True,
+                        "app_field": "client_id",
+                        "references": "Client.client_id",
+                    },
+                    "DOC_TYPE": {
+                        "target": "PhysicalFile.file_type",
+                        "type": "enum",
+                        "required": True,
+                        "app_field": "file_type",
+                        "values": [
+                            "Contract",
+                            "Evidence",
+                            "Correspondence",
+                            "Court Filing",
+                            "Research",
+                            "Client Records",
+                        ],
+                    },
+                    "CATEGORY": {
+                        "target": "PhysicalFile.document_category",
+                        "type": "enum",
+                        "required": True,
+                        "app_field": "document_category",
+                        "values": [
+                            "Legal Documents",
+                            "Financial Records",
+                            "Personal Documents",
+                            "Court Records",
+                            "Evidence Files",
+                            "Correspondence",
+                            "Research Materials",
+                            "Administrative",
+                        ],
+                    },
+                    "WAREHOUSE_LOC": {
+                        "target": "PhysicalFile.warehouse_location",
+                        "type": "string",
+                        "required": True,
+                        "app_field": "warehouse_location",
+                    },
+                    "SHELF_NUM": {
+                        "target": "PhysicalFile.shelf_number",
+                        "type": "string",
+                        "required": True,
+                        "app_field": "shelf_number",
+                    },
+                    "BOX_NUM": {
+                        "target": "PhysicalFile.box_number",
+                        "type": "string",
+                        "required": True,
+                        "app_field": "box_number",
+                    },
+                    "FILE_SIZE": {
+                        "target": "PhysicalFile.file_size",
+                        "type": "string",
+                        "required": True,
+                        "app_field": "file_size",
+                    },
+                    "CREATED_DATE": {
+                        "target": "PhysicalFile.created_date",
+                        "type": "date",
+                        "required": True,
+                        "app_field": "created_date",
+                    },
+                    "LAST_ACCESS": {
+                        "target": "PhysicalFile.last_accessed",
+                        "type": "datetime",
+                        "required": True,
+                        "app_field": "last_accessed",
+                    },
+                    "LAST_MODIFIED": {
+                        "target": "PhysicalFile.last_modified",
+                        "type": "datetime",
+                        "required": True,
+                        "app_field": "last_modified",
+                    },
+                    "STORAGE_STATUS": {
+                        "target": "PhysicalFile.storage_status",
+                        "type": "enum",
+                        "required": True,
+                        "app_field": "storage_status",
+                        "values": ["Active", "Archived", "Pending Review", "Scheduled for Destruction"],
+                    },
+                    "CONFIDENTIAL_LEVEL": {
+                        "target": "PhysicalFile.confidentiality_level",
+                        "type": "enum",
+                        "required": True,
+                        "app_field": "confidentiality_level",
+                        "values": ["Public", "Internal", "Confidential", "Highly Confidential"],
+                    },
+                    "DESCRIPTION": {
+                        "target": "PhysicalFile.file_description",
+                        "type": "text",
+                        "required": True,
+                        "app_field": "file_description",
+                    },
                 },
-                'payments': {
-                    'PAYMENT_ID': {'target': 'Payment.payment_id', 'type': 'string', 'required': True, 'app_field': 'payment_id'},
-                    'CLIENT_ID': {'target': 'Payment.client_id', 'type': 'foreign_key', 'required': True, 'app_field': 'client_id', 'references': 'Client.client_id'},
-                    'CASE_ID': {'target': 'Payment.case_id', 'type': 'foreign_key', 'required': True, 'app_field': 'case_id', 'references': 'Case.case_id'},
-                    'AMOUNT': {'target': 'Payment.amount', 'type': 'decimal', 'required': True, 'app_field': 'amount'},
-                    'PAYMENT_DATE': {'target': 'Payment.payment_date', 'type': 'date', 'required': True, 'app_field': 'payment_date'},
-                    'PAYMENT_METHOD': {'target': 'Payment.payment_method', 'type': 'string', 'required': True, 'app_field': 'payment_method'},
-                    'STATUS': {'target': 'Payment.status', 'type': 'enum', 'required': True, 'app_field': 'status', 'values': ['Paid', 'Pending', 'Overdue']},
-                    'DESCRIPTION': {'target': 'Payment.description', 'type': 'text', 'required': True, 'app_field': 'description'}
-                }
+                "payments": {
+                    "PAYMENT_ID": {
+                        "target": "Payment.payment_id",
+                        "type": "string",
+                        "required": True,
+                        "app_field": "payment_id",
+                    },
+                    "CLIENT_ID": {
+                        "target": "Payment.client_id",
+                        "type": "foreign_key",
+                        "required": True,
+                        "app_field": "client_id",
+                        "references": "Client.client_id",
+                    },
+                    "CASE_ID": {
+                        "target": "Payment.case_id",
+                        "type": "foreign_key",
+                        "required": True,
+                        "app_field": "case_id",
+                        "references": "Case.case_id",
+                    },
+                    "AMOUNT": {"target": "Payment.amount", "type": "decimal", "required": True, "app_field": "amount"},
+                    "PAYMENT_DATE": {
+                        "target": "Payment.payment_date",
+                        "type": "date",
+                        "required": True,
+                        "app_field": "payment_date",
+                    },
+                    "PAYMENT_METHOD": {
+                        "target": "Payment.payment_method",
+                        "type": "string",
+                        "required": True,
+                        "app_field": "payment_method",
+                    },
+                    "STATUS": {
+                        "target": "Payment.status",
+                        "type": "enum",
+                        "required": True,
+                        "app_field": "status",
+                        "values": ["Paid", "Pending", "Overdue"],
+                    },
+                    "DESCRIPTION": {
+                        "target": "Payment.description",
+                        "type": "text",
+                        "required": True,
+                        "app_field": "description",
+                    },
+                },
             }
         elif db_type == DatabaseType.MYSQL.value:
             return {
-                'clients': {
-                    'client_id': {'target': 'Client.client_id', 'type': 'int', 'required': True, 'app_field': 'client_id', 'transformation': 'Convert to string format CLI{:04d}'},
-                    'first_name': {'target': 'Client.first_name', 'type': 'string', 'required': True, 'app_field': 'first_name'},
-                    'last_name': {'target': 'Client.last_name', 'type': 'string', 'required': True, 'app_field': 'last_name'},
-                    'email': {'target': 'Client.email', 'type': 'email', 'required': True, 'app_field': 'email'},
-                    'phone': {'target': 'Client.phone', 'type': 'phone', 'required': True, 'app_field': 'phone'},
-                    'address': {'target': 'Client.address', 'type': 'text', 'required': True, 'app_field': 'address'},
-                    'client_type': {'target': 'Client.client_type', 'type': 'enum', 'required': True, 'app_field': 'client_type', 'values': ['Individual', 'Corporation', 'Non-Profit']},
-                    'status': {'target': 'Client.status', 'type': 'enum', 'required': True, 'app_field': 'status', 'values': ['Active', 'Inactive', 'Suspended']},
-                    'date_of_birth': {'target': 'Client.date_of_birth', 'type': 'date', 'required': True, 'app_field': 'date_of_birth'},
-                    'created_at': {'target': 'Client.registration_date', 'type': 'datetime', 'required': True, 'app_field': 'registration_date'},
-                    'updated_at': {'target': 'Client.last_updated', 'type': 'datetime', 'required': False, 'app_field': 'last_updated'}
+                "clients": {
+                    "client_id": {
+                        "target": "Client.client_id",
+                        "type": "int",
+                        "required": True,
+                        "app_field": "client_id",
+                        "transformation": "Convert to string format CLI{:04d}",
+                    },
+                    "first_name": {
+                        "target": "Client.first_name",
+                        "type": "string",
+                        "required": True,
+                        "app_field": "first_name",
+                    },
+                    "last_name": {
+                        "target": "Client.last_name",
+                        "type": "string",
+                        "required": True,
+                        "app_field": "last_name",
+                    },
+                    "email": {"target": "Client.email", "type": "email", "required": True, "app_field": "email"},
+                    "phone": {"target": "Client.phone", "type": "phone", "required": True, "app_field": "phone"},
+                    "address": {"target": "Client.address", "type": "text", "required": True, "app_field": "address"},
+                    "client_type": {
+                        "target": "Client.client_type",
+                        "type": "enum",
+                        "required": True,
+                        "app_field": "client_type",
+                        "values": ["Individual", "Corporation", "Non-Profit"],
+                    },
+                    "status": {
+                        "target": "Client.status",
+                        "type": "enum",
+                        "required": True,
+                        "app_field": "status",
+                        "values": ["Active", "Inactive", "Suspended"],
+                    },
+                    "date_of_birth": {
+                        "target": "Client.date_of_birth",
+                        "type": "date",
+                        "required": True,
+                        "app_field": "date_of_birth",
+                    },
+                    "created_at": {
+                        "target": "Client.registration_date",
+                        "type": "datetime",
+                        "required": True,
+                        "app_field": "registration_date",
+                    },
+                    "updated_at": {
+                        "target": "Client.last_updated",
+                        "type": "datetime",
+                        "required": False,
+                        "app_field": "last_updated",
+                    },
                 },
-                'cases': {
-                    'case_id': {'target': 'Case.case_id', 'type': 'int', 'required': True, 'app_field': 'case_id', 'transformation': 'Convert to string format CASE{:04d}'},
-                    'case_number': {'target': 'Case.reference_number', 'type': 'string', 'required': True, 'app_field': 'reference_number'},
-                    'client_id': {'target': 'Case.client_id', 'type': 'foreign_key', 'required': True, 'app_field': 'client_id', 'references': 'Client.client_id', 'transformation': 'Map to Client.client_id format'},
-                    'case_type': {'target': 'Case.case_type', 'type': 'enum', 'required': True, 'app_field': 'case_type', 'values': ['Personal Injury', 'Corporate Law', 'Criminal Defense', 'Family Law', 'Real Estate', 'Employment Law', 'Immigration', 'Intellectual Property', 'Tax Law', 'Environmental Law', 'Contract Dispute', 'Bankruptcy']},
-                    'case_status': {'target': 'Case.case_status', 'type': 'enum', 'required': True, 'app_field': 'case_status', 'values': ['Open', 'Closed', 'On Hold', 'Under Review', 'Settled']},
-                    'assigned_attorney_id': {'target': 'Case.assigned_lawyer', 'type': 'foreign_key', 'required': True, 'app_field': 'assigned_lawyer', 'transformation': 'Look up attorney name from attorneys table'},
-                    'priority': {'target': 'Case.priority', 'type': 'enum', 'required': True, 'app_field': 'priority', 'values': ['Low', 'Medium', 'High', 'Critical']},
-                    'opened_date': {'target': 'Case.created_date', 'type': 'date', 'required': True, 'app_field': 'created_date'},
-                    'closed_date': {'target': 'Case.closed_date', 'type': 'date', 'required': False, 'app_field': 'closed_date'},
-                    'description': {'target': 'Case.description', 'type': 'text', 'required': True, 'app_field': 'description'},
-                    'estimated_value': {'target': 'Case.estimated_value', 'type': 'decimal', 'required': False, 'app_field': 'estimated_value', 'default': 0.0},
-                    'created_at': {'target': 'Case.created_date', 'type': 'datetime', 'required': True, 'app_field': 'created_date'},
-                    'updated_at': {'target': 'Case.last_updated', 'type': 'datetime', 'required': True, 'app_field': 'last_updated'}
+                "cases": {
+                    "case_id": {
+                        "target": "Case.case_id",
+                        "type": "int",
+                        "required": True,
+                        "app_field": "case_id",
+                        "transformation": "Convert to string format CASE{:04d}",
+                    },
+                    "case_number": {
+                        "target": "Case.reference_number",
+                        "type": "string",
+                        "required": True,
+                        "app_field": "reference_number",
+                    },
+                    "client_id": {
+                        "target": "Case.client_id",
+                        "type": "foreign_key",
+                        "required": True,
+                        "app_field": "client_id",
+                        "references": "Client.client_id",
+                        "transformation": "Map to Client.client_id format",
+                    },
+                    "case_type": {
+                        "target": "Case.case_type",
+                        "type": "enum",
+                        "required": True,
+                        "app_field": "case_type",
+                        "values": [
+                            "Personal Injury",
+                            "Corporate Law",
+                            "Criminal Defense",
+                            "Family Law",
+                            "Real Estate",
+                            "Employment Law",
+                            "Immigration",
+                            "Intellectual Property",
+                            "Tax Law",
+                            "Environmental Law",
+                            "Contract Dispute",
+                            "Bankruptcy",
+                        ],
+                    },
+                    "case_status": {
+                        "target": "Case.case_status",
+                        "type": "enum",
+                        "required": True,
+                        "app_field": "case_status",
+                        "values": ["Open", "Closed", "On Hold", "Under Review", "Settled"],
+                    },
+                    "assigned_attorney_id": {
+                        "target": "Case.assigned_lawyer",
+                        "type": "foreign_key",
+                        "required": True,
+                        "app_field": "assigned_lawyer",
+                        "transformation": "Look up attorney name from attorneys table",
+                    },
+                    "priority": {
+                        "target": "Case.priority",
+                        "type": "enum",
+                        "required": True,
+                        "app_field": "priority",
+                        "values": ["Low", "Medium", "High", "Critical"],
+                    },
+                    "opened_date": {
+                        "target": "Case.created_date",
+                        "type": "date",
+                        "required": True,
+                        "app_field": "created_date",
+                    },
+                    "closed_date": {
+                        "target": "Case.closed_date",
+                        "type": "date",
+                        "required": False,
+                        "app_field": "closed_date",
+                    },
+                    "description": {
+                        "target": "Case.description",
+                        "type": "text",
+                        "required": True,
+                        "app_field": "description",
+                    },
+                    "estimated_value": {
+                        "target": "Case.estimated_value",
+                        "type": "decimal",
+                        "required": False,
+                        "app_field": "estimated_value",
+                        "default": 0.0,
+                    },
+                    "created_at": {
+                        "target": "Case.created_date",
+                        "type": "datetime",
+                        "required": True,
+                        "app_field": "created_date",
+                    },
+                    "updated_at": {
+                        "target": "Case.last_updated",
+                        "type": "datetime",
+                        "required": True,
+                        "app_field": "last_updated",
+                    },
                 },
-                'documents': {
-                    'document_id': {'target': 'PhysicalFile.file_id', 'type': 'int', 'required': True, 'app_field': 'file_id', 'transformation': 'Convert to string format FILE{:04d}'},
-                    'case_id': {'target': 'PhysicalFile.case_id', 'type': 'foreign_key', 'required': True, 'app_field': 'case_id', 'references': 'Case.case_id', 'transformation': 'Map to Case.case_id format'},
-                    'client_id': {'target': 'PhysicalFile.client_id', 'type': 'foreign_key', 'required': True, 'app_field': 'client_id', 'references': 'Client.client_id', 'transformation': 'Map to Client.client_id format'},
-                    'document_name': {'target': 'PhysicalFile.file_description', 'type': 'string', 'required': True, 'app_field': 'file_description'},
-                    'document_type': {'target': 'PhysicalFile.file_type', 'type': 'enum', 'required': True, 'app_field': 'file_type', 'values': ['Contract', 'Evidence', 'Correspondence', 'Court Filing', 'Research', 'Client Records']},
-                    'category_id': {'target': 'PhysicalFile.document_category', 'type': 'foreign_key', 'required': True, 'app_field': 'document_category', 'transformation': 'Look up category name from document_categories table'},
-                    'warehouse_location': {'target': 'PhysicalFile.warehouse_location', 'type': 'string', 'required': True, 'app_field': 'warehouse_location'},
-                    'shelf_number': {'target': 'PhysicalFile.shelf_number', 'type': 'string', 'required': True, 'app_field': 'shelf_number'},
-                    'box_number': {'target': 'PhysicalFile.box_number', 'type': 'string', 'required': True, 'app_field': 'box_number'},
-                    'file_size': {'target': 'PhysicalFile.file_size', 'type': 'string', 'required': True, 'app_field': 'file_size'},
-                    'created_at': {'target': 'PhysicalFile.created_date', 'type': 'datetime', 'required': True, 'app_field': 'created_date'},
-                    'updated_at': {'target': 'PhysicalFile.last_modified', 'type': 'datetime', 'required': True, 'app_field': 'last_modified'},
-                    'last_accessed_at': {'target': 'PhysicalFile.last_accessed', 'type': 'datetime', 'required': False, 'app_field': 'last_accessed', 'default': 'created_at'},
-                    'storage_status': {'target': 'PhysicalFile.storage_status', 'type': 'enum', 'required': False, 'app_field': 'storage_status', 'values': ['Active', 'Archived', 'Pending Review', 'Scheduled for Destruction'], 'default': 'Active'},
-                    'confidentiality_level': {'target': 'PhysicalFile.confidentiality_level', 'type': 'enum', 'required': False, 'app_field': 'confidentiality_level', 'values': ['Public', 'Internal', 'Confidential', 'Highly Confidential'], 'default': 'Internal'},
-                    'reference_number': {'target': 'PhysicalFile.reference_number', 'type': 'string', 'required': False, 'app_field': 'reference_number', 'transformation': 'Generate from document_id'}
+                "documents": {
+                    "document_id": {
+                        "target": "PhysicalFile.file_id",
+                        "type": "int",
+                        "required": True,
+                        "app_field": "file_id",
+                        "transformation": "Convert to string format FILE{:04d}",
+                    },
+                    "case_id": {
+                        "target": "PhysicalFile.case_id",
+                        "type": "foreign_key",
+                        "required": True,
+                        "app_field": "case_id",
+                        "references": "Case.case_id",
+                        "transformation": "Map to Case.case_id format",
+                    },
+                    "client_id": {
+                        "target": "PhysicalFile.client_id",
+                        "type": "foreign_key",
+                        "required": True,
+                        "app_field": "client_id",
+                        "references": "Client.client_id",
+                        "transformation": "Map to Client.client_id format",
+                    },
+                    "document_name": {
+                        "target": "PhysicalFile.file_description",
+                        "type": "string",
+                        "required": True,
+                        "app_field": "file_description",
+                    },
+                    "document_type": {
+                        "target": "PhysicalFile.file_type",
+                        "type": "enum",
+                        "required": True,
+                        "app_field": "file_type",
+                        "values": [
+                            "Contract",
+                            "Evidence",
+                            "Correspondence",
+                            "Court Filing",
+                            "Research",
+                            "Client Records",
+                        ],
+                    },
+                    "category_id": {
+                        "target": "PhysicalFile.document_category",
+                        "type": "foreign_key",
+                        "required": True,
+                        "app_field": "document_category",
+                        "transformation": "Look up category name from document_categories table",
+                    },
+                    "warehouse_location": {
+                        "target": "PhysicalFile.warehouse_location",
+                        "type": "string",
+                        "required": True,
+                        "app_field": "warehouse_location",
+                    },
+                    "shelf_number": {
+                        "target": "PhysicalFile.shelf_number",
+                        "type": "string",
+                        "required": True,
+                        "app_field": "shelf_number",
+                    },
+                    "box_number": {
+                        "target": "PhysicalFile.box_number",
+                        "type": "string",
+                        "required": True,
+                        "app_field": "box_number",
+                    },
+                    "file_size": {
+                        "target": "PhysicalFile.file_size",
+                        "type": "string",
+                        "required": True,
+                        "app_field": "file_size",
+                    },
+                    "created_at": {
+                        "target": "PhysicalFile.created_date",
+                        "type": "datetime",
+                        "required": True,
+                        "app_field": "created_date",
+                    },
+                    "updated_at": {
+                        "target": "PhysicalFile.last_modified",
+                        "type": "datetime",
+                        "required": True,
+                        "app_field": "last_modified",
+                    },
+                    "last_accessed_at": {
+                        "target": "PhysicalFile.last_accessed",
+                        "type": "datetime",
+                        "required": False,
+                        "app_field": "last_accessed",
+                        "default": "created_at",
+                    },
+                    "storage_status": {
+                        "target": "PhysicalFile.storage_status",
+                        "type": "enum",
+                        "required": False,
+                        "app_field": "storage_status",
+                        "values": ["Active", "Archived", "Pending Review", "Scheduled for Destruction"],
+                        "default": "Active",
+                    },
+                    "confidentiality_level": {
+                        "target": "PhysicalFile.confidentiality_level",
+                        "type": "enum",
+                        "required": False,
+                        "app_field": "confidentiality_level",
+                        "values": ["Public", "Internal", "Confidential", "Highly Confidential"],
+                        "default": "Internal",
+                    },
+                    "reference_number": {
+                        "target": "PhysicalFile.reference_number",
+                        "type": "string",
+                        "required": False,
+                        "app_field": "reference_number",
+                        "transformation": "Generate from document_id",
+                    },
                 },
-                'payments': {
-                    'payment_id': {'target': 'Payment.payment_id', 'type': 'int', 'required': True, 'app_field': 'payment_id', 'transformation': 'Convert to string format PAY{:04d}'},
-                    'client_id': {'target': 'Payment.client_id', 'type': 'foreign_key', 'required': True, 'app_field': 'client_id', 'references': 'Client.client_id', 'transformation': 'Map to Client.client_id format'},
-                    'case_id': {'target': 'Payment.case_id', 'type': 'foreign_key', 'required': True, 'app_field': 'case_id', 'references': 'Case.case_id', 'transformation': 'Map to Case.case_id format'},
-                    'amount': {'target': 'Payment.amount', 'type': 'decimal', 'required': True, 'app_field': 'amount'},
-                    'currency': {'target': 'Payment.currency', 'type': 'string', 'required': False, 'app_field': 'currency', 'default': 'USD'},
-                    'payment_date': {'target': 'Payment.payment_date', 'type': 'date', 'required': True, 'app_field': 'payment_date'},
-                    'payment_method_id': {'target': 'Payment.payment_method', 'type': 'foreign_key', 'required': True, 'app_field': 'payment_method', 'transformation': 'Look up payment method from payment_methods table'},
-                    'status': {'target': 'Payment.status', 'type': 'enum', 'required': True, 'app_field': 'status', 'values': ['Paid', 'Pending', 'Overdue']},
-                    'reference_number': {'target': 'Payment.reference_number', 'type': 'string', 'required': False, 'app_field': 'reference_number'},
-                    'notes': {'target': 'Payment.description', 'type': 'text', 'required': False, 'app_field': 'description'},
-                    'created_at': {'target': 'Payment.created_at', 'type': 'datetime', 'required': True, 'app_field': 'created_at'}
+                "payments": {
+                    "payment_id": {
+                        "target": "Payment.payment_id",
+                        "type": "int",
+                        "required": True,
+                        "app_field": "payment_id",
+                        "transformation": "Convert to string format PAY{:04d}",
+                    },
+                    "client_id": {
+                        "target": "Payment.client_id",
+                        "type": "foreign_key",
+                        "required": True,
+                        "app_field": "client_id",
+                        "references": "Client.client_id",
+                        "transformation": "Map to Client.client_id format",
+                    },
+                    "case_id": {
+                        "target": "Payment.case_id",
+                        "type": "foreign_key",
+                        "required": True,
+                        "app_field": "case_id",
+                        "references": "Case.case_id",
+                        "transformation": "Map to Case.case_id format",
+                    },
+                    "amount": {"target": "Payment.amount", "type": "decimal", "required": True, "app_field": "amount"},
+                    "currency": {
+                        "target": "Payment.currency",
+                        "type": "string",
+                        "required": False,
+                        "app_field": "currency",
+                        "default": "USD",
+                    },
+                    "payment_date": {
+                        "target": "Payment.payment_date",
+                        "type": "date",
+                        "required": True,
+                        "app_field": "payment_date",
+                    },
+                    "payment_method_id": {
+                        "target": "Payment.payment_method",
+                        "type": "foreign_key",
+                        "required": True,
+                        "app_field": "payment_method",
+                        "transformation": "Look up payment method from payment_methods table",
+                    },
+                    "status": {
+                        "target": "Payment.status",
+                        "type": "enum",
+                        "required": True,
+                        "app_field": "status",
+                        "values": ["Paid", "Pending", "Overdue"],
+                    },
+                    "reference_number": {
+                        "target": "Payment.reference_number",
+                        "type": "string",
+                        "required": False,
+                        "app_field": "reference_number",
+                    },
+                    "notes": {
+                        "target": "Payment.description",
+                        "type": "text",
+                        "required": False,
+                        "app_field": "description",
+                    },
+                    "created_at": {
+                        "target": "Payment.created_at",
+                        "type": "datetime",
+                        "required": True,
+                        "app_field": "created_at",
+                    },
                 },
-                'attorneys': {
-                    'attorney_id': {'target': 'Lawyer.attorney_id', 'type': 'int', 'required': True, 'app_field': 'attorney_id', 'transformation': 'Convert to string format ATT{:04d}'},
-                    'first_name': {'target': 'Lawyer.first_name', 'type': 'string', 'required': True, 'app_field': 'first_name'},
-                    'last_name': {'target': 'Lawyer.last_name', 'type': 'string', 'required': True, 'app_field': 'last_name'},
-                    'email': {'target': 'Lawyer.email', 'type': 'email', 'required': True, 'app_field': 'email'},
-                    'phone': {'target': 'Lawyer.phone', 'type': 'phone', 'required': False, 'app_field': 'phone'},
-                    'specialization': {'target': 'Lawyer.specialization', 'type': 'string', 'required': False, 'app_field': 'specialization'},
-                    'license_number': {'target': 'Lawyer.license_number', 'type': 'string', 'required': True, 'app_field': 'license_number'},
-                    'status': {'target': 'Lawyer.status', 'type': 'enum', 'required': True, 'app_field': 'status', 'values': ['Active', 'Inactive', 'On Leave']},
-                    'created_at': {'target': 'Lawyer.created_at', 'type': 'datetime', 'required': True, 'app_field': 'created_at'}
-                }
+                "attorneys": {
+                    "attorney_id": {
+                        "target": "Lawyer.attorney_id",
+                        "type": "int",
+                        "required": True,
+                        "app_field": "attorney_id",
+                        "transformation": "Convert to string format ATT{:04d}",
+                    },
+                    "first_name": {
+                        "target": "Lawyer.first_name",
+                        "type": "string",
+                        "required": True,
+                        "app_field": "first_name",
+                    },
+                    "last_name": {
+                        "target": "Lawyer.last_name",
+                        "type": "string",
+                        "required": True,
+                        "app_field": "last_name",
+                    },
+                    "email": {"target": "Lawyer.email", "type": "email", "required": True, "app_field": "email"},
+                    "phone": {"target": "Lawyer.phone", "type": "phone", "required": False, "app_field": "phone"},
+                    "specialization": {
+                        "target": "Lawyer.specialization",
+                        "type": "string",
+                        "required": False,
+                        "app_field": "specialization",
+                    },
+                    "license_number": {
+                        "target": "Lawyer.license_number",
+                        "type": "string",
+                        "required": True,
+                        "app_field": "license_number",
+                    },
+                    "status": {
+                        "target": "Lawyer.status",
+                        "type": "enum",
+                        "required": True,
+                        "app_field": "status",
+                        "values": ["Active", "Inactive", "On Leave"],
+                    },
+                    "created_at": {
+                        "target": "Lawyer.created_at",
+                        "type": "datetime",
+                        "required": True,
+                        "app_field": "created_at",
+                    },
+                },
             }
-        
+
         return {}
-    
+
     def _normalize_table_name(self, table_name: str, db_type: str) -> str:
         """Normalize table names for consistent mapping lookup"""
         normalized = table_name.lower()
-        
+
         table_map = {
-            DatabaseType.ORACLE.value: {
-                'clients': 'clients', 'cases': 'cases', 'documents': 'documents'
-            },
-            DatabaseType.MYSQL.value: {
-                'clients': 'clients', 'cases': 'cases', 'documents': 'documents'
-            }
+            DatabaseType.ORACLE.value: {"clients": "clients", "cases": "cases", "documents": "documents"},
+            DatabaseType.MYSQL.value: {"clients": "clients", "cases": "cases", "documents": "documents"},
         }
-        
+
         db_mappings = table_map.get(db_type, {})
         return db_mappings.get(normalized, normalized)
-    
+
     def _get_transformation_rules(self, db_type: str, table: str) -> List[Dict]:
         """Get database-specific transformation rules including field mappings"""
         rules = []
-        
+
         # Get field mappings for this table
         table_mappings = self._get_database_field_mappings(db_type)
         table_key = self._normalize_table_name(table, db_type)
-        
+
         if table_key in table_mappings:
             fields_with_transformations = [
-                field for field, mapping in table_mappings[table_key].items() 
-                if 'transformation' in mapping
+                field for field, mapping in table_mappings[table_key].items() if "transformation" in mapping
             ]
-            
+
             if fields_with_transformations:
-                rules.append({
-                    'table': table,
-                    'rule': 'field_mapping_transformations',
-                    'description': f'Apply field transformations for {len(fields_with_transformations)} fields in {table}',
-                    'priority': 'high',
-                    'terraform_implementation': 'Custom transformation functions in ETL pipeline',
-                    'affected_fields': fields_with_transformations
-                })
-        
+                rules.append(
+                    {
+                        "table": table,
+                        "rule": "field_mapping_transformations",
+                        "description": f"Apply field transformations for {len(fields_with_transformations)} fields in {table}",
+                        "priority": "high",
+                        "terraform_implementation": "Custom transformation functions in ETL pipeline",
+                        "affected_fields": fields_with_transformations,
+                    }
+                )
+
         # Database-specific rules
         if db_type == DatabaseType.ORACLE.value:
-            rules.extend([
-                {
-                    'table': table,
-                    'rule': 'date_format_conversion',
-                    'description': f'Convert Oracle DATE format to ISO 8601 for {table}',
-                    'priority': 'high',
-                    'terraform_implementation': 'Glue ETL job or Data Factory mapping data flow'
-                },
-                {
-                    'table': table,
-                    'rule': 'uppercase_field_names',
-                    'description': f'Map Oracle uppercase field names to app lowercase format for {table}',
-                    'priority': 'medium',
-                    'terraform_implementation': 'Field name mapping in ETL transformations'
-                },
-                {
-                    'table': table,
-                    'rule': 'enum_value_validation',
-                    'description': f'Validate Oracle enum values against app-specific allowed values for {table}',
-                    'priority': 'high',
-                    'terraform_implementation': 'Data validation functions with lookup mappings'
-                }
-            ])
+            rules.extend(
+                [
+                    {
+                        "table": table,
+                        "rule": "date_format_conversion",
+                        "description": f"Convert Oracle DATE format to ISO 8601 for {table}",
+                        "priority": "high",
+                        "terraform_implementation": "Glue ETL job or Data Factory mapping data flow",
+                    },
+                    {
+                        "table": table,
+                        "rule": "uppercase_field_names",
+                        "description": f"Map Oracle uppercase field names to app lowercase format for {table}",
+                        "priority": "medium",
+                        "terraform_implementation": "Field name mapping in ETL transformations",
+                    },
+                    {
+                        "table": table,
+                        "rule": "enum_value_validation",
+                        "description": f"Validate Oracle enum values against app-specific allowed values for {table}",
+                        "priority": "high",
+                        "terraform_implementation": "Data validation functions with lookup mappings",
+                    },
+                ]
+            )
         elif db_type == DatabaseType.MYSQL.value:
-            rules.extend([
-                {
-                    'table': table,
-                    'rule': 'datetime_conversion',
-                    'description': f'Convert MySQL DATETIME to ISO format for {table}',
-                    'priority': 'high',
-                    'terraform_implementation': 'Glue ETL job or Data Factory transformation'
-                },
-                {
-                    'table': table,
-                    'rule': 'id_format_conversion',
-                    'description': f'Convert MySQL integer IDs to app string format for {table}',
-                    'priority': 'high',
-                    'terraform_implementation': 'Custom ID formatting functions in ETL jobs'
-                },
-                {
-                    'table': table,
-                    'rule': 'foreign_key_resolution',
-                    'description': f'Resolve foreign key relationships and lookups for {table}',
-                    'priority': 'high',
-                    'terraform_implementation': 'JOIN operations and lookup transformations'
-                },
-                {
-                    'table': table,
-                    'rule': 'default_value_assignment',
-                    'description': f'Assign default values for missing optional fields in {table}',
-                    'priority': 'medium',
-                    'terraform_implementation': 'Default value assignment in ETL pipeline'
-                }
-            ])
-        
+            rules.extend(
+                [
+                    {
+                        "table": table,
+                        "rule": "datetime_conversion",
+                        "description": f"Convert MySQL DATETIME to ISO format for {table}",
+                        "priority": "high",
+                        "terraform_implementation": "Glue ETL job or Data Factory transformation",
+                    },
+                    {
+                        "table": table,
+                        "rule": "id_format_conversion",
+                        "description": f"Convert MySQL integer IDs to app string format for {table}",
+                        "priority": "high",
+                        "terraform_implementation": "Custom ID formatting functions in ETL jobs",
+                    },
+                    {
+                        "table": table,
+                        "rule": "foreign_key_resolution",
+                        "description": f"Resolve foreign key relationships and lookups for {table}",
+                        "priority": "high",
+                        "terraform_implementation": "JOIN operations and lookup transformations",
+                    },
+                    {
+                        "table": table,
+                        "rule": "default_value_assignment",
+                        "description": f"Assign default values for missing optional fields in {table}",
+                        "priority": "medium",
+                        "terraform_implementation": "Default value assignment in ETL pipeline",
+                    },
+                ]
+            )
+
         return rules
-    
+
     def _get_data_quality_issues(self, db_type: str, table: str) -> List[str]:
         """Get database-specific data quality issues"""
         issues = []
-        
+
         table_normalized = self._normalize_table_name(table, db_type)
-        
-        if table_normalized == 'clients':
-            issues.extend([
-                'Phone numbers may need formatting standardization',
-                'Some email addresses may be invalid or duplicated'
-            ])
-        
+
+        if table_normalized == "clients":
+            issues.extend(
+                [
+                    "Phone numbers may need formatting standardization",
+                    "Some email addresses may be invalid or duplicated",
+                ]
+            )
+
         return issues
-    
+
     def generate_aws_terraform(self, job: TerraformJob) -> tuple[Dict[str, str], Dict[str, str]]:
         """Generate AWS Terraform configuration using GenAI"""
-        
+
         # Get field mappings for intelligent generation
         field_mappings = self._get_database_field_mappings(job.source_db_type)
         table_info = []
-        
+
         for table in job.target_tables:
             table_key = self._normalize_table_name(table, job.source_db_type)
             if table_key in field_mappings:
-                table_info.append({
-                    'name': table,
-                    'fields': field_mappings[table_key],
-                    'transformations': self._get_transformation_rules(job.source_db_type, table)
-                })
-        
+                table_info.append(
+                    {
+                        "name": table,
+                        "fields": field_mappings[table_key],
+                        "transformations": self._get_transformation_rules(job.source_db_type, table),
+                    }
+                )
+
         if self.use_real_ai:
             return self._generate_aws_with_openai(job, table_info)
         else:
             return self._generate_aws_with_mock_ai(job, table_info)
-    
+
     def generate_azure_terraform(self, job: TerraformJob) -> tuple[Dict[str, str], Dict[str, str]]:
         """Generate Azure Terraform configuration using GenAI"""
-        
+
         # Get field mappings for intelligent generation
         field_mappings = self._get_database_field_mappings(job.source_db_type)
         table_info = []
-        
+
         for table in job.target_tables:
             table_key = self._normalize_table_name(table, job.source_db_type)
             if table_key in field_mappings:
-                table_info.append({
-                    'name': table,
-                    'fields': field_mappings[table_key],
-                    'transformations': self._get_transformation_rules(job.source_db_type, table)
-                })
-        
+                table_info.append(
+                    {
+                        "name": table,
+                        "fields": field_mappings[table_key],
+                        "transformations": self._get_transformation_rules(job.source_db_type, table),
+                    }
+                )
+
         if self.use_real_ai:
             return self._generate_azure_with_openai(job, table_info)
         else:
             return self._generate_azure_with_mock_ai(job, table_info)
-    
+
     def _generate_tfvars_example(self, job: TerraformJob) -> str:
         """Generate example tfvars file for AWS"""
         return f"""# Example terraform.tfvars file
@@ -488,7 +1202,7 @@ source_db_name     = "your_database_name"
 source_db_username = "your_username"
 source_db_password = "your_secure_password"
 """
-    
+
     def _generate_azure_tfvars_example(self, job: TerraformJob) -> str:
         """Generate example tfvars file for Azure"""
         return f"""# Example terraform.tfvars file
@@ -507,84 +1221,94 @@ source_db_name     = "your_database_name"
 source_db_username = "your_username"
 source_db_password = "your_secure_password"
 """
-    
-    def _generate_aws_with_openai(self, job: TerraformJob, table_info: List[Dict]) -> tuple[Dict[str, str], Dict[str, str]]:
-         """Generate AWS Terraform and ETL scripts using real OpenAI API"""
-         try:
-             # Prepare context for AI
-             context = self._prepare_ai_context(job, table_info, 'aws')
-             
-             # Generate main.tf
-             main_tf_prompt = self._create_aws_main_tf_prompt(context)
-             main_tf = self._call_openai(main_tf_prompt, "Generate comprehensive AWS Terraform main.tf")
-             
-             # Generate variables.tf
-             variables_tf_prompt = self._create_variables_tf_prompt(context, 'aws')
-             variables_tf = self._call_openai(variables_tf_prompt, "Generate Terraform variables.tf")
-             
-             # Generate README.md
-             readme_prompt = self._create_readme_prompt(context, 'aws')
-             readme_md = self._call_openai(readme_prompt, "Generate deployment README.md")
-             
-             # Generate ETL Python scripts
-             etl_scripts = self._generate_etl_scripts_with_openai(job, table_info, context, 'aws')
-             
-             terraform_config = {
-                 'main.tf': main_tf,
-                 'variables.tf': variables_tf,
-                 'terraform.tfvars.example': self._generate_tfvars_example(job),
-                 'README.md': readme_md
-             }
-             
-             return terraform_config, etl_scripts
-             
-         except Exception as e:
-             logging.error(f"OpenAI generation failed: {e}")
-             return self._generate_aws_with_mock_ai(job, table_info)
-    
-    def _generate_azure_with_openai(self, job: TerraformJob, table_info: List[Dict]) -> tuple[Dict[str, str], Dict[str, str]]:
-         """Generate Azure Terraform and ETL scripts using real OpenAI API"""
-         try:
-             # Prepare context for AI
-             context = self._prepare_ai_context(job, table_info, 'azure')
-             
-             # Generate main.tf
-             main_tf_prompt = self._create_azure_main_tf_prompt(context)
-             main_tf = self._call_openai(main_tf_prompt, "Generate comprehensive Azure Terraform main.tf")
-             
-             # Generate variables.tf
-             variables_tf_prompt = self._create_variables_tf_prompt(context, 'azure')
-             variables_tf = self._call_openai(variables_tf_prompt, "Generate Terraform variables.tf")
-             
-             # Generate README.md
-             readme_prompt = self._create_readme_prompt(context, 'azure')
-             readme_md = self._call_openai(readme_prompt, "Generate deployment README.md")
-             
-             # Generate ETL Python scripts
-             etl_scripts = self._generate_etl_scripts_with_openai(job, table_info, context, 'azure')
-             
-             terraform_config = {
-                 'main.tf': main_tf,
-                 'variables.tf': variables_tf,
-                 'terraform.tfvars.example': self._generate_azure_tfvars_example(job),
-                 'README.md': readme_md
-             }
-             
-             return terraform_config, etl_scripts
-             
-         except Exception as e:
-             logging.error(f"OpenAI generation failed: {e}")
-             return self._generate_azure_with_mock_ai(job, table_info)
-    
-    def _generate_aws_with_mock_ai(self, job: TerraformJob, table_info: List[Dict]) -> tuple[Dict[str, str], Dict[str, str]]:
-         """Generate AWS Terraform using mock AI (for demo purposes)"""
-         
-         # Calculate intelligent sizing based on actual data
-         total_rows = sum(t.get('rows', 0) for t in self.sample_database_tables.get(job.source_db_type, []) if t['name'] in job.target_tables)
-         glue_workers = max(2, min(10, total_rows // 50000))  # Scale workers based on data size
-         
-         # AI-generated main.tf with intelligent resource sizing
-         main_tf = f'''# AI-Generated AWS Data Pipeline for Legal File Management System
+
+    def _generate_aws_with_openai(
+        self, job: TerraformJob, table_info: List[Dict]
+    ) -> tuple[Dict[str, str], Dict[str, str]]:
+        """Generate AWS Terraform and ETL scripts using real OpenAI API"""
+        try:
+            # Prepare context for AI
+            context = self._prepare_ai_context(job, table_info, "aws")
+
+            # Generate main.tf
+            main_tf_prompt = self._create_aws_main_tf_prompt(context)
+            main_tf = self._call_openai(main_tf_prompt, "Generate comprehensive AWS Terraform main.tf")
+
+            # Generate variables.tf
+            variables_tf_prompt = self._create_variables_tf_prompt(context, "aws")
+            variables_tf = self._call_openai(variables_tf_prompt, "Generate Terraform variables.tf")
+
+            # Generate README.md
+            readme_prompt = self._create_readme_prompt(context, "aws")
+            readme_md = self._call_openai(readme_prompt, "Generate deployment README.md")
+
+            # Generate ETL Python scripts
+            etl_scripts = self._generate_etl_scripts_with_openai(job, table_info, context, "aws")
+
+            terraform_config = {
+                "main.tf": main_tf,
+                "variables.tf": variables_tf,
+                "terraform.tfvars.example": self._generate_tfvars_example(job),
+                "README.md": readme_md,
+            }
+
+            return terraform_config, etl_scripts
+
+        except Exception as e:
+            logging.error(f"OpenAI generation failed: {e}")
+            return self._generate_aws_with_mock_ai(job, table_info)
+
+    def _generate_azure_with_openai(
+        self, job: TerraformJob, table_info: List[Dict]
+    ) -> tuple[Dict[str, str], Dict[str, str]]:
+        """Generate Azure Terraform and ETL scripts using real OpenAI API"""
+        try:
+            # Prepare context for AI
+            context = self._prepare_ai_context(job, table_info, "azure")
+
+            # Generate main.tf
+            main_tf_prompt = self._create_azure_main_tf_prompt(context)
+            main_tf = self._call_openai(main_tf_prompt, "Generate comprehensive Azure Terraform main.tf")
+
+            # Generate variables.tf
+            variables_tf_prompt = self._create_variables_tf_prompt(context, "azure")
+            variables_tf = self._call_openai(variables_tf_prompt, "Generate Terraform variables.tf")
+
+            # Generate README.md
+            readme_prompt = self._create_readme_prompt(context, "azure")
+            readme_md = self._call_openai(readme_prompt, "Generate deployment README.md")
+
+            # Generate ETL Python scripts
+            etl_scripts = self._generate_etl_scripts_with_openai(job, table_info, context, "azure")
+
+            terraform_config = {
+                "main.tf": main_tf,
+                "variables.tf": variables_tf,
+                "terraform.tfvars.example": self._generate_azure_tfvars_example(job),
+                "README.md": readme_md,
+            }
+
+            return terraform_config, etl_scripts
+
+        except Exception as e:
+            logging.error(f"OpenAI generation failed: {e}")
+            return self._generate_azure_with_mock_ai(job, table_info)
+
+    def _generate_aws_with_mock_ai(
+        self, job: TerraformJob, table_info: List[Dict]
+    ) -> tuple[Dict[str, str], Dict[str, str]]:
+        """Generate AWS Terraform using mock AI (for demo purposes)"""
+
+        # Calculate intelligent sizing based on actual data
+        total_rows = sum(
+            t.get("rows", 0)
+            for t in self.sample_database_tables.get(job.source_db_type, [])
+            if t["name"] in job.target_tables
+        )
+        glue_workers = max(2, min(10, total_rows // 50000))  # Scale workers based on data size
+
+        # AI-generated main.tf with intelligent resource sizing
+        main_tf = f"""# AI-Generated AWS Data Pipeline for Legal File Management System
 # Generated with GenAI on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 # Source: {job.source_db_type.upper()} | Tables: {", ".join(job.target_tables)}
 # Intelligent Sizing: {total_rows:,} total rows detected
@@ -608,7 +1332,7 @@ locals {{
   project_name = var.project_name
   environment = var.environment
   data_size_category = "{self._categorize_data_size(total_rows)}"
-  
+
   # AI-generated tags with intelligent categorization
   common_tags = {{
     Project         = local.project_name
@@ -694,19 +1418,22 @@ resource "aws_glue_catalog_database" "legal_database" {{
   name        = "${{local.project_name}}_${{local.environment}}_legal_db"
   description = "AI-generated database for legal file management system - {job.source_db_type.upper()} migration"
 }}
-'''
+"""
 
-         # AI-generate Glue jobs for each table with intelligent sizing
-         for i, table_info_item in enumerate(table_info):
-             table_name = table_info_item['name']
-             table_lower = table_name.lower()
-             
-             # AI determines optimal DPU allocation based on table size and transformations
-             table_rows = next((t['rows'] for t in self.sample_database_tables.get(job.source_db_type, []) if t['name'] == table_name), 10000)
-             transformation_count = len(table_info_item.get('transformations', []))
-             dpu_count = max(2, min(10, (table_rows // 25000) + transformation_count))
-             
-             main_tf += f'''
+        # AI-generate Glue jobs for each table with intelligent sizing
+        for i, table_info_item in enumerate(table_info):
+            table_name = table_info_item["name"]
+            table_lower = table_name.lower()
+
+            # AI determines optimal DPU allocation based on table size and transformations
+            table_rows = next(
+                (t["rows"] for t in self.sample_database_tables.get(job.source_db_type, []) if t["name"] == table_name),
+                10000,
+            )
+            transformation_count = len(table_info_item.get("transformations", []))
+            dpu_count = max(2, min(10, (table_rows // 25000) + transformation_count))
+
+            main_tf += f"""
 # AI-optimized Glue job for {table_name} (estimated {table_rows:,} rows)
 resource "aws_glue_job" "etl_{table_lower}" {{
   name              = "${{local.project_name}}-${{local.environment}}-etl-{table_lower}"
@@ -733,10 +1460,10 @@ resource "aws_glue_job" "etl_{table_lower}" {{
     "--enable-continuous-cloudwatch-log" = "true"
   }}
 }}
-'''
+"""
 
-         # AI-generated Step Functions workflow
-         main_tf += f'''
+        # AI-generated Step Functions workflow
+        main_tf += f"""
 # AI-orchestrated Step Functions workflow
 resource "aws_iam_role" "step_functions_role" {{
   name = "${{local.project_name}}-${{local.environment}}-stepfunctions-role"
@@ -832,34 +1559,40 @@ output "ai_generated_insights" {{
     optimization_level = "AI-Optimized"
   }}
 }}
-'''
+"""
 
-         # Generate intelligent variables.tf
-         variables_tf = self._generate_intelligent_variables_tf(job, table_info, 'aws')
-         
-         # Generate AI-powered README
-         readme_md = self._generate_intelligent_readme(job, table_info, total_rows, 'aws')
-         
-         # Generate ETL scripts
-         etl_scripts = self._generate_etl_scripts_mock(job, table_info, 'aws')
-         
-         terraform_config = {
-             'main.tf': main_tf,
-             'variables.tf': variables_tf,
-             'terraform.tfvars.example': self._generate_tfvars_example(job),
-             'README.md': readme_md
-         }
-         
-         return terraform_config, etl_scripts
-    
-    def _generate_azure_with_mock_ai(self, job: TerraformJob, table_info: List[Dict]) -> tuple[Dict[str, str], Dict[str, str]]:
-         """Generate Azure Terraform using mock AI (for demo purposes)"""
-         
-         # Calculate intelligent sizing
-         total_rows = sum(t.get('rows', 0) for t in self.sample_database_tables.get(job.source_db_type, []) if t['name'] in job.target_tables)
-         
-         # AI-generated Azure main.tf
-         main_tf = f'''# AI-Generated Azure Data Pipeline for Legal File Management System
+        # Generate intelligent variables.tf
+        variables_tf = self._generate_intelligent_variables_tf(job, table_info, "aws")
+
+        # Generate AI-powered README
+        readme_md = self._generate_intelligent_readme(job, table_info, total_rows, "aws")
+
+        # Generate ETL scripts
+        etl_scripts = self._generate_etl_scripts_mock(job, table_info, "aws")
+
+        terraform_config = {
+            "main.tf": main_tf,
+            "variables.tf": variables_tf,
+            "terraform.tfvars.example": self._generate_tfvars_example(job),
+            "README.md": readme_md,
+        }
+
+        return terraform_config, etl_scripts
+
+    def _generate_azure_with_mock_ai(
+        self, job: TerraformJob, table_info: List[Dict]
+    ) -> tuple[Dict[str, str], Dict[str, str]]:
+        """Generate Azure Terraform using mock AI (for demo purposes)"""
+
+        # Calculate intelligent sizing
+        total_rows = sum(
+            t.get("rows", 0)
+            for t in self.sample_database_tables.get(job.source_db_type, [])
+            if t["name"] in job.target_tables
+        )
+
+        # AI-generated Azure main.tf
+        main_tf = f"""# AI-Generated Azure Data Pipeline for Legal File Management System
 # Generated with GenAI on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 # Source: {job.source_db_type.upper()} | Tables: {", ".join(job.target_tables)}
 # Intelligent Sizing: {total_rows:,} total rows detected
@@ -884,7 +1617,7 @@ locals {{
   location = var.location
   environment = var.environment
   data_size_category = "{self._categorize_data_size(total_rows)}"
-  
+
   common_tags = {{
     Project         = local.project_name
     Environment     = local.environment
@@ -911,7 +1644,7 @@ resource "azurerm_storage_account" "data_lake" {{
   account_tier             = "{self._get_azure_storage_tier(total_rows)}"
   account_replication_type = "{self._get_azure_replication_type(total_rows)}"
   is_hns_enabled          = true
-  
+
   tags = local.common_tags
 }}
 
@@ -921,18 +1654,18 @@ resource "azurerm_data_factory" "legal_adf" {{
   location            = azurerm_resource_group.legal_data_rg.location
   resource_group_name = azurerm_resource_group.legal_data_rg.name
   tags               = local.common_tags
-  
+
   # AI-determined integration runtime configuration
   managed_virtual_network_enabled = {str(total_rows > 100000).lower()}
 }}
-'''
+"""
 
-         # Generate AI-optimized Data Factory pipelines for each table
-         for table_info_item in table_info:
-             table_name = table_info_item['name']
-             table_lower = table_name.lower()
-             
-             main_tf += f'''
+        # Generate AI-optimized Data Factory pipelines for each table
+        for table_info_item in table_info:
+            table_name = table_info_item["name"]
+            table_lower = table_name.lower()
+
+            main_tf += f"""
 # AI-optimized Data Factory pipeline for {table_name}
 resource "azurerm_data_factory_pipeline" "pipeline_{table_lower}" {{
   name            = "pl-{table_lower}-migration"
@@ -960,9 +1693,9 @@ resource "azurerm_data_factory_pipeline" "pipeline_{table_lower}" {{
     }}
   ])
 }}
-'''
+"""
 
-         main_tf += f'''
+        main_tf += f"""
 # AI-generated SQL Database with intelligent sizing
 resource "azurerm_mssql_server" "legal_sql_server" {{
   name                         = "sql-${{local.project_name}}-${{local.environment}}-legal"
@@ -1001,28 +1734,28 @@ output "ai_insights" {{
     estimated_cost   = "${self._calculate_intelligent_cost(total_rows, len(job.target_tables))}"
   }}
 }}
-'''
+"""
 
-         # Generate intelligent variables and README
-         variables_tf = self._generate_intelligent_variables_tf(job, table_info, 'azure')
-         readme_md = self._generate_intelligent_readme(job, table_info, total_rows, 'azure')
-         
-         # Generate ETL scripts
-         etl_scripts = self._generate_etl_scripts_mock(job, table_info, 'azure')
-         
-         terraform_config = {
-             'main.tf': main_tf,
-             'variables.tf': variables_tf,
-             'terraform.tfvars.example': self._generate_azure_tfvars_example(job),
-             'README.md': readme_md
-         }
-         
-         return terraform_config, etl_scripts
-    
+        # Generate intelligent variables and README
+        variables_tf = self._generate_intelligent_variables_tf(job, table_info, "azure")
+        readme_md = self._generate_intelligent_readme(job, table_info, total_rows, "azure")
+
+        # Generate ETL scripts
+        etl_scripts = self._generate_etl_scripts_mock(job, table_info, "azure")
+
+        terraform_config = {
+            "main.tf": main_tf,
+            "variables.tf": variables_tf,
+            "terraform.tfvars.example": self._generate_azure_tfvars_example(job),
+            "README.md": readme_md,
+        }
+
+        return terraform_config, etl_scripts
+
     def _generate_etl_scripts_mock(self, job: TerraformJob, table_info: List[Dict], cloud_type: str) -> Dict[str, str]:
         """Generate mock ETL Python scripts for demo purposes"""
         etl_scripts = {}
-        
+
         # Main ETL orchestrator
         orchestrator_script = f'''#!/usr/bin/env python3
 """
@@ -1043,72 +1776,72 @@ from data_validator import DataValidator
 
 class ETLOrchestrator:
     \"\"\"AI-powered ETL orchestrator for {cloud_type.upper()} data pipeline\"\"\"
-    
+
     def __init__(self, config: ETLConfig):
         self.config = config
         self.validator = DataValidator(config)
         self.logger = self._setup_logging()
         {'self.s3_client = boto3.client("s3")' if cloud_type == "aws" else 'self.credential = DefaultAzureCredential()'}
-        
+
     def _setup_logging(self) -> logging.Logger:
         \"\"\"Setup comprehensive logging\"\"\"
         logger = logging.getLogger(__name__)
         logger.setLevel(self.config.LOG_LEVEL)
-        
+
         handler = logging.StreamHandler()
         formatter = logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
         handler.setFormatter(formatter)
         logger.addHandler(handler)
-        
+
         return logger
-        
+
     def run_pipeline(self) -> bool:
         \"\"\"Execute the complete ETL pipeline\"\"\"
         self.logger.info("Starting ETL pipeline execution")
-        
+
         try:
             # Process each table
             for table_name in {job.target_tables}:
                 self.logger.info(f"Processing table: {{table_name}}")
-                
+
                 # Extract data
                 raw_data = self._extract_data(table_name)
-                
+
                 # Validate data
                 if not self.validator.validate_data(table_name, raw_data):
                     self.logger.error(f"Data validation failed for {{table_name}}")
                     return False
-                
+
                 # Transform data
                 transformed_data = self._transform_data(table_name, raw_data)
-                
+
                 # Load to {cloud_type.upper()}
                 if not self._load_data(table_name, transformed_data):
                     self.logger.error(f"Data loading failed for {{table_name}}")
                     return False
-                    
+
             self.logger.info("ETL pipeline completed successfully")
             return True
-            
+
         except Exception as e:
             self.logger.error(f"Pipeline failed: {{e}}")
             return False
-    
+
     def _extract_data(self, table_name: str) -> List[Dict]:
         \"\"\"Extract data from {job.source_db_type.upper()} database\"\"\"
         # AI-generated extraction logic
         self.logger.info(f"Extracting data from {{table_name}}")
         # Implementation would connect to {job.source_db_type} and extract data
         return []
-    
+
     def _transform_data(self, table_name: str, data: List[Dict]) -> List[Dict]:
         \"\"\"Apply AI-powered transformations\"\"\"
         self.logger.info(f"Transforming data for {{table_name}}")
         # AI-generated transformation logic
         return data
-    
+
     def _load_data(self, table_name: str, data: List[Dict]) -> bool:
         \"\"\"Load data to {cloud_type.upper()} services\"\"\"
         self.logger.info(f"Loading data for {{table_name}} to {cloud_type.upper()}")
@@ -1118,11 +1851,11 @@ class ETLOrchestrator:
 if __name__ == "__main__":
     config = ETLConfig()
     orchestrator = ETLOrchestrator(config)
-    
+
     success = orchestrator.run_pipeline()
     sys.exit(0 if success else 1)
 '''
-        
+
         # Data validator
         validator_script = '''#!/usr/bin/env python3
 """
@@ -1138,27 +1871,27 @@ from config import ETLConfig
 
 class DataValidator:
     """AI-powered data validation with comprehensive rules"""
-    
+
     def __init__(self, config: ETLConfig):
         self.config = config
         self.logger = logging.getLogger(__name__)
-        
+
     def validate_data(self, table_name: str, data: List[Dict]) -> bool:
         """Execute comprehensive data validation"""
         if not data:
             self.logger.warning(f"No data to validate for {table_name}")
             return True
-            
+
         validation_rules = self._get_validation_rules(table_name)
-        
+
         for rule in validation_rules:
             if not self._apply_rule(rule, data):
                 self.logger.error(f"Validation failed for rule: {rule['name']}")
                 return False
-                
+
         self.logger.info(f"Data validation passed for {table_name}")
         return True
-    
+
     def _get_validation_rules(self, table_name: str) -> List[Dict]:
         """AI-generated validation rules based on table analysis"""
         base_rules = [
@@ -1167,14 +1900,14 @@ class DataValidator:
             {"name": "date_range", "fields": ["created_date"], "type": "range", "min_date": "1900-01-01"},
             {"name": "uniqueness", "fields": ["id"], "type": "unique"}
         ]
-        
+
         # AI customizes rules based on table characteristics
         return base_rules
-    
+
     def _apply_rule(self, rule: Dict, data: List[Dict]) -> bool:
         """Apply specific validation rule"""
         rule_type = rule["type"]
-        
+
         if rule_type == "required":
             return self._validate_required_fields(rule["fields"], data)
         elif rule_type == "format":
@@ -1183,9 +1916,9 @@ class DataValidator:
             return self._validate_range(rule["fields"], rule, data)
         elif rule_type == "unique":
             return self._validate_uniqueness(rule["fields"], data)
-            
+
         return True
-    
+
     def _validate_required_fields(self, fields: List[str], data: List[Dict]) -> bool:
         """Validate required fields are not null/empty"""
         for record in data:
@@ -1193,7 +1926,7 @@ class DataValidator:
                 if field not in record or record[field] is None or record[field] == "":
                     return False
         return True
-    
+
     def _validate_format(self, fields: List[str], pattern: str, data: List[Dict]) -> bool:
         """Validate field format using regex"""
         regex = re.compile(pattern)
@@ -1203,7 +1936,7 @@ class DataValidator:
                     if not regex.match(str(record[field])):
                         return False
         return True
-    
+
     def _validate_range(self, fields: List[str], rule: Dict, data: List[Dict]) -> bool:
         """Validate field value ranges"""
         for record in data:
@@ -1219,7 +1952,7 @@ class DataValidator:
                         except ValueError:
                             return False
         return True
-    
+
     def _validate_uniqueness(self, fields: List[str], data: List[Dict]) -> bool:
         """Validate field uniqueness"""
         for field in fields:
@@ -1228,10 +1961,10 @@ class DataValidator:
                 return False
         return True
 '''
-        
-        etl_scripts['etl_orchestrator.py'] = orchestrator_script
-        etl_scripts['data_validator.py'] = validator_script
-        
+
+        etl_scripts["etl_orchestrator.py"] = orchestrator_script
+        etl_scripts["data_validator.py"] = validator_script
+
         # Generate table-specific ETL scripts
         for table_name in job.target_tables[:3]:  # Generate for first 3 tables
             table_script = f'''#!/usr/bin/env python3
@@ -1246,55 +1979,55 @@ from config import ETLConfig
 
 class {table_name.title()}ETL:
     """Specialized ETL processor for {table_name} table"""
-    
+
     def __init__(self, config: ETLConfig):
         self.config = config
         self.logger = logging.getLogger(__name__)
         self.batch_size = config.BATCH_SIZE
-        
+
     def extract(self) -> List[Dict]:
         """Extract data from {job.source_db_type.upper()} {table_name} table"""
         self.logger.info(f"Extracting data from {table_name}")
-        
+
         # AI-generated extraction query
         query = f\"\"\"
-        SELECT * FROM {table_name} 
-        WHERE modified_date > %s 
+        SELECT * FROM {table_name}
+        WHERE modified_date > %s
         ORDER BY id
         LIMIT {"{self.batch_size}"}
         \"\"\"
-        
+
         # Implementation would execute query and return results
         return []
-    
+
     def transform(self, data: List[Dict]) -> List[Dict]:
         """Apply {table_name}-specific transformations"""
         self.logger.info(f"Transforming {table_name} data")
-        
+
         transformed_data = []
         for record in data:
             # AI-generated transformation logic
             transformed_record = self._apply_business_rules(record)
             transformed_data.append(transformed_record)
-            
+
         return transformed_data
-    
+
     def _apply_business_rules(self, record: Dict) -> Dict:
         """Apply AI-identified business transformation rules"""
         # Example transformations based on AI analysis
         if 'email' in record and record['email']:
             record['email'] = record['email'].lower().strip()
-            
+
         if 'phone' in record and record['phone']:
             # Normalize phone format
             record['phone'] = re.sub(r'[^0-9]', '', record['phone'])
-            
+
         return record
-    
+
     def load(self, data: List[Dict]) -> bool:
         """Load data to {cloud_type.upper()} services"""
         self.logger.info(f"Loading {table_name} data to {cloud_type.upper()}")
-        
+
         try:
             # AI-generated loading logic for {cloud_type.upper()}
             {'# Load to S3 and trigger Glue job' if cloud_type == 'aws' else '# Load to Azure Data Lake and trigger Data Factory pipeline'}
@@ -1303,8 +2036,8 @@ class {table_name.title()}ETL:
             self.logger.error(f"Loading failed: {{e}}")
             return False
 '''
-            etl_scripts[f'etl_{table_name.lower()}.py'] = table_script
-        
+            etl_scripts[f"etl_{table_name.lower()}.py"] = table_script
+
         # Configuration script
         config_script = f'''#!/usr/bin/env python3
 """
@@ -1317,10 +2050,10 @@ from typing import Dict, Any
 
 class ETLConfig:
     """Centralized configuration management"""
-    
+
     def __init__(self):
         self.environment = os.getenv('ENVIRONMENT', 'dev')
-        
+
         # Database configuration
         self.SOURCE_DB_TYPE = '{job.source_db_type.upper()}'
         self.SOURCE_DB_HOST = os.getenv('SOURCE_DB_HOST', 'localhost')
@@ -1328,23 +2061,23 @@ class ETLConfig:
         self.SOURCE_DB_NAME = os.getenv('SOURCE_DB_NAME', 'legal_db')
         self.SOURCE_DB_USER = os.getenv('SOURCE_DB_USER', 'etl_user')
         self.SOURCE_DB_PASSWORD = os.getenv('SOURCE_DB_PASSWORD', 'secure_password')
-        
+
         # {cloud_type.upper()} configuration
         {'self.AWS_REGION = os.getenv("AWS_REGION", "us-east-1")' if cloud_type == 'aws' else 'self.AZURE_LOCATION = os.getenv("AZURE_LOCATION", "East US")'}
         {'self.S3_BUCKET = os.getenv("S3_BUCKET", "legal-data-pipeline")' if cloud_type == 'aws' else 'self.STORAGE_ACCOUNT = os.getenv("AZURE_STORAGE_ACCOUNT", "legaldatapipeline")'}
-        
+
         # Processing configuration
         self.BATCH_SIZE = int(os.getenv('BATCH_SIZE', '1000'))
         self.MAX_RETRIES = int(os.getenv('MAX_RETRIES', '3'))
         self.TIMEOUT_SECONDS = int(os.getenv('TIMEOUT_SECONDS', '300'))
-        
+
         # Logging configuration
         self.LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
-        
+
         # Validation configuration
         self.ENABLE_DATA_VALIDATION = os.getenv('ENABLE_DATA_VALIDATION', 'true').lower() == 'true'
         self.VALIDATION_SAMPLE_SIZE = int(os.getenv('VALIDATION_SAMPLE_SIZE', '100'))
-        
+
     @property
     def database_url(self) -> str:
         """Construct database connection URL"""
@@ -1352,15 +2085,15 @@ class ETLConfig:
             return f"oracle://{{self.SOURCE_DB_USER}}:{{self.SOURCE_DB_PASSWORD}}@{{self.SOURCE_DB_HOST}}:{{self.SOURCE_DB_PORT}}/{{self.SOURCE_DB_NAME}}"
         else:
             return f"mysql://{{self.SOURCE_DB_USER}}:{{self.SOURCE_DB_PASSWORD}}@{{self.SOURCE_DB_HOST}}:{{self.SOURCE_DB_PORT}}/{{self.SOURCE_DB_NAME}}"
-    
+
     def get_cloud_config(self) -> Dict[str, Any]:
         """{cloud_type.upper()}-specific configuration"""
         {'return {"region": self.AWS_REGION, "s3_bucket": self.S3_BUCKET}' if cloud_type == 'aws' else 'return {"location": self.AZURE_LOCATION, "storage_account": self.STORAGE_ACCOUNT}'}
 '''
-        
+
         # Requirements file
-        if cloud_type == 'aws':
-            requirements = '''# AI-Generated Requirements for AWS ETL Pipeline
+        if cloud_type == "aws":
+            requirements = """# AI-Generated Requirements for AWS ETL Pipeline
 # Core dependencies
 pandas==2.0.3
 numpy==1.24.3
@@ -1395,9 +2128,9 @@ moto==4.2.4        # For AWS mocking
 black==23.7.0
 flake8==6.0.0
 mypy==1.5.1
-'''
+"""
         else:  # Azure
-            requirements = '''# AI-Generated Requirements for Azure ETL Pipeline
+            requirements = """# AI-Generated Requirements for Azure ETL Pipeline
 # Core dependencies
 pandas==2.0.3
 numpy==1.24.3
@@ -1433,17 +2166,24 @@ pytest-cov==4.1.0
 black==23.7.0
 flake8==6.0.0
 mypy==1.5.1
-'''
-        
-        etl_scripts['config.py'] = config_script
-        etl_scripts['requirements.txt'] = requirements
-        
+"""
+
+        etl_scripts["config.py"] = config_script
+        etl_scripts["requirements.txt"] = requirements
+
         return etl_scripts
-    
-    def create_terraform_job(self, db_type: str, cloud_platform: str, connection_string: str, selected_tables: List[str], custom_field_mappings: Optional[Dict] = None) -> str:
+
+    def create_terraform_job(
+        self,
+        db_type: str,
+        cloud_platform: str,
+        connection_string: str,
+        selected_tables: List[str],
+        custom_field_mappings: Optional[Dict] = None,
+    ) -> str:
         """Create a new Terraform generation job"""
         job_id = f"tf_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{random.randint(100, 999)}"
-        
+
         # Create job using the new entity model
         job = TerraformJobEntity(
             job_id=job_id,
@@ -1451,22 +2191,22 @@ mypy==1.5.1
             target_cloud=cloud_platform,
             source_connection=connection_string,
             target_tables=selected_tables,
-            status='pending',
+            status="pending",
             progress=0.0,
-            created_at=datetime.now()
+            created_at=datetime.now(),
         )
-        
+
         # If custom field mappings are provided, store them immediately
         if custom_field_mappings:
             job.field_mappings = custom_field_mappings
             logging.info(f"Custom field mappings applied to job {job_id}: {len(custom_field_mappings)} tables")
-        
+
         # Save to database
         if self.db_manager.save_terraform_job(job):
             logging.info(f"Terraform job {job_id} saved to database")
         else:
             logging.error(f"Failed to save terraform job {job_id} to database")
-        
+
         # Keep in memory for backward compatibility during transition
         old_job = TerraformJob(
             job_id=job_id,
@@ -1474,54 +2214,58 @@ mypy==1.5.1
             target_cloud=cloud_platform,
             source_connection=connection_string,
             target_tables=selected_tables,
-            status='pending',
+            status="pending",
             progress=0.0,
             created_at=datetime.now().isoformat(),
-            completed_at=None
+            completed_at=None,
         )
         if custom_field_mappings:
             old_job.field_mappings = custom_field_mappings
         self.terraform_jobs[job_id] = old_job
-        
+
         # Start Terraform generation in background
         threading.Thread(target=self._run_terraform_job, args=(job_id,), daemon=True).start()
-        
+
         return job_id
-    
+
     def _run_terraform_job(self, job_id: str):
         """Execute Terraform generation job in background"""
         job = self.terraform_jobs[job_id]
-        
+
         try:
             # Phase 1: AI Schema Analysis
-            job.status = 'analyzing'
+            job.status = "analyzing"
             job.progress = 10.0
             self._sync_job_to_database(job_id)  # Sync to database
             time.sleep(2)  # Simulate AI analysis
-            
+
             ai_analysis = self.analyze_database_schema(job.source_db_type, job.target_tables)
             job.ai_analysis = ai_analysis
-            
+
             # Only use AI-generated field mappings if no custom mappings were provided
             if not job.field_mappings:
-                job.field_mappings = ai_analysis['field_mappings']
+                job.field_mappings = ai_analysis["field_mappings"]
                 logging.info(f"Using AI-generated field mappings for job {job_id}")
             else:
                 logging.info(f"Using custom field mappings for job {job_id}: {len(job.field_mappings)} tables")
-            
-            job.transformation_rules = ai_analysis['transformation_rules']
+
+            job.transformation_rules = ai_analysis["transformation_rules"]
             job.progress = 30.0
-            
+
             # Phase 2: Terraform Generation
-            job.status = 'generating'
+            job.status = "generating"
             job.progress = 50.0
             self._sync_job_to_database(job_id)  # Sync to database
             time.sleep(3)  # Simulate Terraform generation
-            
+
             # Calculate detailed cost based on actual data and cloud platform
-            total_rows = sum(t.get('rows', 0) for t in self.sample_database_tables.get(job.source_db_type, []) if t['name'] in job.target_tables)
+            total_rows = sum(
+                t.get("rows", 0)
+                for t in self.sample_database_tables.get(job.source_db_type, [])
+                if t["name"] in job.target_tables
+            )
             data_size_gb = (total_rows * 2) / 1000  # Rough estimate: 2KB per row
-            
+
             if job.target_cloud == CloudPlatform.AWS.value:
                 terraform_config, etl_scripts = self.generate_aws_terraform(job)
                 # AWS cost calculation (matching the service summary)
@@ -1540,30 +2284,30 @@ mypy==1.5.1
                 key_vault_cost = 3
                 monitor_cost = 10
                 monthly_cost = storage_cost + data_factory_cost + sql_cost + key_vault_cost + monitor_cost
-            
-            estimated_cost = {'monthly_estimate': f'${monthly_cost:.2f}', 'currency': 'USD'}
-            
+
+            estimated_cost = {"monthly_estimate": f"${monthly_cost:.2f}", "currency": "USD"}
+
             job.terraform_config = terraform_config
             job.etl_scripts = etl_scripts
             job.estimated_cost = estimated_cost
             job.progress = 100.0
-            job.status = 'completed'
+            job.status = "completed"
             job.completed_at = datetime.now().isoformat()
             self._sync_job_to_database(job_id)  # Sync final state to database
-            
+
         except Exception as e:
-            job.status = 'failed'
+            job.status = "failed"
             job.errors = [str(e)]
             job.completed_at = datetime.now().isoformat()
             self._sync_job_to_database(job_id)  # Sync error state to database
             logging.error(f"Terraform job {job_id} failed: {e}")
-    
+
     def get_terraform_status(self, job_id: str) -> Optional[Dict]:
         """Get current Terraform job status"""
         job = self.terraform_jobs.get(job_id)
         if not job:
             return None
-        
+
         # Calculate field mappings summary for display
         mappings_summary = None
         if job.field_mappings:
@@ -1572,90 +2316,90 @@ mypy==1.5.1
                 total_fields = 0
                 required_fields = 0
                 transformations = 0
-                
+
                 # Handle both AI-generated and custom field mappings structures
                 for table_name, table_mapping in job.field_mappings.items():
                     if isinstance(table_mapping, dict):
                         # Check if this is a custom mapping structure with nested data
-                        if 'fields' in table_mapping:
+                        if "fields" in table_mapping:
                             # Custom mapping structure from frontend: table_mapping = {'fields': {...}, 'app_entities': {...}, ...}
-                            fields = table_mapping.get('fields', {})
+                            fields = table_mapping.get("fields", {})
                         else:
                             # AI-generated mapping structure: table_mapping = {field_name: field_props, ...}
                             fields = table_mapping
-                        
+
                         # Count fields and properties
                         if isinstance(fields, dict):
                             total_fields += len(fields)
-                            
+
                             for field_name, field_props in fields.items():
                                 if isinstance(field_props, dict):
-                                    if field_props.get('required', False):
+                                    if field_props.get("required", False):
                                         required_fields += 1
-                                    if field_props.get('transformation'):
+                                    if field_props.get("transformation"):
                                         transformations += 1
-                
+
                 mappings_summary = {
-                    'total_tables': total_tables,
-                    'total_fields': total_fields,
-                    'required_fields': required_fields,
-                    'transformations': transformations,
-                    'has_mappings': True
+                    "total_tables": total_tables,
+                    "total_fields": total_fields,
+                    "required_fields": required_fields,
+                    "transformations": transformations,
+                    "has_mappings": True,
                 }
-                
+
                 logging.debug(f"Calculated mappings summary for job {job_id}: {mappings_summary}")
-                
+
             except Exception as e:
                 logging.error(f"Error calculating mappings summary for job {job_id}: {e}")
                 mappings_summary = {
-                    'total_tables': len(job.field_mappings),
-                    'total_fields': 0,
-                    'required_fields': 0,
-                    'transformations': 0,
-                    'has_mappings': True,
-                    'error': 'Failed to calculate detailed summary'
+                    "total_tables": len(job.field_mappings),
+                    "total_fields": 0,
+                    "required_fields": 0,
+                    "transformations": 0,
+                    "has_mappings": True,
+                    "error": "Failed to calculate detailed summary",
                 }
         else:
-            mappings_summary = {'has_mappings': False}
-        
+            mappings_summary = {"has_mappings": False}
+
         return {
-            'job_id': job.job_id,
-            'status': job.status,
-            'progress': round(job.progress, 1),
-            'created_at': job.created_at,
-            'source_db_type': job.source_db_type,
-            'target_cloud': job.target_cloud,
-            'target_tables': job.target_tables,
-            'ai_analysis': job.ai_analysis,
-            'terraform_config': job.terraform_config,
-            'etl_scripts': job.etl_scripts,
-            'estimated_cost': job.estimated_cost,
-            'errors': job.errors or [],
-            'mappings_summary': mappings_summary
+            "job_id": job.job_id,
+            "status": job.status,
+            "progress": round(job.progress, 1),
+            "created_at": job.created_at,
+            "source_db_type": job.source_db_type,
+            "target_cloud": job.target_cloud,
+            "target_tables": job.target_tables,
+            "ai_analysis": job.ai_analysis,
+            "terraform_config": job.terraform_config,
+            "etl_scripts": job.etl_scripts,
+            "estimated_cost": job.estimated_cost,
+            "errors": job.errors or [],
+            "mappings_summary": mappings_summary,
         }
-    
+
     def export_terraform_files(self, job_id: str) -> str:
         """Export Terraform files and ETL scripts as a ZIP archive"""
         job = self.terraform_jobs.get(job_id)
         if not job or not job.terraform_config:
             return None
-        
+
         # Create temporary directory and ZIP file
         temp_dir = tempfile.mkdtemp()
         zip_path = os.path.join(temp_dir, f"terraform-etl-{job_id}.zip")
-        
-        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
             # Add Terraform files
             for filename, content in job.terraform_config.items():
                 zipf.writestr(f"terraform/{filename}", content)
-            
+
             # Add ETL scripts if available
             if job.etl_scripts:
                 for filename, content in job.etl_scripts.items():
                     zipf.writestr(f"etl/{filename}", content)
-        
+
         return zip_path
-    
+
     # AI Helper Methods
     def _categorize_data_size(self, total_rows: int) -> str:
         """AI-powered data size categorization"""
@@ -1667,15 +2411,15 @@ mypy==1.5.1
             return "Large"
         else:
             return "Enterprise"
-    
+
     def _get_azure_storage_tier(self, total_rows: int) -> str:
         """AI-determined Azure storage tier"""
         return "Premium" if total_rows > 500000 else "Standard"
-    
+
     def _get_azure_replication_type(self, total_rows: int) -> str:
         """AI-determined Azure replication type"""
         return "GRS" if total_rows > 100000 else "LRS"
-    
+
     def _get_azure_sql_sku(self, total_rows: int) -> str:
         """AI-determined Azure SQL SKU"""
         if total_rows > 500000:
@@ -1684,7 +2428,7 @@ mypy==1.5.1
             return "S3"
         else:
             return "S2"
-    
+
     def _calculate_intelligent_cost(self, total_rows: int, table_count: int) -> str:
         """AI-powered cost calculation"""
         base_cost = 15.0
@@ -1692,13 +2436,13 @@ mypy==1.5.1
         table_cost = table_count * 2.0
         total_cost = base_cost + data_cost + table_cost
         return f"{min(total_cost, 200.0):.2f}"
-    
+
     def _generate_parallel_branches(self, table_info: List[Dict]) -> str:
         """Generate parallel branches for Step Functions"""
         branches = []
         for table in table_info:
-            table_name = table['name'].lower()
-            branch = f'''          {{
+            table_name = table["name"].lower()
+            branch = f"""          {{
             StartAt = "Process{table_name.title()}",
             States = {{
               "Process{table_name.title()}" = {{
@@ -1710,24 +2454,26 @@ mypy==1.5.1
                 End = true
               }}
             }}
-          }}'''
+          }}"""
             branches.append(branch)
-        return ',\n'.join(branches)
-    
+        return ",\n".join(branches)
+
     def _generate_cloudwatch_metrics(self, table_info: List[Dict]) -> str:
         """Generate CloudWatch metrics for monitoring"""
         metrics = []
         for table in table_info:
-            table_name = table['name'].lower()
-            metric = f'''            ["AWS/Glue", "glue.driver.aggregate.numCompletedTasks", "JobName", "{table_name}"]'''
+            table_name = table["name"].lower()
+            metric = (
+                f"""            ["AWS/Glue", "glue.driver.aggregate.numCompletedTasks", "JobName", "{table_name}"]"""
+            )
             metrics.append(metric)
-        return ',\n'.join(metrics)
-    
+        return ",\n".join(metrics)
+
     def _generate_intelligent_variables_tf(self, job: TerraformJob, table_info: List[Dict], cloud_type: str) -> str:
         """Generate intelligent variables.tf based on AI analysis"""
-        
-        if cloud_type == 'aws':
-            return f'''# AI-Generated Variables for AWS Data Pipeline
+
+        if cloud_type == "aws":
+            return f"""# AI-Generated Variables for AWS Data Pipeline
 # Generated with GenAI on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 # Optimized for {job.source_db_type.upper()} source with {len(job.target_tables)} tables
 
@@ -1735,7 +2481,7 @@ variable "aws_region" {{
   description = "AWS region for deployment"
   type        = string
   default     = "us-east-1"
-  
+
   validation {{
     condition     = can(regex("^[a-z0-9-]+$", var.aws_region))
     error_message = "AWS region must be a valid region identifier."
@@ -1746,7 +2492,7 @@ variable "project_name" {{
   description = "Project name for resource naming"
   type        = string
   default     = "legal-migration"
-  
+
   validation {{
     condition     = length(var.project_name) <= 20
     error_message = "Project name must be 20 characters or less."
@@ -1757,7 +2503,7 @@ variable "environment" {{
   description = "Environment (dev, staging, prod)"
   type        = string
   default     = "dev"
-  
+
   validation {{
     condition     = contains(["dev", "staging", "prod"], var.environment)
     error_message = "Environment must be dev, staging, or prod."
@@ -1793,7 +2539,7 @@ variable "source_db_password" {{
   description = "Source database password"
   type        = string
   sensitive   = true
-  
+
   validation {{
     condition     = length(var.source_db_password) >= 8
     error_message = "Database password must be at least 8 characters."
@@ -1811,15 +2557,15 @@ variable "data_retention_days" {{
   description = "Number of days to retain processed data"
   type        = number
   default     = 365
-  
+
   validation {{
     condition     = var.data_retention_days >= 30 && var.data_retention_days <= 2555
     error_message = "Data retention must be between 30 and 2555 days."
   }}
 }}
-'''
+"""
         else:  # Azure
-            return f'''# AI-Generated Variables for Azure Data Pipeline
+            return f"""# AI-Generated Variables for Azure Data Pipeline
 # Generated with GenAI on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 # Optimized for {job.source_db_type.upper()} source with {len(job.target_tables)} tables
 
@@ -1845,7 +2591,7 @@ variable "sql_admin_password" {{
   description = "SQL Server administrator password"
   type        = string
   sensitive   = true
-  
+
   validation {{
     condition     = length(var.sql_admin_password) >= 12
     error_message = "SQL admin password must be at least 12 characters."
@@ -1871,16 +2617,18 @@ variable "enable_auto_scaling" {{
   type        = bool
   default     = {str(len(job.target_tables) > 5).lower()}
 }}
-'''
-    
-    def _generate_intelligent_readme(self, job: TerraformJob, table_info: List[Dict], total_rows: int, cloud_type: str) -> str:
+"""
+
+    def _generate_intelligent_readme(
+        self, job: TerraformJob, table_info: List[Dict], total_rows: int, cloud_type: str
+    ) -> str:
         """Generate intelligent README with AI insights"""
-        
+
         data_category = self._categorize_data_size(total_rows)
-        transformation_count = sum(len(t.get('transformations', [])) for t in table_info)
-        
-        if cloud_type == 'aws':
-            return f'''# AI-Generated AWS Data Pipeline - Legal File Management System
+        transformation_count = sum(len(t.get("transformations", [])) for t in table_info)
+
+        if cloud_type == "aws":
+            return f"""# AI-Generated AWS Data Pipeline - Legal File Management System
 
 🤖 **Generated with GenAI** on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
@@ -1947,7 +2695,7 @@ terraform apply
 ## 📈 Performance Expectations
 
 - **Small datasets** (< 10K rows): 5-15 minutes
-- **Medium datasets** (10K-100K rows): 15-45 minutes  
+- **Medium datasets** (10K-100K rows): 15-45 minutes
 - **Large datasets** (100K-1M rows): 45-120 minutes
 - **Enterprise datasets** (> 1M rows): 2-6 hours
 
@@ -1963,7 +2711,7 @@ terraform apply
 
 Access your pipeline dashboard:
 - **CloudWatch Dashboard**: Real-time metrics
-- **Step Functions Console**: Workflow monitoring  
+- **Step Functions Console**: Workflow monitoring
 - **Glue Console**: Job execution details
 - **S3 Console**: Data lake management
 
@@ -1982,9 +2730,9 @@ Access your pipeline dashboard:
 
 ---
 *This infrastructure was intelligently generated based on your specific {job.source_db_type.upper()} schema and data patterns.*
-'''
+"""
         else:  # Azure
-            return f'''# AI-Generated Azure Data Pipeline - Legal File Management System
+            return f"""# AI-Generated Azure Data Pipeline - Legal File Management System
 
 🤖 **Generated with GenAI** on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
@@ -2008,7 +2756,7 @@ Access your pipeline dashboard:
 
 ### Prerequisites
 1. Azure CLI logged in with appropriate permissions
-2. Terraform >= 1.0 installed  
+2. Terraform >= 1.0 installed
 3. Access to source {job.source_db_type.upper()} database
 
 ### Quick Start
@@ -2037,17 +2785,17 @@ terraform apply
 
 ---
 *This infrastructure was intelligently generated and optimized for your specific requirements.*
-'''
-    
+"""
+
     def _format_table_list(self, target_tables: List[str], table_info: List[Dict]) -> str:
         """Format table list for README"""
         formatted_tables = []
         for table in target_tables:
-            table_data = next((t for t in table_info if t['name'] == table), {})
-            transform_count = len(table_data.get('transformations', []))
+            table_data = next((t for t in table_info if t["name"] == table), {})
+            transform_count = len(table_data.get("transformations", []))
             formatted_tables.append(f"- **{table}**: {transform_count} transformations")
-        return '\n'.join(formatted_tables)
-    
+        return "\n".join(formatted_tables)
+
     # OpenAI Integration Methods (for real AI generation)
     def _call_openai(self, prompt: str, task_description: str) -> str:
         """Call OpenAI API with the given prompt"""
@@ -2055,71 +2803,84 @@ terraform apply
             response = self.openai_client.chat.completions.create(
                 model="gpt-4",
                 messages=[
-                    {"role": "system", "content": "You are an expert Terraform and cloud infrastructure architect. Generate production-ready, well-documented Terraform code."},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "You are an expert Terraform and cloud infrastructure architect. Generate production-ready, well-documented Terraform code.",
+                    },
+                    {"role": "user", "content": prompt},
                 ],
                 max_tokens=4000,
-                temperature=0.1
+                temperature=0.1,
             )
             return response.choices[0].message.content
         except Exception as e:
             logging.error(f"OpenAI API call failed for {task_description}: {e}")
             raise e
-    
+
     def _prepare_ai_context(self, job: TerraformJob, table_info: List[Dict], cloud_type: str) -> Dict:
         """Prepare context for AI generation"""
         return {
-            'source_db_type': job.source_db_type,
-            'target_cloud': cloud_type,
-            'target_tables': job.target_tables,
-            'table_info': table_info,
-            'total_rows': sum(t.get('rows', 0) for t in self.sample_database_tables.get(job.source_db_type, []) if t['name'] in job.target_tables),
-            'transformation_count': sum(len(t.get('transformations', [])) for t in table_info)
+            "source_db_type": job.source_db_type,
+            "target_cloud": cloud_type,
+            "target_tables": job.target_tables,
+            "table_info": table_info,
+            "total_rows": sum(
+                t.get("rows", 0)
+                for t in self.sample_database_tables.get(job.source_db_type, [])
+                if t["name"] in job.target_tables
+            ),
+            "transformation_count": sum(len(t.get("transformations", [])) for t in table_info),
         }
-    
-    def _generate_etl_scripts_with_openai(self, job: TerraformJob, table_info: List[Dict], context: Dict, cloud_type: str) -> Dict[str, str]:
+
+    def _generate_etl_scripts_with_openai(
+        self, job: TerraformJob, table_info: List[Dict], context: Dict, cloud_type: str
+    ) -> Dict[str, str]:
         """Generate ETL Python scripts using OpenAI"""
         etl_scripts = {}
-        
+
         # Get field mappings for intelligent ETL generation
         field_mappings = self._get_database_field_mappings(job.source_db_type)
-        
+
         try:
             # Generate main ETL orchestrator
             orchestrator_prompt = self._create_etl_orchestrator_prompt(context, field_mappings, cloud_type)
-            orchestrator_script = self._call_openai(orchestrator_prompt, f"Generate {cloud_type.upper()} ETL orchestrator script")
-            etl_scripts['etl_orchestrator.py'] = orchestrator_script
-            
+            orchestrator_script = self._call_openai(
+                orchestrator_prompt, f"Generate {cloud_type.upper()} ETL orchestrator script"
+            )
+            etl_scripts["etl_orchestrator.py"] = orchestrator_script
+
             # Generate data validator
             validator_prompt = self._create_data_validator_prompt(context, field_mappings, cloud_type)
             validator_script = self._call_openai(validator_prompt, f"Generate data validation script")
-            etl_scripts['data_validator.py'] = validator_script
-            
+            etl_scripts["data_validator.py"] = validator_script
+
             # Generate table-specific ETL scripts for each selected table
             for table_name in job.target_tables:
-                table_data = next((t for t in table_info if t['name'] == table_name), {})
+                table_data = next((t for t in table_info if t["name"] == table_name), {})
                 if table_data:
-                    table_prompt = self._create_table_etl_prompt(table_name, table_data, context, field_mappings, cloud_type)
+                    table_prompt = self._create_table_etl_prompt(
+                        table_name, table_data, context, field_mappings, cloud_type
+                    )
                     table_script = self._call_openai(table_prompt, f"Generate ETL script for {table_name}")
-                    etl_scripts[f'etl_{table_name.lower()}.py'] = table_script
-            
+                    etl_scripts[f"etl_{table_name.lower()}.py"] = table_script
+
             # Generate requirements.txt
             requirements_prompt = self._create_etl_requirements_prompt(context, cloud_type)
             requirements_txt = self._call_openai(requirements_prompt, "Generate ETL requirements.txt")
-            etl_scripts['requirements.txt'] = requirements_txt
-            
+            etl_scripts["requirements.txt"] = requirements_txt
+
             # Generate ETL configuration
             config_prompt = self._create_etl_config_prompt(context, cloud_type)
             config_script = self._call_openai(config_prompt, "Generate ETL configuration")
-            etl_scripts['config.py'] = config_script
-            
+            etl_scripts["config.py"] = config_script
+
         except Exception as e:
             logging.error(f"ETL script generation failed: {e}")
             # Return mock ETL scripts as fallback
             etl_scripts = self._generate_etl_scripts_mock(job, table_info, cloud_type)
-        
+
         return etl_scripts
-    
+
     def _create_aws_main_tf_prompt(self, context: Dict) -> str:
         """Create prompt for AWS main.tf generation"""
         return f"""Generate a comprehensive AWS Terraform main.tf file for a legal file management data pipeline with the following requirements:
@@ -2141,9 +2902,9 @@ Requirements:
 
 Include intelligent resource sizing based on the data volume and transformation complexity.
 Generate production-ready code with comprehensive comments."""
-    
+
     def _create_azure_main_tf_prompt(self, context: Dict) -> str:
-        """Create prompt for Azure main.tf generation"""  
+        """Create prompt for Azure main.tf generation"""
         return f"""Generate a comprehensive Azure Terraform main.tf file for a legal file management data pipeline with the following requirements:
 
 Source Database: {context['source_db_type'].upper()}
@@ -2163,7 +2924,7 @@ Requirements:
 
 Include intelligent sizing based on data volume and complexity.
 Generate production-ready code with comprehensive documentation."""
-    
+
     def _create_variables_tf_prompt(self, context: Dict, cloud_type: str) -> str:
         """Create prompt for variables.tf generation"""
         return f"""Generate a comprehensive Terraform variables.tf file for a {cloud_type.upper()} data pipeline.
@@ -2177,7 +2938,7 @@ Include variables for:
 6. Environment-specific configurations
 
 Add appropriate validation rules and descriptions for each variable."""
-    
+
     def _create_readme_prompt(self, context: Dict, cloud_type: str) -> str:
         """Create prompt for README generation"""
         return f"""Generate a comprehensive README.md file for a {cloud_type.upper()} data pipeline Terraform deployment.
@@ -2199,7 +2960,7 @@ Include:
 8. Performance expectations
 
 Write in markdown format with clear sections and examples."""
-    
+
     # ETL Script Prompt Generation Methods
     def _create_etl_orchestrator_prompt(self, context: Dict, field_mappings: Dict, cloud_type: str) -> str:
         """Create prompt for ETL orchestrator script generation"""
@@ -2237,15 +2998,15 @@ Generate production-quality Python code with proper structure and documentation.
     def _create_data_validator_prompt(self, context: Dict, field_mappings: Dict, cloud_type: str) -> str:
         """Create prompt for data validator script generation"""
         tables_info = []
-        for table in context['target_tables']:
+        for table in context["target_tables"]:
             if table in field_mappings:
-                field_count = len(field_mappings[table].get('app_entities', {}).get('Client', []))
+                field_count = len(field_mappings[table].get("app_entities", {}).get("Client", []))
                 tables_info.append(f"- {table}: {field_count} mapped fields")
-        
+
         return f"""Generate a comprehensive Python data validation script for {cloud_type.upper()} data pipeline.
 
 Context:
-- Source: {context['source_db_type'].upper()} database  
+- Source: {context['source_db_type'].upper()} database
 - Target: {cloud_type.upper()} cloud services
 - Tables to validate:
 {chr(10).join(tables_info)}
@@ -2272,16 +3033,18 @@ Validation Types:
 
 Generate production-quality Python code with comprehensive validation logic."""
 
-    def _create_table_etl_prompt(self, table_name: str, table_data: Dict, context: Dict, field_mappings: Dict, cloud_type: str) -> str:
+    def _create_table_etl_prompt(
+        self, table_name: str, table_data: Dict, context: Dict, field_mappings: Dict, cloud_type: str
+    ) -> str:
         """Create prompt for table-specific ETL script generation"""
         field_info = []
         if table_name in field_mappings:
-            for entity, fields in field_mappings[table_name].get('app_entities', {}).items():
+            for entity, fields in field_mappings[table_name].get("app_entities", {}).items():
                 field_info.append(f"  {entity}:")
                 for field in fields[:5]:  # Show first 5 fields
-                    transformation = field.get('transformation', 'Direct mapping')
+                    transformation = field.get("transformation", "Direct mapping")
                     field_info.append(f"    - {field['source_field']} → {field['app_field']} ({transformation})")
-        
+
         return f"""Generate a specialized Python ETL script for table: {table_name}
 
 Context:
@@ -2345,7 +3108,7 @@ Specify exact versions for production stability. Include both required and optio
 
 Context:
 - Source: {context['source_db_type'].upper()} database
-- Target: {cloud_type.upper()} cloud services  
+- Target: {cloud_type.upper()} cloud services
 - Tables: {', '.join(context['target_tables'])}
 
 Requirements:
@@ -2369,75 +3132,89 @@ Include:
 - Documentation for all configuration options
 
 Generate production-ready configuration management code."""
-    
+
     def _generate_service_summary(self, job: TerraformJob) -> Dict[str, Any]:
         """Generate a summary of cloud services being deployed"""
-        
+
         # Calculate data characteristics
-        total_rows = sum(t.get('rows', 0) for t in self.sample_database_tables.get(job.source_db_type, []) if t['name'] in job.target_tables)
+        total_rows = sum(
+            t.get("rows", 0)
+            for t in self.sample_database_tables.get(job.source_db_type, [])
+            if t["name"] in job.target_tables
+        )
         data_size_gb = (total_rows * 2) / 1000  # Rough estimate: 2KB per row
-        
-        if job.target_cloud.lower() == 'aws':
+
+        if job.target_cloud.lower() == "aws":
             return self._generate_aws_service_summary(job, total_rows, data_size_gb)
         else:  # Azure
             return self._generate_azure_service_summary(job, total_rows, data_size_gb)
-    
+
     def _generate_aws_service_summary(self, job: TerraformJob, total_rows: int, data_size_gb: float) -> Dict[str, Any]:
         """Generate AWS-specific service summary"""
-        
+
         services = []
-        
+
         # S3 Data Lake
-        services.append({
-            'name': 'Amazon S3',
-            'type': 'Data Lake Storage',
-            'purpose': 'Primary data storage with lifecycle management',
-            'configuration': f'{data_size_gb:.1f}GB initial capacity, lifecycle policies enabled',
-            'scaling': 'Automatic based on data volume',
-            'monthly_cost_range': f'${max(5, data_size_gb * 0.023):.2f} - ${max(15, data_size_gb * 0.045):.2f}'
-        })
-        
+        services.append(
+            {
+                "name": "Amazon S3",
+                "type": "Data Lake Storage",
+                "purpose": "Primary data storage with lifecycle management",
+                "configuration": f"{data_size_gb:.1f}GB initial capacity, lifecycle policies enabled",
+                "scaling": "Automatic based on data volume",
+                "monthly_cost_range": f"${max(5, data_size_gb * 0.023):.2f} - ${max(15, data_size_gb * 0.045):.2f}",
+            }
+        )
+
         # AWS Glue
         glue_workers = max(2, min(10, total_rows // 50000))
-        services.append({
-            'name': 'AWS Glue',
-            'type': 'ETL Processing',
-            'purpose': f'Data transformation for {len(job.target_tables)} tables',
-            'configuration': f'{glue_workers} DPU workers, version 4.0',
-            'scaling': 'AI-optimized based on data complexity',
-            'monthly_cost_range': f'${glue_workers * 15:.2f} - ${glue_workers * 45:.2f}'
-        })
-        
+        services.append(
+            {
+                "name": "AWS Glue",
+                "type": "ETL Processing",
+                "purpose": f"Data transformation for {len(job.target_tables)} tables",
+                "configuration": f"{glue_workers} DPU workers, version 4.0",
+                "scaling": "AI-optimized based on data complexity",
+                "monthly_cost_range": f"${glue_workers * 15:.2f} - ${glue_workers * 45:.2f}",
+            }
+        )
+
         # Step Functions
-        services.append({
-            'name': 'AWS Step Functions',
-            'type': 'Workflow Orchestration',
-            'purpose': 'Parallel processing coordination',
-            'configuration': f'{len(job.target_tables)} parallel branches',
-            'scaling': 'Event-driven execution',
-            'monthly_cost_range': '$3 - $8'
-        })
-        
+        services.append(
+            {
+                "name": "AWS Step Functions",
+                "type": "Workflow Orchestration",
+                "purpose": "Parallel processing coordination",
+                "configuration": f"{len(job.target_tables)} parallel branches",
+                "scaling": "Event-driven execution",
+                "monthly_cost_range": "$3 - $8",
+            }
+        )
+
         # CloudWatch
-        services.append({
-            'name': 'Amazon CloudWatch',
-            'type': 'Monitoring & Logging',
-            'purpose': 'Real-time pipeline monitoring',
-            'configuration': 'Custom dashboard with metrics and alarms',
-            'scaling': 'Based on log volume and metrics',
-            'monthly_cost_range': '$2 - $12'
-        })
-        
+        services.append(
+            {
+                "name": "Amazon CloudWatch",
+                "type": "Monitoring & Logging",
+                "purpose": "Real-time pipeline monitoring",
+                "configuration": "Custom dashboard with metrics and alarms",
+                "scaling": "Based on log volume and metrics",
+                "monthly_cost_range": "$2 - $12",
+            }
+        )
+
         # IAM (Free)
-        services.append({
-            'name': 'AWS IAM',
-            'type': 'Security & Access',
-            'purpose': 'Service roles with minimal permissions',
-            'configuration': 'Principle of least privilege access',
-            'scaling': 'No additional scaling needed',
-            'monthly_cost_range': 'Free'
-        })
-        
+        services.append(
+            {
+                "name": "AWS IAM",
+                "type": "Security & Access",
+                "purpose": "Service roles with minimal permissions",
+                "configuration": "Principle of least privilege access",
+                "scaling": "No additional scaling needed",
+                "monthly_cost_range": "Free",
+            }
+        )
+
         # Calculate total cost from individual services for consistency
         s3_cost = max(5, data_size_gb * 0.034)
         glue_workers = max(2, min(10, total_rows // 50000))
@@ -2445,80 +3222,92 @@ Generate production-ready configuration management code."""
         step_functions_cost = 5
         cloudwatch_cost = 7
         total_estimated = s3_cost + glue_cost + step_functions_cost + cloudwatch_cost
-        
+
         return {
-            'cloud_provider': 'Amazon Web Services',
-            'total_services': len(services),
-            'services': services,
-            'architecture_type': 'Serverless Data Lake',
-            'estimated_total_monthly': f'${total_estimated:.2f}',
-            'data_characteristics': {
-                'estimated_rows': f'{total_rows:,}',
-                'estimated_size_gb': f'{data_size_gb:.1f}',
-                'table_count': len(job.target_tables),
-                'database_type': job.source_db_type.upper()
-            }
+            "cloud_provider": "Amazon Web Services",
+            "total_services": len(services),
+            "services": services,
+            "architecture_type": "Serverless Data Lake",
+            "estimated_total_monthly": f"${total_estimated:.2f}",
+            "data_characteristics": {
+                "estimated_rows": f"{total_rows:,}",
+                "estimated_size_gb": f"{data_size_gb:.1f}",
+                "table_count": len(job.target_tables),
+                "database_type": job.source_db_type.upper(),
+            },
         }
-    
-    def _generate_azure_service_summary(self, job: TerraformJob, total_rows: int, data_size_gb: float) -> Dict[str, Any]:
+
+    def _generate_azure_service_summary(
+        self, job: TerraformJob, total_rows: int, data_size_gb: float
+    ) -> Dict[str, Any]:
         """Generate Azure-specific service summary"""
-        
+
         services = []
-        
+
         # Azure Data Lake Storage Gen2
         storage_tier = self._get_azure_storage_tier(total_rows)
         replication_type = self._get_azure_replication_type(total_rows)
-        services.append({
-            'name': 'Azure Data Lake Storage Gen2',
-            'type': 'Data Lake Storage',
-            'purpose': 'Hierarchical namespace with analytics optimization',
-            'configuration': f'{storage_tier} tier, {replication_type} replication, {data_size_gb:.1f}GB',
-            'scaling': 'Auto-scaling based on usage',
-            'monthly_cost_range': f'${max(8, data_size_gb * 0.018):.2f} - ${max(20, data_size_gb * 0.035):.2f}'
-        })
-        
+        services.append(
+            {
+                "name": "Azure Data Lake Storage Gen2",
+                "type": "Data Lake Storage",
+                "purpose": "Hierarchical namespace with analytics optimization",
+                "configuration": f"{storage_tier} tier, {replication_type} replication, {data_size_gb:.1f}GB",
+                "scaling": "Auto-scaling based on usage",
+                "monthly_cost_range": f"${max(8, data_size_gb * 0.018):.2f} - ${max(20, data_size_gb * 0.035):.2f}",
+            }
+        )
+
         # Azure Data Factory
         pipeline_count = len(job.target_tables)
-        services.append({
-            'name': 'Azure Data Factory',
-            'type': 'Data Integration',
-            'purpose': f'ETL pipelines for {pipeline_count} data sources',
-            'configuration': f'{pipeline_count} optimized pipelines with parallel execution',
-            'scaling': 'Auto-scaling integration runtime',
-            'monthly_cost_range': f'${pipeline_count * 8:.2f} - ${pipeline_count * 25:.2f}'
-        })
-        
+        services.append(
+            {
+                "name": "Azure Data Factory",
+                "type": "Data Integration",
+                "purpose": f"ETL pipelines for {pipeline_count} data sources",
+                "configuration": f"{pipeline_count} optimized pipelines with parallel execution",
+                "scaling": "Auto-scaling integration runtime",
+                "monthly_cost_range": f"${pipeline_count * 8:.2f} - ${pipeline_count * 25:.2f}",
+            }
+        )
+
         # Azure SQL Database
         sql_sku = self._get_azure_sql_sku(total_rows)
-        services.append({
-            'name': 'Azure SQL Database',
-            'type': 'Relational Database',
-            'purpose': 'Target database for transformed data',
-            'configuration': f'{sql_sku} service tier with automatic tuning',
-            'scaling': 'Elastic scaling based on performance',
-            'monthly_cost_range': f'${self._get_sql_cost_range(sql_sku)}'
-        })
-        
+        services.append(
+            {
+                "name": "Azure SQL Database",
+                "type": "Relational Database",
+                "purpose": "Target database for transformed data",
+                "configuration": f"{sql_sku} service tier with automatic tuning",
+                "scaling": "Elastic scaling based on performance",
+                "monthly_cost_range": f"${self._get_sql_cost_range(sql_sku)}",
+            }
+        )
+
         # Azure Key Vault
-        services.append({
-            'name': 'Azure Key Vault',
-            'type': 'Security & Secrets',
-            'purpose': 'Secure storage for connection strings and keys',
-            'configuration': 'Standard tier with access policies',
-            'scaling': 'Pay-per-operation model',
-            'monthly_cost_range': '$1 - $5'
-        })
-        
+        services.append(
+            {
+                "name": "Azure Key Vault",
+                "type": "Security & Secrets",
+                "purpose": "Secure storage for connection strings and keys",
+                "configuration": "Standard tier with access policies",
+                "scaling": "Pay-per-operation model",
+                "monthly_cost_range": "$1 - $5",
+            }
+        )
+
         # Azure Monitor
-        services.append({
-            'name': 'Azure Monitor',
-            'type': 'Monitoring & Logging',
-            'purpose': 'Application insights and log analytics',
-            'configuration': 'Workspace-based monitoring with alerts',
-            'scaling': 'Based on data ingestion volume',
-            'monthly_cost_range': '$5 - $15'
-        })
-        
+        services.append(
+            {
+                "name": "Azure Monitor",
+                "type": "Monitoring & Logging",
+                "purpose": "Application insights and log analytics",
+                "configuration": "Workspace-based monitoring with alerts",
+                "scaling": "Based on data ingestion volume",
+                "monthly_cost_range": "$5 - $15",
+            }
+        )
+
         # Calculate total cost from individual services for consistency
         storage_cost = max(8, data_size_gb * 0.026)
         data_factory_cost = len(job.target_tables) * 15
@@ -2526,166 +3315,166 @@ Generate production-ready configuration management code."""
         key_vault_cost = 3
         monitor_cost = 10
         total_estimated = storage_cost + data_factory_cost + sql_cost + key_vault_cost + monitor_cost
-        
+
         return {
-            'cloud_provider': 'Microsoft Azure',
-            'total_services': len(services),
-            'services': services,
-            'architecture_type': 'Modern Data Platform',
-            'estimated_total_monthly': f'${total_estimated:.2f}',
-            'data_characteristics': {
-                'estimated_rows': f'{total_rows:,}',
-                'estimated_size_gb': f'{data_size_gb:.1f}',
-                'table_count': len(job.target_tables),
-                'database_type': job.source_db_type.upper()
-            }
+            "cloud_provider": "Microsoft Azure",
+            "total_services": len(services),
+            "services": services,
+            "architecture_type": "Modern Data Platform",
+            "estimated_total_monthly": f"${total_estimated:.2f}",
+            "data_characteristics": {
+                "estimated_rows": f"{total_rows:,}",
+                "estimated_size_gb": f"{data_size_gb:.1f}",
+                "table_count": len(job.target_tables),
+                "database_type": job.source_db_type.upper(),
+            },
         }
-    
+
     def _generate_cost_breakdown(self, job: TerraformJob) -> Dict[str, Any]:
         """Generate detailed cost breakdown by service category"""
-        
-        total_rows = sum(t.get('rows', 0) for t in self.sample_database_tables.get(job.source_db_type, []) if t['name'] in job.target_tables)
+
+        total_rows = sum(
+            t.get("rows", 0)
+            for t in self.sample_database_tables.get(job.source_db_type, [])
+            if t["name"] in job.target_tables
+        )
         data_size_gb = (total_rows * 2) / 1000
-        
-        if job.target_cloud.lower() == 'aws':
+
+        if job.target_cloud.lower() == "aws":
             return self._generate_aws_cost_breakdown(job, total_rows, data_size_gb)
         else:  # Azure
             return self._generate_azure_cost_breakdown(job, total_rows, data_size_gb)
-    
+
     def _generate_aws_cost_breakdown(self, job: TerraformJob, total_rows: int, data_size_gb: float) -> Dict[str, Any]:
         """Generate AWS cost breakdown"""
-        
+
         # Calculate individual service costs
         s3_cost = max(5, data_size_gb * 0.034)
         glue_workers = max(2, min(10, total_rows // 50000))
         glue_cost = glue_workers * 25
         step_functions_cost = 5
         cloudwatch_cost = 7
-        
+
         total_estimated = s3_cost + glue_cost + step_functions_cost + cloudwatch_cost
-        
+
         cost_categories = [
             {
-                'category': 'Storage',
-                'services': ['Amazon S3 Data Lake'],
-                'monthly_cost': f'${s3_cost:.2f}',
-                'percentage': f'{(s3_cost/total_estimated)*100:.1f}%',
-                'description': 'Data lake storage with lifecycle policies'
+                "category": "Storage",
+                "services": ["Amazon S3 Data Lake"],
+                "monthly_cost": f"${s3_cost:.2f}",
+                "percentage": f"{(s3_cost/total_estimated)*100:.1f}%",
+                "description": "Data lake storage with lifecycle policies",
             },
             {
-                'category': 'Compute',
-                'services': ['AWS Glue ETL Jobs'],
-                'monthly_cost': f'${glue_cost:.2f}',
-                'percentage': f'{(glue_cost/total_estimated)*100:.1f}%',
-                'description': 'Data processing and transformation'
+                "category": "Compute",
+                "services": ["AWS Glue ETL Jobs"],
+                "monthly_cost": f"${glue_cost:.2f}",
+                "percentage": f"{(glue_cost/total_estimated)*100:.1f}%",
+                "description": "Data processing and transformation",
             },
             {
-                'category': 'Orchestration',
-                'services': ['AWS Step Functions'],
-                'monthly_cost': f'${step_functions_cost:.2f}',
-                'percentage': f'{(step_functions_cost/total_estimated)*100:.1f}%',
-                'description': 'Workflow coordination and management'
+                "category": "Orchestration",
+                "services": ["AWS Step Functions"],
+                "monthly_cost": f"${step_functions_cost:.2f}",
+                "percentage": f"{(step_functions_cost/total_estimated)*100:.1f}%",
+                "description": "Workflow coordination and management",
             },
             {
-                'category': 'Monitoring',
-                'services': ['Amazon CloudWatch'],
-                'monthly_cost': f'${cloudwatch_cost:.2f}',
-                'percentage': f'{(cloudwatch_cost/total_estimated)*100:.1f}%',
-                'description': 'Logging, metrics, and alerting'
-            }
+                "category": "Monitoring",
+                "services": ["Amazon CloudWatch"],
+                "monthly_cost": f"${cloudwatch_cost:.2f}",
+                "percentage": f"{(cloudwatch_cost/total_estimated)*100:.1f}%",
+                "description": "Logging, metrics, and alerting",
+            },
         ]
-        
+
         return {
-            'total_estimated_monthly': f'${total_estimated:.2f}',
-            'cost_categories': cost_categories,
-            'optimization_notes': [
-                f'Storage tier optimized for {self._categorize_data_size(total_rows).lower()} datasets',
-                f'Compute resources scaled to {glue_workers} DPU workers',
-                'Reserved capacity pricing available for predictable workloads',
-                'Lifecycle policies reduce long-term storage costs'
+            "total_estimated_monthly": f"${total_estimated:.2f}",
+            "cost_categories": cost_categories,
+            "optimization_notes": [
+                f"Storage tier optimized for {self._categorize_data_size(total_rows).lower()} datasets",
+                f"Compute resources scaled to {glue_workers} DPU workers",
+                "Reserved capacity pricing available for predictable workloads",
+                "Lifecycle policies reduce long-term storage costs",
             ],
-            'pricing_factors': {
-                'data_volume_gb': f'{data_size_gb:.1f}',
-                'processing_complexity': f'{len(job.target_tables)} tables',
-                'estimated_monthly_operations': f'{total_rows // 10000:,}'
-            }
+            "pricing_factors": {
+                "data_volume_gb": f"{data_size_gb:.1f}",
+                "processing_complexity": f"{len(job.target_tables)} tables",
+                "estimated_monthly_operations": f"{total_rows // 10000:,}",
+            },
         }
-    
+
     def _generate_azure_cost_breakdown(self, job: TerraformJob, total_rows: int, data_size_gb: float) -> Dict[str, Any]:
         """Generate Azure cost breakdown"""
-        
+
         # Calculate individual service costs
         storage_cost = max(8, data_size_gb * 0.026)
         data_factory_cost = len(job.target_tables) * 15
         sql_cost = self._get_sql_cost_numeric(total_rows)
         key_vault_cost = 3
         monitor_cost = 10
-        
+
         total_estimated = storage_cost + data_factory_cost + sql_cost + key_vault_cost + monitor_cost
-        
+
         cost_categories = [
             {
-                'category': 'Storage',
-                'services': ['Azure Data Lake Storage Gen2'],
-                'monthly_cost': f'${storage_cost:.2f}',
-                'percentage': f'{(storage_cost/total_estimated)*100:.1f}%',
-                'description': 'Hierarchical namespace with analytics optimization'
+                "category": "Storage",
+                "services": ["Azure Data Lake Storage Gen2"],
+                "monthly_cost": f"${storage_cost:.2f}",
+                "percentage": f"{(storage_cost/total_estimated)*100:.1f}%",
+                "description": "Hierarchical namespace with analytics optimization",
             },
             {
-                'category': 'Data Integration',
-                'services': ['Azure Data Factory'],
-                'monthly_cost': f'${data_factory_cost:.2f}',
-                'percentage': f'{(data_factory_cost/total_estimated)*100:.1f}%',
-                'description': 'ETL pipelines and data movement'
+                "category": "Data Integration",
+                "services": ["Azure Data Factory"],
+                "monthly_cost": f"${data_factory_cost:.2f}",
+                "percentage": f"{(data_factory_cost/total_estimated)*100:.1f}%",
+                "description": "ETL pipelines and data movement",
             },
             {
-                'category': 'Database',
-                'services': ['Azure SQL Database'],
-                'monthly_cost': f'${sql_cost:.2f}',
-                'percentage': f'{(sql_cost/total_estimated)*100:.1f}%',
-                'description': 'Managed relational database service'
+                "category": "Database",
+                "services": ["Azure SQL Database"],
+                "monthly_cost": f"${sql_cost:.2f}",
+                "percentage": f"{(sql_cost/total_estimated)*100:.1f}%",
+                "description": "Managed relational database service",
             },
             {
-                'category': 'Security',
-                'services': ['Azure Key Vault'],
-                'monthly_cost': f'${key_vault_cost:.2f}',
-                'percentage': f'{(key_vault_cost/total_estimated)*100:.1f}%',
-                'description': 'Secrets and key management'
+                "category": "Security",
+                "services": ["Azure Key Vault"],
+                "monthly_cost": f"${key_vault_cost:.2f}",
+                "percentage": f"{(key_vault_cost/total_estimated)*100:.1f}%",
+                "description": "Secrets and key management",
             },
             {
-                'category': 'Monitoring',
-                'services': ['Azure Monitor'],
-                'monthly_cost': f'${monitor_cost:.2f}',
-                'percentage': f'{(monitor_cost/total_estimated)*100:.1f}%',
-                'description': 'Application insights and analytics'
-            }
+                "category": "Monitoring",
+                "services": ["Azure Monitor"],
+                "monthly_cost": f"${monitor_cost:.2f}",
+                "percentage": f"{(monitor_cost/total_estimated)*100:.1f}%",
+                "description": "Application insights and analytics",
+            },
         ]
-        
+
         return {
-            'total_estimated_monthly': f'${total_estimated:.2f}',
-            'cost_categories': cost_categories,
-            'optimization_notes': [
-                f'Storage tier: {self._get_azure_storage_tier(total_rows)} for optimal performance',
-                f'SQL Database: {self._get_azure_sql_sku(total_rows)} tier for workload requirements',
-                'Auto-scaling enabled to optimize costs during low usage',
-                'Reserved instances available for long-term savings'
+            "total_estimated_monthly": f"${total_estimated:.2f}",
+            "cost_categories": cost_categories,
+            "optimization_notes": [
+                f"Storage tier: {self._get_azure_storage_tier(total_rows)} for optimal performance",
+                f"SQL Database: {self._get_azure_sql_sku(total_rows)} tier for workload requirements",
+                "Auto-scaling enabled to optimize costs during low usage",
+                "Reserved instances available for long-term savings",
             ],
-            'pricing_factors': {
-                'data_volume_gb': f'{data_size_gb:.1f}',
-                'database_tier': self._get_azure_sql_sku(total_rows),
-                'pipeline_count': len(job.target_tables)
-            }
+            "pricing_factors": {
+                "data_volume_gb": f"{data_size_gb:.1f}",
+                "database_tier": self._get_azure_sql_sku(total_rows),
+                "pipeline_count": len(job.target_tables),
+            },
         }
-    
+
     def _get_sql_cost_range(self, sku: str) -> str:
         """Get SQL cost range for given SKU"""
-        cost_map = {
-            'S2': '15 - 25',
-            'S3': '30 - 45', 
-            'S4': '60 - 90'
-        }
-        return cost_map.get(sku, '20 - 40')
-    
+        cost_map = {"S2": "15 - 25", "S3": "30 - 45", "S4": "60 - 90"}
+        return cost_map.get(sku, "20 - 40")
+
     def _get_sql_cost_numeric(self, total_rows: int) -> float:
         """Get numeric SQL cost for calculations"""
         if total_rows > 500000:
@@ -2694,22 +3483,22 @@ Generate production-ready configuration management code."""
             return 37  # S3
         else:
             return 20  # S2
-    
+
     def get_sample_tables(self, db_type: str) -> List[Dict]:
         """Get sample tables for specified database type"""
         return self.sample_database_tables.get(db_type, []).copy()
-    
+
     def get_all_terraform_jobs(self) -> List[Dict]:
         """Get all Terraform jobs summary"""
         jobs = []
-        
+
         # Get jobs from database first (persistent storage)
         db_jobs = self.db_manager.get_all_terraform_jobs()
-        
+
         # Convert database jobs to the expected format
         for job in db_jobs:
             jobs.append(self._convert_db_job_to_dict(job))
-        
+
         # Also include any in-memory jobs that might not be in database yet
         for job_id, job in self.terraform_jobs.items():
             # Skip if already in database
@@ -2723,66 +3512,70 @@ Generate production-ready configuration management code."""
                     total_fields = 0
                     required_fields = 0
                     transformations = 0
-                    
+
                     # Handle both AI-generated and custom field mappings structures
                     for table_name, table_mapping in job.field_mappings.items():
                         if isinstance(table_mapping, dict):
                             # Check if this is a custom mapping structure with nested data
-                            if 'fields' in table_mapping:
+                            if "fields" in table_mapping:
                                 # Custom mapping structure from frontend: table_mapping = {'fields': {...}, 'app_entities': {...}, ...}
-                                fields = table_mapping.get('fields', {})
+                                fields = table_mapping.get("fields", {})
                             else:
                                 # AI-generated mapping structure: table_mapping = {field_name: field_props, ...}
                                 fields = table_mapping
-                            
+
                             # Count fields and properties safely
                             if isinstance(fields, dict):
                                 total_fields += len(fields)
-                                
+
                                 for field_name, field_props in fields.items():
                                     if isinstance(field_props, dict):
-                                        if field_props.get('required', False):
+                                        if field_props.get("required", False):
                                             required_fields += 1
-                                        if field_props.get('transformation'):
+                                        if field_props.get("transformation"):
                                             transformations += 1
-                    
+
                     mappings_summary = {
-                        'total_tables': total_tables,
-                        'total_fields': total_fields,
-                        'required_fields': required_fields,
-                        'transformations': transformations,
-                        'has_mappings': True
+                        "total_tables": total_tables,
+                        "total_fields": total_fields,
+                        "required_fields": required_fields,
+                        "transformations": transformations,
+                        "has_mappings": True,
                     }
-                    
+
                 except Exception as e:
                     logging.error(f"Error calculating mappings summary for job {job_id}: {e}")
                     mappings_summary = {
-                        'total_tables': len(job.field_mappings),
-                        'total_fields': 0,
-                        'required_fields': 0,
-                        'transformations': 0,
-                        'has_mappings': True,
-                        'error': 'Failed to calculate detailed summary'
+                        "total_tables": len(job.field_mappings),
+                        "total_fields": 0,
+                        "required_fields": 0,
+                        "transformations": 0,
+                        "has_mappings": True,
+                        "error": "Failed to calculate detailed summary",
                     }
             else:
-                mappings_summary = {'has_mappings': False}
-            
-            jobs.append({
-                'job_id': job.job_id,
-                'status': job.status,
-                'progress': round(job.progress, 1),
-                'created_at': job.created_at,
-                'source_db_type': job.source_db_type,
-                'target_cloud': job.target_cloud,
-                'table_count': len(job.target_tables),
-                'estimated_cost': job.estimated_cost.get('monthly_estimate', 'N/A') if job.estimated_cost else 'N/A',
-                'mappings_summary': mappings_summary
-            })
-        
+                mappings_summary = {"has_mappings": False}
+
+            jobs.append(
+                {
+                    "job_id": job.job_id,
+                    "status": job.status,
+                    "progress": round(job.progress, 1),
+                    "created_at": job.created_at,
+                    "source_db_type": job.source_db_type,
+                    "target_cloud": job.target_cloud,
+                    "table_count": len(job.target_tables),
+                    "estimated_cost": job.estimated_cost.get("monthly_estimate", "N/A")
+                    if job.estimated_cost
+                    else "N/A",
+                    "mappings_summary": mappings_summary,
+                }
+            )
+
         # Sort by creation date (newest first)
-        jobs.sort(key=lambda x: x['created_at'], reverse=True)
+        jobs.sort(key=lambda x: x["created_at"], reverse=True)
         return jobs
-    
+
     def _convert_db_job_to_dict(self, job: TerraformJobEntity) -> Dict:
         """Convert database TerraformJob entity to dictionary for API response"""
         # Calculate field mappings summary
@@ -2793,60 +3586,60 @@ Generate production-ready configuration management code."""
                 total_fields = 0
                 required_fields = 0
                 transformations = 0
-                
+
                 # Handle both AI-generated and custom field mappings structures
                 for table_name, table_mapping in job.field_mappings.items():
                     if isinstance(table_mapping, dict):
                         # Check if this is a custom mapping structure with nested data
-                        if 'fields' in table_mapping:
+                        if "fields" in table_mapping:
                             # Custom mapping structure from frontend
-                            fields = table_mapping.get('fields', {})
+                            fields = table_mapping.get("fields", {})
                         else:
                             # AI-generated mapping structure
                             fields = table_mapping
-                        
+
                         # Count fields and properties safely
                         if isinstance(fields, dict):
                             total_fields += len(fields)
-                            
+
                             for field_name, field_props in fields.items():
                                 if isinstance(field_props, dict):
-                                    if field_props.get('required', False):
+                                    if field_props.get("required", False):
                                         required_fields += 1
-                                    if field_props.get('transformation'):
+                                    if field_props.get("transformation"):
                                         transformations += 1
-                
+
                 mappings_summary = {
-                    'total_tables': total_tables,
-                    'total_fields': total_fields,
-                    'required_fields': required_fields,
-                    'transformations': transformations,
-                    'has_mappings': True
+                    "total_tables": total_tables,
+                    "total_fields": total_fields,
+                    "required_fields": required_fields,
+                    "transformations": transformations,
+                    "has_mappings": True,
                 }
             except Exception as e:
                 logging.warning(f"Error calculating mappings summary for job {job.job_id}: {e}")
-        
+
         # If no field mappings, set has_mappings to False
         if not mappings_summary:
-            mappings_summary = {'has_mappings': False}
-        
+            mappings_summary = {"has_mappings": False}
+
         return {
-            'job_id': job.job_id,
-            'status': job.status,
-            'progress': round(job.progress, 1),
-            'created_at': job.created_at.isoformat() if job.created_at else datetime.now().isoformat(),
-            'source_db_type': job.source_db_type,
-            'target_cloud': job.target_cloud,
-            'table_count': len(job.target_tables),
-            'estimated_cost': job.estimated_cost.get('monthly_estimate', 'N/A') if job.estimated_cost else 'N/A',
-            'mappings_summary': mappings_summary
+            "job_id": job.job_id,
+            "status": job.status,
+            "progress": round(job.progress, 1),
+            "created_at": job.created_at.isoformat() if job.created_at else datetime.now().isoformat(),
+            "source_db_type": job.source_db_type,
+            "target_cloud": job.target_cloud,
+            "table_count": len(job.target_tables),
+            "estimated_cost": job.estimated_cost.get("monthly_estimate", "N/A") if job.estimated_cost else "N/A",
+            "mappings_summary": mappings_summary,
         }
-    
+
     def _sync_job_to_database(self, job_id: str):
         """Sync in-memory job to database"""
         if job_id in self.terraform_jobs:
             memory_job = self.terraform_jobs[job_id]
-            
+
             # Convert to database entity
             db_job = TerraformJobEntity(
                 job_id=memory_job.job_id,
@@ -2856,484 +3649,521 @@ Generate production-ready configuration management code."""
                 target_tables=memory_job.target_tables,
                 status=memory_job.status,
                 progress=memory_job.progress,
-                created_at=datetime.fromisoformat(memory_job.created_at) if isinstance(memory_job.created_at, str) else memory_job.created_at,
-                completed_at=datetime.fromisoformat(memory_job.completed_at) if isinstance(memory_job.completed_at, str) and memory_job.completed_at else None,
+                created_at=datetime.fromisoformat(memory_job.created_at)
+                if isinstance(memory_job.created_at, str)
+                else memory_job.created_at,
+                completed_at=datetime.fromisoformat(memory_job.completed_at)
+                if isinstance(memory_job.completed_at, str) and memory_job.completed_at
+                else None,
                 terraform_config=memory_job.terraform_config,
                 field_mappings=memory_job.field_mappings,
                 ai_analysis=memory_job.ai_analysis,
                 estimated_cost=memory_job.estimated_cost,
-                errors=memory_job.errors
+                errors=memory_job.errors,
             )
-            
+
             # Save to database
             if self.db_manager.save_terraform_job(db_job):
                 logging.debug(f"Synced job {job_id} to database")
             else:
                 logging.error(f"Failed to sync job {job_id} to database")
 
+
 # Initialize Terraform generator
 terraform_generator = TerraformGenerator()
 
-@migration_bp.route('/api/cloud-platforms')
+
+@migration_bp.route("/api/cloud-platforms")
 def get_supported_cloud_platforms():
     """Get list of supported cloud platforms"""
-    return jsonify({
-        'cloud_platforms': [
-            {
-                'value': CloudPlatform.AWS.value,
-                'name': 'Amazon Web Services',
-                'description': 'AWS Glue, S3, Step Functions, Lambda',
-                'icon': 'fab fa-aws',
-                'services': ['S3 Data Lake', 'AWS Glue ETL', 'Step Functions', 'Lambda Functions']
-            },
-            {
-                'value': CloudPlatform.AZURE.value,
-                'name': 'Microsoft Azure',
-                'description': 'Data Factory, Storage, SQL Database, Functions',
-                'icon': 'fab fa-microsoft',
-                'services': ['Data Lake Storage', 'Data Factory', 'SQL Database', 'Azure Functions']
-            }
-        ]
-    })
+    return jsonify(
+        {
+            "cloud_platforms": [
+                {
+                    "value": CloudPlatform.AWS.value,
+                    "name": "Amazon Web Services",
+                    "description": "AWS Glue, S3, Step Functions, Lambda",
+                    "icon": "fab fa-aws",
+                    "services": ["S3 Data Lake", "AWS Glue ETL", "Step Functions", "Lambda Functions"],
+                },
+                {
+                    "value": CloudPlatform.AZURE.value,
+                    "name": "Microsoft Azure",
+                    "description": "Data Factory, Storage, SQL Database, Functions",
+                    "icon": "fab fa-microsoft",
+                    "services": ["Data Lake Storage", "Data Factory", "SQL Database", "Azure Functions"],
+                },
+            ]
+        }
+    )
 
-@migration_bp.route('/api/database-types')
+
+@migration_bp.route("/api/database-types")
 def get_supported_databases():
     """Get list of supported database types"""
-    return jsonify({
-        'database_types': [
-            {
-                'value': DatabaseType.ORACLE.value,
-                'name': 'Oracle Database',
-                'description': 'Oracle 11g, 12c, 19c, 21c',
-                'connection_format': 'oracle://username:password@host:port/service_name',
-                'icon': 'fas fa-database'
-            },
-            {
-                'value': DatabaseType.MYSQL.value,
-                'name': 'MySQL',
-                'description': 'MySQL 5.7, 8.0+',
-                'connection_format': 'mysql://username:password@host:port/database_name',
-                'icon': 'fas fa-leaf'
-            }
-        ]
-    })
+    return jsonify(
+        {
+            "database_types": [
+                {
+                    "value": DatabaseType.ORACLE.value,
+                    "name": "Oracle Database",
+                    "description": "Oracle 11g, 12c, 19c, 21c",
+                    "connection_format": "oracle://username:password@host:port/service_name",
+                    "icon": "fas fa-database",
+                },
+                {
+                    "value": DatabaseType.MYSQL.value,
+                    "name": "MySQL",
+                    "description": "MySQL 5.7, 8.0+",
+                    "connection_format": "mysql://username:password@host:port/database_name",
+                    "icon": "fas fa-leaf",
+                },
+            ]
+        }
+    )
+
 
 # Routes
-@migration_bp.route('/migration')
+@migration_bp.route("/migration")
 def migration_dashboard():
     """Migration dashboard page"""
-    return render_template('migration_dashboard.html')
+    return render_template("migration_dashboard.html")
 
-@migration_bp.route('/api/test-connection', methods=['POST'])
+
+@migration_bp.route("/api/test-connection", methods=["POST"])
 def test_database_connection():
     """Test database connection"""
     data = request.get_json()
-    db_type = data.get('db_type', 'oracle')
-    connection_string = data.get('connection_string', '')
-    
+    db_type = data.get("db_type", "oracle")
+    connection_string = data.get("connection_string", "")
+
     result = terraform_generator.test_database_connection(db_type, connection_string)
     return jsonify(result)
 
-@migration_bp.route('/api/discover-tables', methods=['POST'])
+
+@migration_bp.route("/api/discover-tables", methods=["POST"])
 def discover_tables():
     """Discover database tables with AI analysis"""
     data = request.get_json()
-    db_type = data.get('db_type', 'oracle')
-    connection_string = data.get('connection_string', '')
-    
+    db_type = data.get("db_type", "oracle")
+    connection_string = data.get("connection_string", "")
+
     # Test connection first
     connection_result = terraform_generator.test_database_connection(db_type, connection_string)
-    
-    if not connection_result['success']:
+
+    if not connection_result["success"]:
         return jsonify(connection_result), 400
-    
+
     # Get tables with AI recommendations
     tables = terraform_generator.get_sample_tables(db_type)
-    
-    return jsonify({
-        'success': True,
-        'tables': tables,
-        'database_type': db_type,
-        'connection_info': connection_result.get('server_info', {}),
-        'ai_recommendations': {
-            'recommended_count': sum(1 for t in tables if t['recommended']),
-            'total_records': sum(t['rows'] for t in tables if t['recommended']),
-            'estimated_time': f'{len([t for t in tables if t["recommended"]]) * 15}-{len([t for t in tables if t["recommended"]]) * 25} minutes for Terraform generation'
-        }
-    })
 
-@migration_bp.route('/api/generate-terraform', methods=['POST'])
+    return jsonify(
+        {
+            "success": True,
+            "tables": tables,
+            "database_type": db_type,
+            "connection_info": connection_result.get("server_info", {}),
+            "ai_recommendations": {
+                "recommended_count": sum(1 for t in tables if t["recommended"]),
+                "total_records": sum(t["rows"] for t in tables if t["recommended"]),
+                "estimated_time": f'{len([t for t in tables if t["recommended"]]) * 15}-{len([t for t in tables if t["recommended"]]) * 25} minutes for Terraform generation',
+            },
+        }
+    )
+
+
+@migration_bp.route("/api/generate-terraform", methods=["POST"])
 def generate_terraform():
     """Generate Terraform configuration"""
     data = request.get_json()
-    
-    db_type = data.get('db_type', 'oracle')
-    cloud_platform = data.get('cloud_platform', 'aws')
-    connection_string = data.get('connection_string', '')
-    selected_tables = data.get('selected_tables', [])
-    custom_field_mappings = data.get('field_mappings')  # Optional custom field mappings
-    
-    if not connection_string.strip():
-        return jsonify({'error': 'Connection string is required'}), 400
-    
-    if not selected_tables:
-        return jsonify({'error': 'No tables selected'}), 400
-    
-    if db_type not in [dt.value for dt in DatabaseType]:
-        return jsonify({'error': 'Unsupported database type'}), 400
-    
-    if cloud_platform not in [cp.value for cp in CloudPlatform]:
-        return jsonify({'error': 'Unsupported cloud platform'}), 400
-    
-    job_id = terraform_generator.create_terraform_job(db_type, cloud_platform, connection_string, selected_tables, custom_field_mappings)
-    
-    return jsonify({
-        'success': True,
-        'job_id': job_id,
-        'database_type': db_type,
-        'cloud_platform': cloud_platform,
-        'message': f'Terraform generation started for {cloud_platform.upper()} deployment'
-    })
 
-@migration_bp.route('/api/terraform-status/<job_id>')
+    db_type = data.get("db_type", "oracle")
+    cloud_platform = data.get("cloud_platform", "aws")
+    connection_string = data.get("connection_string", "")
+    selected_tables = data.get("selected_tables", [])
+    custom_field_mappings = data.get("field_mappings")  # Optional custom field mappings
+
+    if not connection_string.strip():
+        return jsonify({"error": "Connection string is required"}), 400
+
+    if not selected_tables:
+        return jsonify({"error": "No tables selected"}), 400
+
+    if db_type not in [dt.value for dt in DatabaseType]:
+        return jsonify({"error": "Unsupported database type"}), 400
+
+    if cloud_platform not in [cp.value for cp in CloudPlatform]:
+        return jsonify({"error": "Unsupported cloud platform"}), 400
+
+    job_id = terraform_generator.create_terraform_job(
+        db_type, cloud_platform, connection_string, selected_tables, custom_field_mappings
+    )
+
+    return jsonify(
+        {
+            "success": True,
+            "job_id": job_id,
+            "database_type": db_type,
+            "cloud_platform": cloud_platform,
+            "message": f"Terraform generation started for {cloud_platform.upper()} deployment",
+        }
+    )
+
+
+@migration_bp.route("/api/terraform-status/<job_id>")
 def get_terraform_status(job_id: str):
     """Get Terraform generation status"""
     try:
         status = terraform_generator.get_terraform_status(job_id)
-        
+
         if not status:
             logging.warning(f"Terraform status requested for non-existent job: {job_id}")
-            return jsonify({'error': 'Terraform job not found'}), 404
-        
+            return jsonify({"error": "Terraform job not found"}), 404
+
         logging.debug(f"Returning status for job {job_id}: {status['status']}")
         return jsonify(status)
-        
+
     except Exception as e:
         logging.error(f"Error getting Terraform status for job {job_id}: {e}")
-        return jsonify({
-            'error': 'Internal server error while retrieving job status',
-            'job_id': job_id,
-            'status': 'error'
-        }), 500
+        return (
+            jsonify(
+                {"error": "Internal server error while retrieving job status", "job_id": job_id, "status": "error"}
+            ),
+            500,
+        )
 
-@migration_bp.route('/api/terraform-jobs')
+
+@migration_bp.route("/api/terraform-jobs")
 def get_all_terraform_jobs():
     """Get all Terraform jobs"""
     jobs = terraform_generator.get_all_terraform_jobs()
-    return jsonify({'jobs': jobs})
+    return jsonify({"jobs": jobs})
 
-@migration_bp.route('/api/export-terraform/<job_id>')
+
+@migration_bp.route("/api/export-terraform/<job_id>")
 def export_terraform(job_id: str):
     """Export Terraform files as ZIP"""
     zip_path = terraform_generator.export_terraform_files(job_id)
-    
-    if not zip_path:
-        return jsonify({'error': 'Terraform files not found or not ready'}), 404
-    
-    return send_file(
-        zip_path,
-        as_attachment=True,
-        download_name=f'terraform-{job_id}.zip',
-        mimetype='application/zip'
-    )
 
-@migration_bp.route('/api/cancel-terraform/<job_id>', methods=['POST'])
+    if not zip_path:
+        return jsonify({"error": "Terraform files not found or not ready"}), 404
+
+    return send_file(zip_path, as_attachment=True, download_name=f"terraform-{job_id}.zip", mimetype="application/zip")
+
+
+@migration_bp.route("/api/cancel-terraform/<job_id>", methods=["POST"])
 def cancel_terraform(job_id: str):
     """Cancel running Terraform job"""
     job = terraform_generator.terraform_jobs.get(job_id)
-    
+
     if not job:
-        return jsonify({'error': 'Terraform job not found'}), 404
-    
-    if job.status in ['completed', 'failed']:
-        return jsonify({'error': 'Cannot cancel completed or failed job'}), 400
-    
-    job.status = 'failed'
+        return jsonify({"error": "Terraform job not found"}), 404
+
+    if job.status in ["completed", "failed"]:
+        return jsonify({"error": "Cannot cancel completed or failed job"}), 400
+
+    job.status = "failed"
     job.errors = job.errors or []
-    job.errors.append('Terraform generation cancelled by user')
+    job.errors.append("Terraform generation cancelled by user")
     job.completed_at = datetime.now().isoformat()
-    
+
     # Sync cancellation to database
     terraform_generator._sync_job_to_database(job_id)
-    
-    return jsonify({
-        'success': True,
-        'message': 'Terraform generation cancelled'
-    })
 
-@migration_bp.route('/api/terraform-preview/<job_id>')
+    return jsonify({"success": True, "message": "Terraform generation cancelled"})
+
+
+@migration_bp.route("/api/terraform-preview/<job_id>")
 def get_terraform_preview(job_id: str):
     """Get Terraform files for preview without downloading"""
     job = terraform_generator.terraform_jobs.get(job_id)
-    
+
     if not job:
-        return jsonify({'error': 'Terraform job not found'}), 404
-    
-    if job.status != 'completed':
-        return jsonify({'error': 'Terraform generation not completed yet'}), 400
-    
+        return jsonify({"error": "Terraform job not found"}), 404
+
+    if job.status != "completed":
+        return jsonify({"error": "Terraform generation not completed yet"}), 400
+
     if not job.terraform_config:
-        return jsonify({'error': 'No Terraform configuration available'}), 404
-    
+        return jsonify({"error": "No Terraform configuration available"}), 404
+
     try:
         # Generate service summary and cost breakdown
         service_summary = terraform_generator._generate_service_summary(job)
         cost_breakdown = terraform_generator._generate_cost_breakdown(job)
-        
+
         # Combine all generated files
         all_files = {}
         if job.terraform_config:
             all_files.update(job.terraform_config)
         if job.etl_scripts:
             all_files.update(job.etl_scripts)
-        
-        return jsonify({
-            'success': True,
-            'files': job.terraform_config or {},
-            'etl_scripts': job.etl_scripts or {},
-            'all_files': all_files,
-            'job_id': job_id,
-            'cloud_platform': job.target_cloud,
-            'database_type': job.source_db_type,
-            'table_count': len(job.target_tables),
-            'generated_files': list(job.terraform_config.keys()) if job.terraform_config else [],
-            'etl_files': list(job.etl_scripts.keys()) if job.etl_scripts else [],
-            'service_summary': service_summary,
-            'cost_breakdown': cost_breakdown
-        })
+
+        return jsonify(
+            {
+                "success": True,
+                "files": job.terraform_config or {},
+                "etl_scripts": job.etl_scripts or {},
+                "all_files": all_files,
+                "job_id": job_id,
+                "cloud_platform": job.target_cloud,
+                "database_type": job.source_db_type,
+                "table_count": len(job.target_tables),
+                "generated_files": list(job.terraform_config.keys()) if job.terraform_config else [],
+                "etl_files": list(job.etl_scripts.keys()) if job.etl_scripts else [],
+                "service_summary": service_summary,
+                "cost_breakdown": cost_breakdown,
+            }
+        )
     except Exception as e:
         logging.error(f"Error getting Terraform preview: {e}")
-        return jsonify({'error': f'Failed to get preview: {str(e)}'}), 500
+        return jsonify({"error": f"Failed to get preview: {str(e)}"}), 500
 
-@migration_bp.route('/api/field-mappings', methods=['POST'])
+
+@migration_bp.route("/api/field-mappings", methods=["POST"])
 def get_field_mappings():
     """Get detailed field mappings for selected tables"""
     data = request.get_json()
-    db_type = data.get('db_type', 'oracle')
-    selected_tables = data.get('selected_tables', [])
-    job_id = data.get('job_id')  # Optional job ID to get user customizations
-    
+    db_type = data.get("db_type", "oracle")
+    selected_tables = data.get("selected_tables", [])
+    job_id = data.get("job_id")  # Optional job ID to get user customizations
+
     if not selected_tables:
-        return jsonify({'error': 'No tables specified'}), 400
-    
+        return jsonify({"error": "No tables specified"}), 400
+
     if db_type not in [dt.value for dt in DatabaseType]:
-        return jsonify({'error': 'Unsupported database type'}), 400
-    
+        return jsonify({"error": "Unsupported database type"}), 400
+
     try:
         # Get comprehensive field mappings
         all_mappings = terraform_generator._get_database_field_mappings(db_type)
-        
+
         # If job_id is provided, check for user customizations
         user_customizations = {}
         if job_id and job_id in terraform_generator.terraform_jobs:
             job = terraform_generator.terraform_jobs[job_id]
             if job.field_mappings:
                 user_customizations = job.field_mappings
-        
+
         result = {
-            'database_type': db_type,
-            'selected_tables': selected_tables,
-            'field_mappings': {},
-            'mapping_summary': {
-                'total_tables': len(selected_tables),
-                'total_fields': 0,
-                'required_fields': 0,
-                'fields_with_transformations': 0,
-                'foreign_keys': 0,
-                'user_customized': 0
+            "database_type": db_type,
+            "selected_tables": selected_tables,
+            "field_mappings": {},
+            "mapping_summary": {
+                "total_tables": len(selected_tables),
+                "total_fields": 0,
+                "required_fields": 0,
+                "fields_with_transformations": 0,
+                "foreign_keys": 0,
+                "user_customized": 0,
             },
-            'has_user_customizations': bool(user_customizations)
+            "has_user_customizations": bool(user_customizations),
         }
-        
+
         total_fields = 0
         required_fields = 0
         transformations = 0
         foreign_keys = 0
         user_customized = 0
-        
+
         for table in selected_tables:
             table_key = terraform_generator._normalize_table_name(table, db_type)
-            
+
             if table_key in all_mappings:
                 # Use user customizations if available, otherwise use default mappings
                 table_mapping = user_customizations.get(table, all_mappings[table_key])
-                
-                result['field_mappings'][table] = {
-                    'source_table': table,
-                    'app_entities': {},
-                    'fields': {},
-                    'is_customized': table in user_customizations
+
+                result["field_mappings"][table] = {
+                    "source_table": table,
+                    "app_entities": {},
+                    "fields": {},
+                    "is_customized": table in user_customizations,
                 }
-                
+
                 if table in user_customizations:
                     user_customized += 1
-                
+
                 # Group by target app entities
                 app_entities = {}
-                
+
                 # Handle different field mapping structures
                 fields_data = None
                 if isinstance(table_mapping, dict):
-                    if 'fields' in table_mapping and isinstance(table_mapping['fields'], dict):
+                    if "fields" in table_mapping and isinstance(table_mapping["fields"], dict):
                         # Custom structure from frontend: {'fields': {...}, 'app_entities': {...}, ...}
-                        fields_data = table_mapping['fields']
+                        fields_data = table_mapping["fields"]
                     else:
                         # AI-generated structure: {field_name: field_props, ...}
                         fields_data = table_mapping
-                
+
                 if fields_data and isinstance(fields_data, dict):
                     for field_name, field_info in fields_data.items():
                         # Ensure field_info is a dictionary before accessing properties
-                        if isinstance(field_info, dict) and 'target' in field_info:
+                        if isinstance(field_info, dict) and "target" in field_info:
                             try:
-                                app_entity = field_info['target'].split('.')[0]
+                                app_entity = field_info["target"].split(".")[0]
                                 if app_entity not in app_entities:
                                     app_entities[app_entity] = []
-                                app_entities[app_entity].append({
-                                    'source_field': field_name,
-                                    'app_field': field_info.get('app_field', field_name),
-                                    'type': field_info.get('type', 'string'),
-                                    'required': field_info.get('required', False),
-                                    'transformation': field_info.get('transformation'),
-                                    'default': field_info.get('default'),
-                                    'values': field_info.get('values'),
-                                    'references': field_info.get('references')
-                                })
+                                app_entities[app_entity].append(
+                                    {
+                                        "source_field": field_name,
+                                        "app_field": field_info.get("app_field", field_name),
+                                        "type": field_info.get("type", "string"),
+                                        "required": field_info.get("required", False),
+                                        "transformation": field_info.get("transformation"),
+                                        "default": field_info.get("default"),
+                                        "values": field_info.get("values"),
+                                        "references": field_info.get("references"),
+                                    }
+                                )
                             except (KeyError, AttributeError, TypeError) as e:
                                 logging.warning(f"Skipping invalid field {field_name} in table {table}: {e}")
                                 continue
                         else:
-                            logging.warning(f"Invalid field structure for {field_name} in table {table}: {type(field_info)}")
-                
-                result['field_mappings'][table]['app_entities'] = app_entities
-                result['field_mappings'][table]['fields'] = fields_data if fields_data else {}
-                
+                            logging.warning(
+                                f"Invalid field structure for {field_name} in table {table}: {type(field_info)}"
+                            )
+
+                result["field_mappings"][table]["app_entities"] = app_entities
+                result["field_mappings"][table]["fields"] = fields_data if fields_data else {}
+
                 # Update statistics with safe access
                 if fields_data:
                     valid_fields = [f for f in fields_data.values() if isinstance(f, dict)]
                     total_fields += len(valid_fields)
-                    required_fields += sum(1 for f in valid_fields if f.get('required', False))
-                    transformations += sum(1 for f in valid_fields if f.get('transformation'))
-                    foreign_keys += sum(1 for f in valid_fields if f.get('type') == 'foreign_key')
-        
-        result['mapping_summary']['total_fields'] = total_fields
-        result['mapping_summary']['required_fields'] = required_fields
-        result['mapping_summary']['user_customized'] = user_customized
-        result['mapping_summary']['fields_with_transformations'] = transformations
-        result['mapping_summary']['foreign_keys'] = foreign_keys
-        
+                    required_fields += sum(1 for f in valid_fields if f.get("required", False))
+                    transformations += sum(1 for f in valid_fields if f.get("transformation"))
+                    foreign_keys += sum(1 for f in valid_fields if f.get("type") == "foreign_key")
+
+        result["mapping_summary"]["total_fields"] = total_fields
+        result["mapping_summary"]["required_fields"] = required_fields
+        result["mapping_summary"]["user_customized"] = user_customized
+        result["mapping_summary"]["fields_with_transformations"] = transformations
+        result["mapping_summary"]["foreign_keys"] = foreign_keys
+
         return jsonify(result)
-        
+
     except Exception as e:
         logging.error(f"Error getting field mappings: {e}")
-        return jsonify({'error': f'Failed to get field mappings: {str(e)}'}), 500
+        return jsonify({"error": f"Failed to get field mappings: {str(e)}"}), 500
 
-@migration_bp.route('/api/field-mappings/<job_id>', methods=['PUT'])
+
+@migration_bp.route("/api/field-mappings/<job_id>", methods=["PUT"])
 def update_field_mappings(job_id: str):
     """Update field mappings for a specific migration job"""
     if job_id not in terraform_generator.terraform_jobs:
-        return jsonify({'error': 'Job not found'}), 404
-    
+        return jsonify({"error": "Job not found"}), 404
+
     data = request.get_json()
-    field_mappings = data.get('field_mappings')
-    
+    field_mappings = data.get("field_mappings")
+
     if not field_mappings:
-        return jsonify({'error': 'No field mappings provided'}), 400
-    
+        return jsonify({"error": "No field mappings provided"}), 400
+
     try:
         job = terraform_generator.terraform_jobs[job_id]
-        
+
         # Validate the field mappings structure
         validated_mappings = {}
         for table_name, table_data in field_mappings.items():
-            if 'fields' not in table_data:
-                return jsonify({'error': f'Invalid structure for table {table_name}: missing fields'}), 400
-            
+            if "fields" not in table_data:
+                return jsonify({"error": f"Invalid structure for table {table_name}: missing fields"}), 400
+
             validated_table_mappings = {}
-            for field_name, field_info in table_data['fields'].items():
+            for field_name, field_info in table_data["fields"].items():
                 # Validate required fields
-                required_keys = ['target', 'app_field', 'type', 'required']
+                required_keys = ["target", "app_field", "type", "required"]
                 if not all(key in field_info for key in required_keys):
-                    return jsonify({'error': f'Invalid field structure for {table_name}.{field_name}: missing required keys'}), 400
-                
+                    return (
+                        jsonify(
+                            {"error": f"Invalid field structure for {table_name}.{field_name}: missing required keys"}
+                        ),
+                        400,
+                    )
+
                 validated_table_mappings[field_name] = {
-                    'target': field_info['target'],
-                    'app_field': field_info['app_field'],
-                    'type': field_info['type'],
-                    'required': field_info['required'],
-                    'transformation': field_info.get('transformation'),
-                    'default': field_info.get('default'),
-                    'values': field_info.get('values'),
-                    'references': field_info.get('references')
+                    "target": field_info["target"],
+                    "app_field": field_info["app_field"],
+                    "type": field_info["type"],
+                    "required": field_info["required"],
+                    "transformation": field_info.get("transformation"),
+                    "default": field_info.get("default"),
+                    "values": field_info.get("values"),
+                    "references": field_info.get("references"),
                 }
-            
+
             validated_mappings[table_name] = validated_table_mappings
-        
+
         # Update the job with validated mappings
         job.field_mappings = validated_mappings
-        
+
         # Add timestamp for tracking when mappings were last updated
         from datetime import datetime
+
         update_info = {
-            'updated_at': datetime.now().isoformat(),
-            'updated_tables': list(field_mappings.keys()),
-            'total_fields': sum(len(table_data['fields']) for table_data in field_mappings.values())
+            "updated_at": datetime.now().isoformat(),
+            "updated_tables": list(field_mappings.keys()),
+            "total_fields": sum(len(table_data["fields"]) for table_data in field_mappings.values()),
         }
-        
+
         logging.info(f"Field mappings updated for job {job_id}: {update_info}")
-        
-        return jsonify({
-            'success': True,
-            'message': 'Field mappings updated successfully',
-            'job_id': job_id,
-            'update_info': update_info
-        })
-        
+
+        return jsonify(
+            {
+                "success": True,
+                "message": "Field mappings updated successfully",
+                "job_id": job_id,
+                "update_info": update_info,
+            }
+        )
+
     except Exception as e:
         logging.error(f"Error updating field mappings for job {job_id}: {e}")
-        return jsonify({'error': f'Failed to update field mappings: {str(e)}'}), 500
+        return jsonify({"error": f"Failed to update field mappings: {str(e)}"}), 500
 
-@migration_bp.route('/api/field-mappings/<job_id>/reset', methods=['POST'])
+
+@migration_bp.route("/api/field-mappings/<job_id>/reset", methods=["POST"])
 def reset_field_mappings(job_id: str):
     """Reset field mappings to default values for a specific job"""
     if job_id not in terraform_generator.terraform_jobs:
-        return jsonify({'error': 'Job not found'}), 404
-    
+        return jsonify({"error": "Job not found"}), 404
+
     try:
         job = terraform_generator.terraform_jobs[job_id]
-        
+
         # Reset to default mappings by clearing user customizations
-        if hasattr(job, 'ai_analysis') and job.ai_analysis and 'field_mappings' in job.ai_analysis:
-            job.field_mappings = job.ai_analysis['field_mappings']
+        if hasattr(job, "ai_analysis") and job.ai_analysis and "field_mappings" in job.ai_analysis:
+            job.field_mappings = job.ai_analysis["field_mappings"]
         else:
             # Generate fresh mappings from the original analysis
             job.field_mappings = None
-        
+
         from datetime import datetime
-        reset_info = {
-            'reset_at': datetime.now().isoformat(),
-            'message': 'Field mappings reset to default values'
-        }
-        
+
+        reset_info = {"reset_at": datetime.now().isoformat(), "message": "Field mappings reset to default values"}
+
         logging.info(f"Field mappings reset for job {job_id}: {reset_info}")
-        
-        return jsonify({
-            'success': True,
-            'message': 'Field mappings reset to defaults successfully',
-            'job_id': job_id,
-            'reset_info': reset_info
-        })
-        
+
+        return jsonify(
+            {
+                "success": True,
+                "message": "Field mappings reset to defaults successfully",
+                "job_id": job_id,
+                "reset_info": reset_info,
+            }
+        )
+
     except Exception as e:
         logging.error(f"Error resetting field mappings for job {job_id}: {e}")
-        return jsonify({'error': f'Failed to reset field mappings: {str(e)}'}), 500
+        return jsonify({"error": f"Failed to reset field mappings: {str(e)}"}), 500
 
-@migration_bp.route('/api/job-field-mappings/<job_id>', methods=['GET'])
+
+@migration_bp.route("/api/job-field-mappings/<job_id>", methods=["GET"])
 def get_job_field_mappings(job_id: str):
     """Get field mappings used for a specific completed job"""
     # First check database for persisted jobs
     db_job = terraform_generator.db_manager.get_terraform_job(job_id)
-    
+
     if db_job:
         # Use database job
         job = db_job
@@ -3341,103 +4171,107 @@ def get_job_field_mappings(job_id: str):
         # Fallback to in-memory job
         job = terraform_generator.terraform_jobs[job_id]
     else:
-        return jsonify({'error': 'Job not found'}), 404
-    
+        return jsonify({"error": "Job not found"}), 404
+
     if not job.field_mappings:
-        return jsonify({'error': 'No field mappings available for this job'}), 404
-    
+        return jsonify({"error": "No field mappings available for this job"}), 404
+
     try:
         # Prepare the field mappings in the same format as the regular field mappings API
         result = {
-            'job_id': job_id,
-            'database_type': job.source_db_type,
-            'target_cloud': job.target_cloud,
-            'selected_tables': job.target_tables,
-            'field_mappings': {},
-            'job_info': {
-                'created_at': job.created_at.isoformat() if hasattr(job.created_at, 'isoformat') else job.created_at,
-                'status': job.status,
-                'source_connection': job.source_connection,
-                'progress': job.progress
+            "job_id": job_id,
+            "database_type": job.source_db_type,
+            "target_cloud": job.target_cloud,
+            "selected_tables": job.target_tables,
+            "field_mappings": {},
+            "job_info": {
+                "created_at": job.created_at.isoformat() if hasattr(job.created_at, "isoformat") else job.created_at,
+                "status": job.status,
+                "source_connection": job.source_connection,
+                "progress": job.progress,
             },
-            'mapping_summary': {
-                'total_tables': len(job.target_tables),
-                'total_fields': 0,
-                'required_fields': 0,
-                'fields_with_transformations': 0,
-                'foreign_keys': 0
-            }
+            "mapping_summary": {
+                "total_tables": len(job.target_tables),
+                "total_fields": 0,
+                "required_fields": 0,
+                "fields_with_transformations": 0,
+                "foreign_keys": 0,
+            },
         }
-        
+
         total_fields = 0
         required_fields = 0
         transformations = 0
         foreign_keys = 0
-        
+
         for table in job.target_tables:
             if table in job.field_mappings:
                 table_mapping = job.field_mappings[table]
-                result['field_mappings'][table] = {
-                    'source_table': table,
-                    'app_entities': {},
-                    'fields': table_mapping,
-                    'is_historical': True  # Mark as historical data
+                result["field_mappings"][table] = {
+                    "source_table": table,
+                    "app_entities": {},
+                    "fields": table_mapping,
+                    "is_historical": True,  # Mark as historical data
                 }
-                
+
                 # Group by target app entities for display
                 app_entities = {}
-                
+
                 # Handle different field mapping structures
                 fields_data = None
                 if isinstance(table_mapping, dict):
-                    if 'fields' in table_mapping and isinstance(table_mapping['fields'], dict):
+                    if "fields" in table_mapping and isinstance(table_mapping["fields"], dict):
                         # Custom structure from frontend: {'fields': {...}, 'app_entities': {...}, ...}
-                        fields_data = table_mapping['fields']
+                        fields_data = table_mapping["fields"]
                     else:
                         # AI-generated structure: {field_name: field_props, ...}
                         fields_data = table_mapping
-                
+
                 if fields_data and isinstance(fields_data, dict):
                     for field_name, field_info in fields_data.items():
                         # Ensure field_info is a dictionary before accessing properties
-                        if isinstance(field_info, dict) and 'target' in field_info:
+                        if isinstance(field_info, dict) and "target" in field_info:
                             try:
-                                app_entity = field_info['target'].split('.')[0]
+                                app_entity = field_info["target"].split(".")[0]
                                 if app_entity not in app_entities:
                                     app_entities[app_entity] = []
-                                app_entities[app_entity].append({
-                                    'source_field': field_name,
-                                    'app_field': field_info.get('app_field', field_name),
-                                    'type': field_info.get('type', 'string'),
-                                    'required': field_info.get('required', False),
-                                    'transformation': field_info.get('transformation'),
-                                    'default': field_info.get('default'),
-                                    'values': field_info.get('values'),
-                                    'references': field_info.get('references')
-                                })
+                                app_entities[app_entity].append(
+                                    {
+                                        "source_field": field_name,
+                                        "app_field": field_info.get("app_field", field_name),
+                                        "type": field_info.get("type", "string"),
+                                        "required": field_info.get("required", False),
+                                        "transformation": field_info.get("transformation"),
+                                        "default": field_info.get("default"),
+                                        "values": field_info.get("values"),
+                                        "references": field_info.get("references"),
+                                    }
+                                )
                             except (KeyError, AttributeError, TypeError) as e:
                                 logging.warning(f"Skipping invalid field {field_name} in table {table}: {e}")
                                 continue
                         else:
-                            logging.warning(f"Invalid field structure for {field_name} in table {table}: {type(field_info)}")
-                
-                result['field_mappings'][table]['app_entities'] = app_entities
-                
+                            logging.warning(
+                                f"Invalid field structure for {field_name} in table {table}: {type(field_info)}"
+                            )
+
+                result["field_mappings"][table]["app_entities"] = app_entities
+
                 # Update statistics with safe access
                 if fields_data:
                     valid_fields = [f for f in fields_data.values() if isinstance(f, dict)]
                     total_fields += len(valid_fields)
-                    required_fields += sum(1 for f in valid_fields if f.get('required', False))
-                    transformations += sum(1 for f in valid_fields if f.get('transformation'))
-                    foreign_keys += sum(1 for f in valid_fields if f.get('type') == 'foreign_key')
-        
-        result['mapping_summary']['total_fields'] = total_fields
-        result['mapping_summary']['required_fields'] = required_fields
-        result['mapping_summary']['fields_with_transformations'] = transformations
-        result['mapping_summary']['foreign_keys'] = foreign_keys
-        
+                    required_fields += sum(1 for f in valid_fields if f.get("required", False))
+                    transformations += sum(1 for f in valid_fields if f.get("transformation"))
+                    foreign_keys += sum(1 for f in valid_fields if f.get("type") == "foreign_key")
+
+        result["mapping_summary"]["total_fields"] = total_fields
+        result["mapping_summary"]["required_fields"] = required_fields
+        result["mapping_summary"]["fields_with_transformations"] = transformations
+        result["mapping_summary"]["foreign_keys"] = foreign_keys
+
         return jsonify(result)
-        
+
     except Exception as e:
         logging.error(f"Error getting field mappings for job {job_id}: {e}")
-        return jsonify({'error': f'Failed to get job field mappings: {str(e)}'}), 500
+        return jsonify({"error": f"Failed to get job field mappings: {str(e)}"}), 500

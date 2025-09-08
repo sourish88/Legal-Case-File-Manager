@@ -1,6 +1,6 @@
 [flake8]
 max-line-length = 120
-exclude = 
+exclude =
     .git,
     __pycache__,
     .venv,
@@ -8,12 +8,12 @@ exclude =
     .env,
     migrations,
     scripts/old_*
-ignore = 
-    E203,  # whitespace before ':'
-    E501,  # line too long (handled by max-line-length)
-    W503,  # line break before binary operator
-    F401,  # imported but unused (handled by autoflake)
+ignore =
+    E203,
+    E501,
+    W503,
+    F401
 max-complexity = 12
-per-file-ignores = 
+per-file-ignores =
     __init__.py:F401
     tests/*:F401,F811
