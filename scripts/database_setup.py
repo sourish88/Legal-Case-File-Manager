@@ -52,6 +52,8 @@ class PostgreSQLSetup:
         DROP TRIGGER IF EXISTS update_files_updated_at ON physical_files;
         DROP TRIGGER IF EXISTS update_payments_updated_at ON payments;
         DROP TRIGGER IF EXISTS update_comments_updated_at ON user_comments;
+        DROP TRIGGER IF EXISTS update_terraform_jobs_updated_at ON terraform_jobs;
+        DROP TRIGGER IF EXISTS update_migration_jobs_updated_at ON migration_jobs;
         """
         
         try:
@@ -69,6 +71,8 @@ class PostgreSQLSetup:
     def drop_existing_tables(self):
         """Drop existing tables to recreate with new schema"""
         drop_tables_sql = """
+        DROP TABLE IF EXISTS terraform_jobs CASCADE;
+        DROP TABLE IF EXISTS migration_jobs CASCADE;
         DROP TABLE IF EXISTS file_accesses CASCADE;
         DROP TABLE IF EXISTS user_comments CASCADE;
         DROP TABLE IF EXISTS payments CASCADE;
@@ -239,6 +243,52 @@ class PostgreSQLSetup:
         CREATE INDEX IF NOT EXISTS idx_file_accesses_timestamp ON file_accesses(access_timestamp);
         CREATE INDEX IF NOT EXISTS idx_comments_entity ON user_comments(entity_type, entity_id);
         CREATE INDEX IF NOT EXISTS idx_recent_searches_date ON recent_searches(search_date);
+
+        -- Terraform Jobs table for data pipeline generation
+        CREATE TABLE IF NOT EXISTS terraform_jobs (
+            job_id VARCHAR(50) PRIMARY KEY,
+            source_db_type VARCHAR(20) NOT NULL,
+            target_cloud VARCHAR(20) NOT NULL,
+            source_connection TEXT NOT NULL,
+            target_tables TEXT[] NOT NULL, -- PostgreSQL array for table names
+            status VARCHAR(20) CHECK (status IN ('pending', 'analyzing', 'generating', 'running', 'completed', 'failed')) DEFAULT 'pending',
+            progress DECIMAL(5,2) DEFAULT 0.0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            completed_at TIMESTAMP NULL,
+            terraform_config JSONB NULL, -- Store terraform configuration as JSON
+            field_mappings JSONB NULL, -- Store field mappings as JSON
+            ai_analysis JSONB NULL, -- Store AI analysis results as JSON
+            estimated_cost JSONB NULL, -- Store cost estimation as JSON
+            errors TEXT[] NULL, -- Store error messages as array
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Migration Jobs table for data migration tracking
+        CREATE TABLE IF NOT EXISTS migration_jobs (
+            job_id VARCHAR(50) PRIMARY KEY,
+            source_db_type VARCHAR(20) NOT NULL,
+            source_connection TEXT NOT NULL,
+            target_tables TEXT[] NOT NULL, -- PostgreSQL array for table names
+            status VARCHAR(20) CHECK (status IN ('pending', 'analyzing', 'generating', 'running', 'completed', 'failed')) DEFAULT 'pending',
+            progress DECIMAL(5,2) DEFAULT 0.0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            completed_at TIMESTAMP NULL,
+            table_count INTEGER DEFAULT 0,
+            total_records INTEGER DEFAULT 0,
+            migrated_records INTEGER DEFAULT 0,
+            errors TEXT[] NULL, -- Store error messages as array
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Create indexes for job tables for better performance
+        CREATE INDEX IF NOT EXISTS idx_terraform_jobs_status ON terraform_jobs(status);
+        CREATE INDEX IF NOT EXISTS idx_terraform_jobs_created_at ON terraform_jobs(created_at);
+        CREATE INDEX IF NOT EXISTS idx_terraform_jobs_source_db ON terraform_jobs(source_db_type);
+        CREATE INDEX IF NOT EXISTS idx_terraform_jobs_target_cloud ON terraform_jobs(target_cloud);
+        
+        CREATE INDEX IF NOT EXISTS idx_migration_jobs_status ON migration_jobs(status);
+        CREATE INDEX IF NOT EXISTS idx_migration_jobs_created_at ON migration_jobs(created_at);
+        CREATE INDEX IF NOT EXISTS idx_migration_jobs_source_db ON migration_jobs(source_db_type);
         """
         
         try:
@@ -246,7 +296,7 @@ class PostgreSQLSetup:
             cursor = conn.cursor()
             cursor.execute(create_tables_sql)
             conn.commit()
-            print("All tables and indexes created successfully")
+            print("All tables and indexes created successfully (including job persistence tables)")
             cursor.close()
             conn.close()
         except psycopg2.Error as e:
@@ -272,7 +322,9 @@ class PostgreSQLSetup:
             "CREATE TRIGGER update_cases_updated_at BEFORE UPDATE ON cases FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();",
             "CREATE TRIGGER update_files_updated_at BEFORE UPDATE ON physical_files FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();",
             "CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON payments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();",
-            "CREATE TRIGGER update_comments_updated_at BEFORE UPDATE ON user_comments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();"
+            "CREATE TRIGGER update_comments_updated_at BEFORE UPDATE ON user_comments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();",
+            "CREATE TRIGGER update_terraform_jobs_updated_at BEFORE UPDATE ON terraform_jobs FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();",
+            "CREATE TRIGGER update_migration_jobs_updated_at BEFORE UPDATE ON migration_jobs FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();"
         ]
         
         try:
@@ -321,6 +373,8 @@ class PostgreSQLSetup:
     def clear_all_data(self):
         """Clear all data from tables (useful for re-migration)"""
         clear_sql = """
+        TRUNCATE TABLE terraform_jobs CASCADE;
+        TRUNCATE TABLE migration_jobs CASCADE;
         TRUNCATE TABLE file_accesses CASCADE;
         TRUNCATE TABLE user_comments CASCADE;
         TRUNCATE TABLE payments CASCADE;

@@ -129,6 +129,78 @@ class Comment:
     priority: str = 'Normal'  # Low, Normal, High, Critical
 
 
+@dataclass
+class TerraformJob:
+    """Terraform job entity model for data pipeline generation"""
+    job_id: str
+    source_db_type: str
+    target_cloud: str
+    source_connection: str
+    target_tables: List[str]
+    status: str = 'pending'  # pending, running, completed, failed
+    progress: float = 0.0
+    created_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    terraform_config: Optional[Dict[str, Any]] = None
+    field_mappings: Optional[Dict[str, Any]] = None
+    ai_analysis: Optional[Dict[str, Any]] = None
+    estimated_cost: Optional[Dict[str, Any]] = None
+    errors: Optional[List[str]] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization"""
+        return {
+            'job_id': self.job_id,
+            'source_db_type': self.source_db_type,
+            'target_cloud': self.target_cloud,
+            'source_connection': self.source_connection,
+            'target_tables': self.target_tables,
+            'status': self.status,
+            'progress': self.progress,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'terraform_config': self.terraform_config,
+            'field_mappings': self.field_mappings,
+            'ai_analysis': self.ai_analysis,
+            'estimated_cost': self.estimated_cost,
+            'errors': self.errors
+        }
+
+
+@dataclass
+class MigrationJob:
+    """Migration job entity model for data migration tasks"""
+    job_id: str
+    source_db_type: str
+    source_connection: str
+    target_tables: List[str]
+    status: str = 'pending'  # pending, running, completed, failed
+    progress: float = 0.0
+    created_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    table_count: int = 0
+    total_records: int = 0
+    migrated_records: int = 0
+    errors: Optional[List[str]] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization"""
+        return {
+            'job_id': self.job_id,
+            'source_db_type': self.source_db_type,
+            'source_connection': self.source_connection,
+            'target_tables': self.target_tables,
+            'status': self.status,
+            'progress': self.progress,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'table_count': self.table_count,
+            'total_records': self.total_records,
+            'migrated_records': self.migrated_records,
+            'errors': self.errors
+        }
+
+
 # Type aliases for common data structures
 ClientDict = Dict[str, Any]
 CaseDict = Dict[str, Any]

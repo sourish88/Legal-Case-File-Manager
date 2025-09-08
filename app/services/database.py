@@ -5,7 +5,7 @@ This module provides database connection and query functionality using PostgreSQ
 """
 
 import psycopg2
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import RealDictCursor, Json
 import os
 from datetime import datetime
 from typing import List, Dict, Any, Optional
@@ -564,4 +564,264 @@ class LegalFileManagerDB:
             'access_types': access_type_counts,
             'user_access_counts': user_access_counts
         }
+
+    # Job persistence methods
+    def save_terraform_job(self, job: 'TerraformJob') -> bool:
+        """Save or update a terraform job in the database"""
+        try:
+            query = """
+                INSERT INTO terraform_jobs (
+                    job_id, source_db_type, target_cloud, source_connection, 
+                    target_tables, status, progress, created_at, completed_at,
+                    terraform_config, field_mappings, ai_analysis, estimated_cost, errors
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (job_id) DO UPDATE SET
+                    status = EXCLUDED.status,
+                    progress = EXCLUDED.progress,
+                    completed_at = EXCLUDED.completed_at,
+                    terraform_config = EXCLUDED.terraform_config,
+                    field_mappings = EXCLUDED.field_mappings,
+                    ai_analysis = EXCLUDED.ai_analysis,
+                    estimated_cost = EXCLUDED.estimated_cost,
+                    errors = EXCLUDED.errors,
+                    updated_at = CURRENT_TIMESTAMP
+            """
+            
+            params = (
+                job.job_id,
+                job.source_db_type,
+                job.target_cloud,
+                job.source_connection,
+                job.target_tables,
+                job.status,
+                job.progress,
+                job.created_at,
+                job.completed_at,
+                Json(job.terraform_config) if job.terraform_config else None,
+                Json(job.field_mappings) if job.field_mappings else None,
+                Json(job.ai_analysis) if job.ai_analysis else None,
+                Json(job.estimated_cost) if job.estimated_cost else None,
+                job.errors
+            )
+            
+            self.db.execute_query(query, params, fetch_all=False)
+            return True
+            
+        except Exception as e:
+            print(f"Error saving terraform job: {e}")
+            return False
+
+    def get_terraform_job(self, job_id: str) -> Optional['TerraformJob']:
+        """Get a terraform job by ID"""
+        try:
+            query = """
+                SELECT job_id, source_db_type, target_cloud, source_connection, 
+                       target_tables, status, progress, created_at, completed_at,
+                       terraform_config, field_mappings, ai_analysis, estimated_cost, errors
+                FROM terraform_jobs 
+                WHERE job_id = %s
+            """
+            
+            result = self.db.execute_query(query, (job_id,), fetch_one=True)
+            
+            if result:
+                from app.models.entities import TerraformJob
+                return TerraformJob(
+                    job_id=result['job_id'],
+                    source_db_type=result['source_db_type'],
+                    target_cloud=result['target_cloud'],
+                    source_connection=result['source_connection'],
+                    target_tables=result['target_tables'],
+                    status=result['status'],
+                    progress=float(result['progress']),
+                    created_at=result['created_at'],
+                    completed_at=result['completed_at'],
+                    terraform_config=result['terraform_config'] if result['terraform_config'] else None,
+                    field_mappings=result['field_mappings'] if result['field_mappings'] else None,
+                    ai_analysis=result['ai_analysis'] if result['ai_analysis'] else None,
+                    estimated_cost=result['estimated_cost'] if result['estimated_cost'] else None,
+                    errors=result['errors']
+                )
+            return None
+            
+        except Exception as e:
+            print(f"Error getting terraform job: {e}")
+            return None
+
+    def get_all_terraform_jobs(self) -> List['TerraformJob']:
+        """Get all terraform jobs, ordered by creation date (newest first)"""
+        try:
+            query = """
+                SELECT job_id, source_db_type, target_cloud, source_connection, 
+                       target_tables, status, progress, created_at, completed_at,
+                       terraform_config, field_mappings, ai_analysis, estimated_cost, errors
+                FROM terraform_jobs 
+                ORDER BY created_at DESC
+            """
+            
+            results = self.db.execute_query(query)
+            jobs = []
+            
+            if results:
+                from app.models.entities import TerraformJob
+                for result in results:
+                    job = TerraformJob(
+                        job_id=result['job_id'],
+                        source_db_type=result['source_db_type'],
+                        target_cloud=result['target_cloud'],
+                        source_connection=result['source_connection'],
+                        target_tables=result['target_tables'],
+                        status=result['status'],
+                        progress=float(result['progress']),
+                        created_at=result['created_at'],
+                        completed_at=result['completed_at'],
+                        terraform_config=result['terraform_config'] if result['terraform_config'] else None,
+                        field_mappings=result['field_mappings'] if result['field_mappings'] else None,
+                        ai_analysis=result['ai_analysis'] if result['ai_analysis'] else None,
+                        estimated_cost=result['estimated_cost'] if result['estimated_cost'] else None,
+                        errors=result['errors']
+                    )
+                    jobs.append(job)
+            
+            return jobs
+            
+        except Exception as e:
+            print(f"Error getting terraform jobs: {e}")
+            return []
+
+    def save_migration_job(self, job: 'MigrationJob') -> bool:
+        """Save or update a migration job in the database"""
+        try:
+            query = """
+                INSERT INTO migration_jobs (
+                    job_id, source_db_type, source_connection, target_tables,
+                    status, progress, created_at, completed_at,
+                    table_count, total_records, migrated_records, errors
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (job_id) DO UPDATE SET
+                    status = EXCLUDED.status,
+                    progress = EXCLUDED.progress,
+                    completed_at = EXCLUDED.completed_at,
+                    table_count = EXCLUDED.table_count,
+                    total_records = EXCLUDED.total_records,
+                    migrated_records = EXCLUDED.migrated_records,
+                    errors = EXCLUDED.errors,
+                    updated_at = CURRENT_TIMESTAMP
+            """
+            
+            params = (
+                job.job_id,
+                job.source_db_type,
+                job.source_connection,
+                job.target_tables,
+                job.status,
+                job.progress,
+                job.created_at,
+                job.completed_at,
+                job.table_count,
+                job.total_records,
+                job.migrated_records,
+                job.errors
+            )
+            
+            self.db.execute_query(query, params, fetch_all=False)
+            return True
+            
+        except Exception as e:
+            print(f"Error saving migration job: {e}")
+            return False
+
+    def get_migration_job(self, job_id: str) -> Optional['MigrationJob']:
+        """Get a migration job by ID"""
+        try:
+            query = """
+                SELECT job_id, source_db_type, source_connection, target_tables,
+                       status, progress, created_at, completed_at,
+                       table_count, total_records, migrated_records, errors
+                FROM migration_jobs 
+                WHERE job_id = %s
+            """
+            
+            result = self.db.execute_query(query, (job_id,), fetch_one=True)
+            
+            if result:
+                from app.models.entities import MigrationJob
+                return MigrationJob(
+                    job_id=result['job_id'],
+                    source_db_type=result['source_db_type'],
+                    source_connection=result['source_connection'],
+                    target_tables=result['target_tables'],
+                    status=result['status'],
+                    progress=float(result['progress']),
+                    created_at=result['created_at'],
+                    completed_at=result['completed_at'],
+                    table_count=result['table_count'],
+                    total_records=result['total_records'],
+                    migrated_records=result['migrated_records'],
+                    errors=result['errors']
+                )
+            return None
+            
+        except Exception as e:
+            print(f"Error getting migration job: {e}")
+            return None
+
+    def get_all_migration_jobs(self) -> List['MigrationJob']:
+        """Get all migration jobs, ordered by creation date (newest first)"""
+        try:
+            query = """
+                SELECT job_id, source_db_type, source_connection, target_tables,
+                       status, progress, created_at, completed_at,
+                       table_count, total_records, migrated_records, errors
+                FROM migration_jobs 
+                ORDER BY created_at DESC
+            """
+            
+            results = self.db.execute_query(query)
+            jobs = []
+            
+            if results:
+                from app.models.entities import MigrationJob
+                for result in results:
+                    job = MigrationJob(
+                        job_id=result['job_id'],
+                        source_db_type=result['source_db_type'],
+                        source_connection=result['source_connection'],
+                        target_tables=result['target_tables'],
+                        status=result['status'],
+                        progress=float(result['progress']),
+                        created_at=result['created_at'],
+                        completed_at=result['completed_at'],
+                        table_count=result['table_count'],
+                        total_records=result['total_records'],
+                        migrated_records=result['migrated_records'],
+                        errors=result['errors']
+                    )
+                    jobs.append(job)
+            
+            return jobs
+            
+        except Exception as e:
+            print(f"Error getting migration jobs: {e}")
+            return []
+
+    def delete_terraform_job(self, job_id: str) -> bool:
+        """Delete a terraform job"""
+        try:
+            query = "DELETE FROM terraform_jobs WHERE job_id = %s"
+            self.db.execute_query(query, (job_id,), fetch_all=False)
+            return True
+        except Exception as e:
+            print(f"Error deleting terraform job: {e}")
+            return False
+
+    def delete_migration_job(self, job_id: str) -> bool:
+        """Delete a migration job"""
+        try:
+            query = "DELETE FROM migration_jobs WHERE job_id = %s"
+            self.db.execute_query(query, (job_id,), fetch_all=False)
+            return True
+        except Exception as e:
+            print(f"Error deleting migration job: {e}")
+            return False
 

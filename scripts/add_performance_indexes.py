@@ -8,7 +8,13 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import sys
 import os
-from config import Config
+
+# Add the parent directory to the Python path so we can import from app
+script_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(script_dir)
+sys.path.insert(0, parent_dir)
+
+from app.config.settings import Config
 
 class PerformanceIndexOptimizer:
     def __init__(self):

@@ -31,6 +31,14 @@ A comprehensive web application designed for legal service providers to catalogu
 - **Payment Insights**: Financial summary and payment history
 - **Document Associations**: Related files and cross-references
 
+### 🔄 Data Pipeline Generation & Migration
+- **Terraform Infrastructure**: Generate cloud infrastructure code (AWS, Azure) for data migration
+- **AI-Powered Schema Analysis**: Intelligent database schema analysis and field mapping recommendations
+- **Custom Field Mappings**: Configure custom field transformations for data migration
+- **Persistent Job History**: Complete audit trail of all data pipeline generation jobs with status tracking
+- **Real-time Progress Monitoring**: Track job progress and status updates
+- **Cost Estimation**: Estimate cloud infrastructure costs for migration projects
+
 ## Technology Stack
 
 - **Backend**: Python 3.8+ with Flask framework

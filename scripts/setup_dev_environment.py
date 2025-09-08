@@ -23,7 +23,11 @@ logger = logging.getLogger(__name__)
 
 def run_script(script_name, args=None):
     """Run a Python script with optional arguments."""
-    cmd = [sys.executable, script_name]
+    # Get the directory where this script is located
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    script_path = os.path.join(script_dir, script_name)
+    
+    cmd = [sys.executable, script_path]
     if args:
         cmd.extend(args)
     
@@ -126,7 +130,7 @@ def main():
     if success_count == total_steps:
         print("[SUCCESS] All setup steps completed successfully!")
         print("\nNEXT STEPS:")
-        print("   1. Start the application: python app_postgresql.py")
+        print("   1. Start the application: python run.py")
         print("   2. Open browser to: http://localhost:5000")
         print("   3. Explore the dashboard and search functionality")
         print("\nWHAT'S AVAILABLE:")
