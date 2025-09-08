@@ -33,7 +33,8 @@ A comprehensive web application designed for legal service providers to catalogu
 
 ## Technology Stack
 
-- **Backend**: Python 3.7+ with Flask framework
+- **Backend**: Python 3.8+ with Flask framework
+- **Database**: PostgreSQL with psycopg2 driver
 - **Templates**: Jinja2 for server-side rendering
 - **Frontend**: Bootstrap 5 with custom CSS and JavaScript
 - **Data Generation**: Faker library for realistic sample data
@@ -42,32 +43,70 @@ A comprehensive web application designed for legal service providers to catalogu
 ## Installation & Setup
 
 ### Prerequisites
-- Python 3.7 or higher
+- Python 3.8 or higher
+- PostgreSQL 12+ database server
 - pip (Python package installer)
+
+### Database Setup
+
+1. **Install PostgreSQL**:
+   - **Windows**: Download from [postgresql.org](https://www.postgresql.org/download/)
+   - **macOS**: `brew install postgresql`
+   - **Ubuntu**: `sudo apt-get install postgresql postgresql-contrib`
+
+2. **Create Database**:
+   ```bash
+   # Connect to PostgreSQL
+   sudo -u postgres psql
+   
+   # Create database and user
+   CREATE DATABASE legal_case_manager;
+   CREATE USER postgres WITH PASSWORD 'postgres';
+   GRANT ALL PRIVILEGES ON DATABASE legal_case_manager TO postgres;
+   \q
+   ```
+
+3. **Configure Environment**:
+   ```bash
+   cp env_template.txt .env
+   # Edit .env with your database credentials
+   ```
 
 ### Quick Start
 
-1. **Clone the repository** (or use the provided files):
+1. **Clone the repository**:
    ```bash
-   cd "AI Architect Training"
+   git clone <repository-url>
+   cd "Legal Case File Manager"
    ```
 
-2. **Install dependencies**:
+2. **Set up PostgreSQL** (if not already installed):
+   - Install PostgreSQL 12+ on your system
+   - Create database: `legal_case_manager`
+   - Ensure PostgreSQL service is running
+
+3. **Configure environment**:
+   ```bash
+   cp env_template.txt .env
+   # Edit .env with your database credentials
+   ```
+
+4. **Install dependencies**:
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Set up database and generate sample data**:
+5. **Set up database and generate sample data**:
    ```bash
-   # Quick setup with default settings
-   python setup_dev_environment.py
+   # Complete setup with default settings
+   python scripts/setup_dev_environment.py
    
    # Or manual setup
-   python database_setup.py
-   python generate_dummy_data.py --count 50 --clear
+   python scripts/database_setup.py
+   python scripts/generate_dummy_data.py --count 50 --clear
    ```
 
-4. **Run the application**:
+6. **Run the application**:
    ```bash
    python run.py
    ```
@@ -77,8 +116,49 @@ A comprehensive web application designed for legal service providers to catalogu
    make run
    ```
 
-5. **Access the application**:
+7. **Access the application**:
    Open your browser and navigate to `http://localhost:5000`
+
+## Environment Configuration
+
+### Setting Up Environment Variables
+
+1. **Copy environment template**:
+   ```bash
+   cp env_template.txt .env
+   ```
+
+2. **Configure your settings** in `.env`:
+   ```bash
+   # Database Configuration
+   DB_HOST=localhost          # PostgreSQL server host
+   DB_PORT=5432              # PostgreSQL server port
+   DB_NAME=legal_case_manager # Database name
+   DB_USER=postgres          # Database username
+   DB_PASSWORD=your_password_here # Database password
+   
+   # Application Configuration
+   SECRET_KEY=your-secret-key-here # Flask secret key for sessions
+   FLASK_ENV=development     # Environment (development/production)
+   FLASK_DEBUG=True         # Enable debug mode
+   
+   # Optional: Application Settings
+   APP_HOST=0.0.0.0         # Host to bind the application
+   APP_PORT=5000            # Port to run the application
+   ```
+
+### Environment Variables Explained
+
+- **DB_HOST**: PostgreSQL database server hostname or IP address
+- **DB_PORT**: PostgreSQL server port (default: 5432)
+- **DB_NAME**: Name of the database to connect to
+- **DB_USER**: PostgreSQL username for authentication
+- **DB_PASSWORD**: PostgreSQL password for authentication
+- **SECRET_KEY**: Flask secret key for session management and security
+- **FLASK_ENV**: Application environment (development/production)
+- **FLASK_DEBUG**: Enable/disable debug mode for development
+- **APP_HOST**: Network interface to bind the application (0.0.0.0 for all interfaces)
+- **APP_PORT**: Port number for the web application
 
 ## Application Structure
 
@@ -182,11 +262,12 @@ Physical file tracking includes:
 
 ## Sample Data
 
-The application automatically generates comprehensive sample data including:
-- **50 Clients** with realistic personal information
-- **100 Cases** across various legal practice areas
-- **200 Physical Files** with complete metadata
-- **150 Payment Records** with various statuses and amounts
+The application generates comprehensive sample data including:
+- **Clients**: Configurable number (default: 50) with realistic personal information
+- **Cases**: Approximately 2x client count across various legal practice areas
+- **Physical Files**: Approximately 4x client count with complete metadata
+- **Payment Records**: Approximately 3x client count with various statuses and amounts
+- **Access History**: Generated based on file interactions
 
 Practice areas include:
 - Personal Injury
@@ -209,9 +290,16 @@ Practice areas include:
 - `GET /search` - Search interface and results
 - `GET /file/<file_id>` - File detail view
 - `GET /client/<client_id>` - Client profile and recommendations
+- `GET /health` - Health check endpoint
 
 ### API Routes
 - `GET /api/search` - JSON search API with query and filter parameters
+- `GET /api/unified-search` - Unified search across all data types
+- `GET /api/intelligent-suggestions` - Smart search suggestions
+- `GET /api/stats` - Dashboard statistics
+- `GET /api/filters` - Available filter options
+- `GET /api/recent-activity` - Recent file access activity
+- `GET /api/access-history/<file_id>` - File access history
 
 ## Customization
 
@@ -244,13 +332,15 @@ Modify `static/style.css` to customize the appearance. The application uses CSS 
 ## Future Enhancements
 
 Potential areas for expansion:
-- Database integration (PostgreSQL, MySQL, SQLite)
-- User authentication and role-based access
+- User authentication and role-based access control
 - Document upload and digital file management
 - Barcode/QR code integration for physical files
-- Advanced reporting and analytics
+- Advanced reporting and analytics dashboard
 - Integration with legal practice management systems
 - Mobile app for warehouse staff
+- Multi-tenant support for law firms
+- Automated backup and disaster recovery
+- Advanced search with natural language processing
 
 ## Development
 
@@ -315,6 +405,94 @@ The application follows Flask best practices with a clear separation of concerns
 - **`app/views/`**: Web routes and API endpoints organized by functionality
 - **`scripts/`**: Setup and utility scripts
 - **`tests/`**: Test suite with pytest configuration
+
+## Troubleshooting
+
+### Common Issues
+
+#### Database Connection Error
+```bash
+Error: Failed to connect to database
+psycopg2.OperationalError: could not connect to server
+```
+**Solutions**:
+- Ensure PostgreSQL service is running: `sudo service postgresql start`
+- Verify database credentials in `.env` file
+- Check if database `legal_case_manager` exists
+- Confirm PostgreSQL is listening on the correct port (default: 5432)
+
+#### Port Already in Use
+```bash
+Error: [Errno 48] Address already in use
+```
+**Solutions**:
+- Change the port in `.env`: `APP_PORT=5001`
+- Kill the process using the port: `lsof -ti:5000 | xargs kill -9`
+- Stop other Flask applications running on the same port
+
+#### Missing Dependencies
+```bash
+ModuleNotFoundError: No module named 'psycopg2'
+```
+**Solutions**:
+- Install dependencies: `pip install -r requirements.txt`
+- For development: `make install-dev`
+- On macOS, you may need: `brew install postgresql`
+- On Ubuntu, you may need: `sudo apt-get install python3-dev libpq-dev`
+
+#### Permission Denied (Database)
+```bash
+psycopg2.OperationalError: FATAL: permission denied for database
+```
+**Solutions**:
+- Grant privileges: `GRANT ALL PRIVILEGES ON DATABASE legal_case_manager TO postgres;`
+- Check PostgreSQL user permissions
+- Ensure the database user exists and has correct password
+
+#### Sample Data Generation Fails
+```bash
+Error during sample data generation
+```
+**Solutions**:
+- Ensure database tables are created: `python scripts/database_setup.py`
+- Clear existing data: `python scripts/generate_dummy_data.py --clear`
+- Check database connection and permissions
+
+## Production Deployment
+
+### Environment Setup
+1. Set `FLASK_ENV=production` in your environment
+2. Use a strong, unique `SECRET_KEY`
+3. Configure proper PostgreSQL connection settings with secure credentials
+4. Set up reverse proxy (nginx/Apache) for static files and SSL termination
+5. Use a WSGI server (Gunicorn/uWSGI) instead of Flask development server
+6. Enable PostgreSQL connection pooling for better performance
+7. Set up proper logging and monitoring
+8. Configure automated backups for the database
+
+### Example Production Deployment with Gunicorn
+```bash
+# Install Gunicorn
+pip install gunicorn
+
+# Run with multiple workers
+gunicorn -w 4 -b 0.0.0.0:8000 run:app
+
+# With better configuration
+gunicorn -w 4 -b 0.0.0.0:8000 --timeout 120 --keep-alive 5 run:app
+```
+
+### Production Checklist
+- [ ] Set `FLASK_ENV=production`
+- [ ] Use strong `SECRET_KEY`
+- [ ] Configure secure database credentials
+- [ ] Set up SSL/HTTPS
+- [ ] Configure proper logging
+- [ ] Set up database backups
+- [ ] Configure monitoring and alerting
+- [ ] Test error handling and recovery
+- [ ] Set up log rotation
+- [ ] Configure firewall rules
 
 ## Contributing
 
