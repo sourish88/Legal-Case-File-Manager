@@ -117,8 +117,9 @@ class ConnectionPoolManager:
         """Perform periodic health check on the connection pool."""
         current_time = datetime.now()
 
-        if (self._last_health_check is None or 
-            current_time - self._last_health_check > timedelta(seconds=self._health_check_interval)):
+        if self._last_health_check is None or current_time - self._last_health_check > timedelta(
+            seconds=self._health_check_interval
+        ):
             self.logger.debug("Performing connection pool health check", extra={"event": "health_check_start"})
             self._last_health_check = current_time
 

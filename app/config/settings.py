@@ -94,7 +94,7 @@ class ProductionConfig(Config):
         """Additional validation for production"""
         super().validate_config()
 
-        secret_key = getattr(cls, 'SECRET_KEY', '')
+        secret_key = getattr(cls, "SECRET_KEY", "")
         if not secret_key or secret_key == "dev-key-change-in-production":
             raise ValueError("SECRET_KEY must be set to a secure value in production")
 

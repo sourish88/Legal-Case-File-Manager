@@ -118,7 +118,7 @@ class PostgreSQLDummyDataGenerator:
 
         if self.cursor is None:
             raise RuntimeError("Database cursor not initialized. Call connect() first.")
-            
+
         try:
             logger.info("Clearing existing data...")
 
@@ -158,7 +158,7 @@ class PostgreSQLDummyDataGenerator:
         """Generate dummy client records."""
         if self.cursor is None:
             raise RuntimeError("Database cursor not initialized. Call connect() first.")
-            
+
         logger.info(f"Generating {count} clients...")
         clients = []
 
@@ -211,7 +211,7 @@ class PostgreSQLDummyDataGenerator:
         """Generate dummy case records for clients."""
         if self.cursor is None:
             raise RuntimeError("Database cursor not initialized. Call connect() first.")
-            
+
         logger.info("Generating cases...")
         cases = []
         case_count = 0
