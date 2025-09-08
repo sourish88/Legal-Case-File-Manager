@@ -7,8 +7,8 @@
     <div class="col-12">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Dashboard</a></li>
-                <li class="breadcrumb-item"><a href="{{ url_for('search') }}">Search</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('main.search') }}">Search</a></li>
                 <li class="breadcrumb-item active">{{ file.reference_number }}</li>
             </ol>
         </nav>
@@ -104,7 +104,7 @@
                             <tr>
                                 <td><strong>Client ID:</strong></td>
                                 <td>
-                                    <a href="{{ url_for('client_detail', client_id=file.client_id) }}" class="text-decoration-none">
+                                    <a href="{{ url_for('main.client_detail', client_id=file.client_id) }}" class="text-decoration-none">
                                         {{ file.client_id }}
                                     </a>
                                 </td>

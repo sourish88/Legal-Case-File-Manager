@@ -1,3 +1,9 @@
+"""
+Database service for the Legal Case File Manager application.
+
+This module provides database connection and query functionality using PostgreSQL.
+"""
+
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import os
@@ -235,8 +241,8 @@ class LegalFileManagerDB:
         query = """
         SELECT f.*, c.case_type, c.case_status, cl.first_name, cl.last_name 
         FROM physical_files f 
-        JOIN cases c ON f.case_id = c.case_id 
-        JOIN clients cl ON f.client_id = cl.client_id 
+        LEFT JOIN cases c ON f.case_id = c.case_id 
+        LEFT JOIN clients cl ON f.client_id = cl.client_id 
         ORDER BY f.created_date DESC
         """
         return self.db.execute_query(query)
@@ -247,8 +253,8 @@ class LegalFileManagerDB:
         SELECT f.*, c.case_type, c.case_status, c.reference_number as case_reference,
                cl.first_name, cl.last_name, cl.email, cl.phone
         FROM physical_files f 
-        JOIN cases c ON f.case_id = c.case_id 
-        JOIN clients cl ON f.client_id = cl.client_id 
+        LEFT JOIN cases c ON f.case_id = c.case_id 
+        LEFT JOIN clients cl ON f.client_id = cl.client_id 
         WHERE f.file_id = %s
         """
         return self.db.execute_query(query, (file_id,), fetch_one=True)
@@ -269,8 +275,8 @@ class LegalFileManagerDB:
                    )
                END as relevance_score
         FROM physical_files f 
-        JOIN cases c ON f.case_id = c.case_id 
-        JOIN clients cl ON f.client_id = cl.client_id 
+        LEFT JOIN cases c ON f.case_id = c.case_id 
+        LEFT JOIN clients cl ON f.client_id = cl.client_id 
         WHERE 1=1
         """
         

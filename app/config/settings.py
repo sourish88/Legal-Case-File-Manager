@@ -1,11 +1,16 @@
+"""
+Configuration settings for the Legal Case File Manager application.
+"""
+
 import os
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
 
+
 class Config:
-    """Application configuration class"""
+    """Base configuration class"""
     
     # Flask Configuration
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-key-change-in-production')
@@ -22,6 +27,10 @@ class Config:
     # Application Settings
     APP_HOST = os.getenv('APP_HOST', '0.0.0.0')
     APP_PORT = int(os.getenv('APP_PORT', 5000))
+    
+    # Additional settings
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file upload
+    JSONIFY_PRETTYPRINT_REGULAR = True
     
     @classmethod
     def get_database_config(cls):
@@ -49,3 +58,41 @@ class Config:
         
         return True
 
+
+class DevelopmentConfig(Config):
+    """Development configuration"""
+    DEBUG = True
+    FLASK_ENV = 'development'
+
+
+class ProductionConfig(Config):
+    """Production configuration"""
+    DEBUG = False
+    FLASK_ENV = 'production'
+    
+    # Override defaults for production
+    SECRET_KEY = os.getenv('SECRET_KEY')  # Must be set in production
+    
+    @classmethod
+    def validate_config(cls):
+        """Additional validation for production"""
+        super().validate_config()
+        
+        if not cls.SECRET_KEY or cls.SECRET_KEY == 'dev-key-change-in-production':
+            raise ValueError("SECRET_KEY must be set to a secure value in production")
+
+
+class TestingConfig(Config):
+    """Testing configuration"""
+    TESTING = True
+    DEBUG = True
+    DB_NAME = os.getenv('TEST_DB_NAME', 'legal_case_manager_test')
+
+
+# Configuration mapping
+config = {
+    'development': DevelopmentConfig,
+    'production': ProductionConfig,
+    'testing': TestingConfig,
+    'default': DevelopmentConfig
+}

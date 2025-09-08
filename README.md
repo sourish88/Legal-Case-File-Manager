@@ -69,7 +69,12 @@ A comprehensive web application designed for legal service providers to catalogu
 
 4. **Run the application**:
    ```bash
-   python app_postgresql.py
+   python run.py
+   ```
+   
+   Or use the Makefile:
+   ```bash
+   make run
    ```
 
 5. **Access the application**:
@@ -78,23 +83,54 @@ A comprehensive web application designed for legal service providers to catalogu
 ## Application Structure
 
 ```
-├── app_postgresql.py      # Main Flask application (PostgreSQL)
-├── database.py           # Database connection and queries
-├── database_setup.py     # Database schema creation
-├── generate_dummy_data.py # Dummy data generator for development
-├── setup_dev_environment.py # Complete development setup script
-├── add_performance_indexes.py # Database performance optimization
-├── requirements.txt      # Python dependencies
-├── README.md            # This file
-├── templates/            # Jinja2 templates
-│   ├── base.html        # Base template with common layout
-│   ├── dashboard.html   # Main dashboard
-│   ├── search.html      # Search interface and results
-│   ├── file_detail.html # Individual file details
-│   └── client_detail.html # Client profile and recommendations
-└── static/              # Static assets
-    ├── style.css        # Custom CSS styles
-    └── script.js        # JavaScript functionality
+├── app/                    # Main application package
+│   ├── __init__.py        # Application factory
+│   ├── config/            # Configuration management
+│   │   ├── __init__.py
+│   │   └── settings.py    # Environment-specific settings
+│   ├── models/            # Data models and entities
+│   │   ├── __init__.py
+│   │   └── entities.py    # Data classes and constants
+│   ├── services/          # Business logic layer
+│   │   ├── __init__.py
+│   │   ├── database.py    # Database connection and queries
+│   │   ├── client_service.py # Client-related business logic
+│   │   └── search_service.py # Search functionality
+│   ├── utils/             # Utility functions
+│   │   ├── __init__.py
+│   │   └── helpers.py     # Helper functions
+│   └── views/             # Web routes and API endpoints
+│       ├── __init__.py
+│       ├── main.py        # Main web routes
+│       ├── api.py         # API endpoints
+│       ├── errors.py      # Error handlers
+│       └── migration.py   # Migration routes (optional)
+├── scripts/               # Setup and utility scripts
+│   ├── database_setup.py     # Database schema creation
+│   ├── generate_dummy_data.py # Dummy data generator
+│   ├── setup_dev_environment.py # Development environment setup
+│   └── add_performance_indexes.py # Database optimization
+├── tests/                 # Test suite
+│   ├── __init__.py
+│   ├── conftest.py        # Test configuration
+│   └── test_basic.py      # Basic tests
+├── templates/             # Jinja2 templates
+│   ├── base.html         # Base template
+│   ├── dashboard.html    # Main dashboard
+│   ├── search.html       # Search interface
+│   ├── file_detail.html  # File details
+│   └── client_detail.html # Client profile
+├── static/               # Static assets
+│   ├── style.css        # Custom CSS styles
+│   └── script.js        # JavaScript functionality
+├── run.py               # Application entry point
+├── requirements.txt     # Production dependencies
+├── requirements-dev.txt # Development dependencies
+├── Makefile            # Development commands
+├── pyproject.toml      # Tool configuration
+├── .flake8            # Linting configuration
+├── .pre-commit-config.yaml # Pre-commit hooks
+└── README.md          # This file
 ```
 
 ## Data Models
@@ -215,6 +251,70 @@ Potential areas for expansion:
 - Advanced reporting and analytics
 - Integration with legal practice management systems
 - Mobile app for warehouse staff
+
+## Development
+
+### Development Setup
+
+For development, use the comprehensive setup command:
+
+```bash
+make dev-setup
+```
+
+This will:
+- Install all dependencies (production + development)
+- Set up pre-commit hooks for code quality
+- Initialize the database with sample data
+
+### Development Commands
+
+```bash
+# Install dependencies
+make install-dev
+
+# Run the application in development mode
+make run
+
+# Run tests
+make test
+
+# Format code
+make format
+
+# Run linting
+make lint
+
+# Clean up cache files
+make clean
+
+# Set up database with sample data
+make setup-db
+```
+
+### Code Quality
+
+This project uses several tools to maintain code quality:
+
+- **Black**: Code formatting
+- **isort**: Import sorting
+- **flake8**: Linting
+- **mypy**: Type checking
+- **pytest**: Testing
+- **pre-commit**: Git hooks for automatic checks
+
+### Project Structure
+
+The application follows Flask best practices with a clear separation of concerns:
+
+- **`app/`**: Main application package using the application factory pattern
+- **`app/config/`**: Configuration management with environment-specific settings
+- **`app/models/`**: Data models and entity definitions
+- **`app/services/`**: Business logic layer (database, search, client services)
+- **`app/utils/`**: Utility functions and helpers
+- **`app/views/`**: Web routes and API endpoints organized by functionality
+- **`scripts/`**: Setup and utility scripts
+- **`tests/`**: Test suite with pytest configuration
 
 ## Contributing
 
