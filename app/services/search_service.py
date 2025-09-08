@@ -31,7 +31,7 @@ def unified_search_data(
         }
 
     query_lower = query.lower() if query else ""
-    results = {
+    results: Dict[str, List[Any]] = {
         "files": [],
         "clients": [],
         "cases": [],

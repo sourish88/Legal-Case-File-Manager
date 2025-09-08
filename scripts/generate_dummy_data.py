@@ -116,6 +116,9 @@ class PostgreSQLDummyDataGenerator:
             "clients",  # No dependencies (parent table)
         ]
 
+        if self.cursor is None:
+            raise RuntimeError("Database cursor not initialized. Call connect() first.")
+            
         try:
             logger.info("Clearing existing data...")
 
@@ -138,7 +141,8 @@ class PostgreSQLDummyDataGenerator:
             # Re-enable foreign key checks
             self.cursor.execute("SET session_replication_role = DEFAULT;")
 
-            self.conn.commit()
+            if self.conn is not None:
+                self.conn.commit()
             logger.info("All existing data cleared successfully")
 
         except Exception as e:
@@ -146,11 +150,15 @@ class PostgreSQLDummyDataGenerator:
             logger.error(f"Error type: {type(e)}")
             if hasattr(e, "pgcode"):
                 logger.error(f"PostgreSQL error code: {e.pgcode}")
-            self.conn.rollback()
+            if self.conn is not None:
+                self.conn.rollback()
             raise
 
     def generate_clients(self, count=50):
         """Generate dummy client records."""
+        if self.cursor is None:
+            raise RuntimeError("Database cursor not initialized. Call connect() first.")
+            
         logger.info(f"Generating {count} clients...")
         clients = []
 
@@ -194,12 +202,16 @@ class PostgreSQLDummyDataGenerator:
             """
             self.cursor.execute(insert_query, client_data)
 
-        self.conn.commit()
+        if self.conn is not None:
+            self.conn.commit()
         logger.info(f"Successfully generated {count} clients")
         return clients
 
     def generate_cases(self, clients):
         """Generate dummy case records for clients."""
+        if self.cursor is None:
+            raise RuntimeError("Database cursor not initialized. Call connect() first.")
+            
         logger.info("Generating cases...")
         cases = []
         case_count = 0
@@ -240,12 +252,15 @@ class PostgreSQLDummyDataGenerator:
                 """
                 self.cursor.execute(insert_query, case_data)
 
-        self.conn.commit()
+        if self.conn is not None:
+            self.conn.commit()
         logger.info(f"Successfully generated {len(cases)} cases")
         return cases
 
     def generate_physical_files(self, cases):
         """Generate dummy physical file records for cases."""
+        if self.cursor is None:
+            raise RuntimeError("Database cursor not initialized. Call connect() first.")
         logger.info("Generating physical files...")
         files = []
         file_count = 0
@@ -302,12 +317,15 @@ class PostgreSQLDummyDataGenerator:
                 """
                 self.cursor.execute(insert_query, file_data)
 
-        self.conn.commit()
+        if self.conn is not None:
+            self.conn.commit()
         logger.info(f"Successfully generated {len(files)} physical files")
         return files
 
     def generate_payments(self, cases):
         """Generate dummy payment records for cases."""
+        if self.cursor is None:
+            raise RuntimeError("Database cursor not initialized. Call connect() first.")
         logger.info("Generating payments...")
         payments = []
         payment_count = 0
@@ -342,12 +360,15 @@ class PostgreSQLDummyDataGenerator:
                 """
                 self.cursor.execute(insert_query, payment_data)
 
-        self.conn.commit()
+        if self.conn is not None:
+            self.conn.commit()
         logger.info(f"Successfully generated {len(payments)} payments")
         return payments
 
     def generate_file_accesses(self, files):
         """Generate dummy file access records."""
+        if self.cursor is None:
+            raise RuntimeError("Database cursor not initialized. Call connect() first.")
         logger.info("Generating file accesses...")
         access_logs = []
         access_count = 0
@@ -383,12 +404,15 @@ class PostgreSQLDummyDataGenerator:
                 """
                 self.cursor.execute(insert_query, access_data)
 
-        self.conn.commit()
+        if self.conn is not None:
+            self.conn.commit()
         logger.info(f"Successfully generated {len(access_logs)} file accesses")
         return access_logs
 
     def generate_user_comments(self, files):
         """Generate dummy user comment records."""
+        if self.cursor is None:
+            raise RuntimeError("Database cursor not initialized. Call connect() first.")
         logger.info("Generating user comments...")
         comments = []
         comment_count = 0
@@ -423,7 +447,8 @@ class PostgreSQLDummyDataGenerator:
                 """
                 self.cursor.execute(insert_query, comment_data)
 
-        self.conn.commit()
+        if self.conn is not None:
+            self.conn.commit()
         logger.info(f"Successfully generated {len(comments)} user comments")
         return comments
 
@@ -498,7 +523,7 @@ class PostgreSQLDummyDataGenerator:
 
         except Exception as e:
             logger.error(f"Error during data generation: {e}")
-            if self.conn:
+            if self.conn is not None:
                 self.conn.rollback()
             return False
         finally:

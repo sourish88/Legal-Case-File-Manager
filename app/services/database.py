@@ -17,7 +17,7 @@ import threading
 import time
 from contextlib import contextmanager
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, cast
 
 import psycopg2
 from psycopg2 import pool
@@ -76,7 +76,7 @@ class ConnectionPoolManager:
         """Initialize the connection pool with error handling."""
         try:
             with self._pool_lock:
-                if self._pool:
+                if self._pool is not None:
                     self._pool.closeall()
 
                 self._pool = psycopg2.pool.ThreadedConnectionPool(
@@ -117,9 +117,8 @@ class ConnectionPoolManager:
         """Perform periodic health check on the connection pool."""
         current_time = datetime.now()
 
-        if self._last_health_check is None or current_time - self._last_health_check > timedelta(
-            seconds=self._health_check_interval
-        ):
+        if (self._last_health_check is None or 
+            current_time - self._last_health_check > timedelta(seconds=self._health_check_interval)):
             self.logger.debug("Performing connection pool health check", extra={"event": "health_check_start"})
             self._last_health_check = current_time
 
@@ -412,7 +411,7 @@ class DatabaseConnection:
                             results.append(None)
 
                 conn.commit()
-                return results
+                return True
 
             except psycopg2.Error as e:
                 conn.rollback()
@@ -488,7 +487,7 @@ class LegalFileManagerDB:
     def get_all_clients(self) -> List[Dict[str, Any]]:
         """Get all clients"""
         query = "SELECT * FROM clients ORDER BY last_name, first_name"
-        return self.db.execute_query(query)
+        return cast(List[Dict[str, Any]], self.db.execute_query(query))
 
     def search_clients(self, search_query: str = "", limit: int = 50) -> List[Dict[str, Any]]:
         """Efficiently search clients using database indexes"""
@@ -524,7 +523,7 @@ class LegalFileManagerDB:
             search_param,
             limit,
         )
-        return self.db.execute_query(query, params)
+        return cast(List[Dict[str, Any]], self.db.execute_query(query, params))
 
     def search_cases(self, search_query: str = "", limit: int = 50) -> List[Dict[str, Any]]:
         """Efficiently search cases with client names included"""
@@ -573,7 +572,7 @@ class LegalFileManagerDB:
             search_param,
             limit,
         )
-        return self.db.execute_query(query, params)
+        return cast(List[Dict[str, Any]], self.db.execute_query(query, params))
 
     def search_payments(self, search_query: str = "", limit: int = 50) -> List[Dict[str, Any]]:
         """Efficiently search payments with client names included"""
@@ -618,12 +617,12 @@ class LegalFileManagerDB:
             search_param,
             limit,
         )
-        return self.db.execute_query(query, params)
+        return cast(List[Dict[str, Any]], self.db.execute_query(query, params))
 
     def get_client_by_id(self, client_id: str) -> Optional[Dict[str, Any]]:
         """Get a client by ID"""
         query = "SELECT * FROM clients WHERE client_id = %s"
-        return self.db.execute_query(query, (client_id,), fetch_one=True)
+        return cast(Optional[Dict[str, Any]], self.db.execute_query(query, (client_id,), fetch_one=True))
 
     def update_client(self, client_id: str, client_data: Dict[str, Any]) -> None:
         """Update a client"""
@@ -651,17 +650,17 @@ class LegalFileManagerDB:
         JOIN clients cl ON c.client_id = cl.client_id
         ORDER BY c.created_date DESC
         """
-        return self.db.execute_query(query)
+        return cast(List[Dict[str, Any]], self.db.execute_query(query))
 
     def get_cases_by_client(self, client_id: str) -> List[Dict[str, Any]]:
         """Get cases for a specific client"""
         query = "SELECT * FROM cases WHERE client_id = %s ORDER BY created_date DESC"
-        return self.db.execute_query(query, (client_id,))
+        return cast(List[Dict[str, Any]], self.db.execute_query(query, (client_id,)))
 
     def get_case_by_id(self, case_id: str) -> Optional[Dict[str, Any]]:
         """Get a case by ID"""
         query = "SELECT * FROM cases WHERE case_id = %s"
-        return self.db.execute_query(query, (case_id,), fetch_one=True)
+        return cast(Optional[Dict[str, Any]], self.db.execute_query(query, (case_id,), fetch_one=True))
 
     # Physical File methods
     def insert_physical_file(self, file_data: Dict[str, Any]) -> None:
@@ -687,7 +686,7 @@ class LegalFileManagerDB:
         LEFT JOIN clients cl ON f.client_id = cl.client_id
         ORDER BY f.created_date DESC
         """
-        return self.db.execute_query(query)
+        return cast(List[Dict[str, Any]], self.db.execute_query(query))
 
     def get_file_by_id(self, file_id: str) -> Optional[Dict[str, Any]]:
         """Get a file by ID with related information"""
@@ -699,7 +698,7 @@ class LegalFileManagerDB:
         LEFT JOIN clients cl ON f.client_id = cl.client_id
         WHERE f.file_id = %s
         """
-        return self.db.execute_query(query, (file_id,), fetch_one=True)
+        return cast(Optional[Dict[str, Any]], self.db.execute_query(query, (file_id,), fetch_one=True))
 
     def search_files(
         self, search_query: str = "", filters: Optional[Dict[str, Any]] = None, limit: int = 100
@@ -768,7 +767,7 @@ class LegalFileManagerDB:
         limit_clause = f" LIMIT {limit}"
 
         query = base_query + " ".join(conditions) + order_clause + limit_clause
-        return self.db.execute_query(query, tuple(params) if params else None)
+        return cast(List[Dict[str, Any]], self.db.execute_query(query, tuple(params) if params else None))
 
     def update_file_access_time(self, file_id: str) -> None:
         """Update the last accessed time for a file"""
@@ -789,12 +788,12 @@ class LegalFileManagerDB:
     def get_payments_by_client(self, client_id: str) -> List[Dict[str, Any]]:
         """Get payments for a specific client"""
         query = "SELECT * FROM payments WHERE client_id = %s ORDER BY payment_date DESC"
-        return self.db.execute_query(query, (client_id,))
+        return cast(List[Dict[str, Any]], self.db.execute_query(query, (client_id,)))
 
     def get_payments_by_case(self, case_id: str) -> List[Dict[str, Any]]:
         """Get payments for a specific case"""
         query = "SELECT * FROM payments WHERE case_id = %s ORDER BY payment_date DESC"
-        return self.db.execute_query(query, (case_id,))
+        return cast(List[Dict[str, Any]], self.db.execute_query(query, (case_id,)))
 
     # File Access methods
     def insert_file_access(self, access_data: Dict[str, Any]) -> None:
@@ -814,12 +813,12 @@ class LegalFileManagerDB:
         ORDER BY fa.access_timestamp DESC
         LIMIT %s
         """
-        return self.db.execute_query(query, (limit,))
+        return cast(List[Dict[str, Any]], self.db.execute_query(query, (limit,)))
 
     def get_file_access_history(self, file_id: str) -> List[Dict[str, Any]]:
         """Get access history for a specific file"""
         query = "SELECT * FROM file_accesses WHERE file_id = %s ORDER BY access_timestamp DESC"
-        return self.db.execute_query(query, (file_id,))
+        return cast(List[Dict[str, Any]], self.db.execute_query(query, (file_id,)))
 
     # Comment methods
     def insert_comment(self, comment_data: Dict[str, Any]) -> None:
@@ -835,12 +834,12 @@ class LegalFileManagerDB:
         query = (
             "SELECT * FROM user_comments WHERE entity_type = 'file' AND entity_id = %s ORDER BY created_timestamp DESC"
         )
-        return self.db.execute_query(query, (file_id,))
+        return cast(List[Dict[str, Any]], self.db.execute_query(query, (file_id,)))
 
     def get_comments_by_entity(self, entity_type: str, entity_id: str) -> List[Dict[str, Any]]:
         """Get comments for a specific entity"""
         query = "SELECT * FROM user_comments WHERE entity_type = %s AND entity_id = %s ORDER BY created_timestamp DESC"
-        return self.db.execute_query(query, (entity_type, entity_id))
+        return cast(List[Dict[str, Any]], self.db.execute_query(query, (entity_type, entity_id)))
 
     # Analytics methods
     def add_recent_search(self, search_query: str, user_session: Optional[str] = None) -> None:
@@ -862,12 +861,12 @@ class LegalFileManagerDB:
     def get_popular_searches(self, limit: int = 10) -> List[Dict[str, Any]]:
         """Get popular searches"""
         query = "SELECT * FROM popular_searches ORDER BY search_count DESC LIMIT %s"
-        return self.db.execute_query(query, (limit,))
+        return cast(List[Dict[str, Any]], self.db.execute_query(query, (limit,)))
 
     def get_recent_searches(self, limit: int = 10) -> List[Dict[str, Any]]:
         """Get recent searches"""
         query = "SELECT search_query, MAX(search_date) as latest_date FROM recent_searches GROUP BY search_query ORDER BY latest_date DESC LIMIT %s"
-        return self.db.execute_query(query, (limit,))
+        return cast(List[Dict[str, Any]], self.db.execute_query(query, (limit,)))
 
     # Statistics methods
     def get_dashboard_stats(self) -> Dict[str, Any]:

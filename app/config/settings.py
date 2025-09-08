@@ -82,7 +82,7 @@ class ProductionConfig(Config):
     FLASK_ENV = "production"
 
     # Override defaults for production
-    SECRET_KEY = os.getenv("SECRET_KEY")  # Must be set in production
+    SECRET_KEY = os.getenv("SECRET_KEY") or "MUST_BE_SET_IN_PRODUCTION"  # Must be set in production
 
     # Production logging defaults
     LOG_FORMAT = os.getenv("LOG_FORMAT", "json")
@@ -94,7 +94,8 @@ class ProductionConfig(Config):
         """Additional validation for production"""
         super().validate_config()
 
-        if not cls.SECRET_KEY or cls.SECRET_KEY == "dev-key-change-in-production":
+        secret_key = getattr(cls, 'SECRET_KEY', '')
+        if not secret_key or secret_key == "dev-key-change-in-production":
             raise ValueError("SECRET_KEY must be set to a secure value in production")
 
 

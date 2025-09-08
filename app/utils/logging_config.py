@@ -251,6 +251,7 @@ class StructuredLogger:
         file_handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count)
         file_handler.setFormatter(json_formatter)
         file_handler.addFilter(context_filter)
+        assert self.logger is not None
         self.logger.addHandler(file_handler)
 
         # Console handler (JSON format)
@@ -258,6 +259,7 @@ class StructuredLogger:
             console_handler = logging.StreamHandler(sys.stdout)
             console_handler.setFormatter(json_formatter)
             console_handler.addFilter(context_filter)
+            assert self.logger is not None
             self.logger.addHandler(console_handler)
 
     def _configure_development_logging(
@@ -280,6 +282,7 @@ class StructuredLogger:
         file_handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count)
         file_handler.setFormatter(file_formatter)
         file_handler.addFilter(context_filter)
+        assert self.logger is not None
         self.logger.addHandler(file_handler)
 
         # Console handler with colors
@@ -288,6 +291,7 @@ class StructuredLogger:
             console_handler = logging.StreamHandler(sys.stdout)
             console_handler.setFormatter(console_formatter)
             console_handler.addFilter(context_filter)
+            assert self.logger is not None
             self.logger.addHandler(console_handler)
 
     def get_logger(self, name: Optional[str] = None) -> logging.Logger:
@@ -297,7 +301,7 @@ class StructuredLogger:
 
         if name:
             return logging.getLogger(f"{self.name}.{name}")
-        
+
         if self.logger is None:
             raise RuntimeError("Logger not properly initialized.")
         return self.logger

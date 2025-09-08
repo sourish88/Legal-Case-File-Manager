@@ -12,7 +12,7 @@ import time
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
 from functools import wraps
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, cast
 
 from flask import current_app, g, jsonify, request
 
@@ -287,7 +287,7 @@ def validate_csrf_token(token: str) -> bool:
     # This is a simplified version - in production, you'd want to store tokens securely
     from flask import session
 
-    return session.get("csrf_token") == token
+    return cast(bool, session.get("csrf_token") == token)
 
 
 def secure_headers(func):

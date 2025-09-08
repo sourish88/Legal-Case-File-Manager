@@ -9,7 +9,7 @@ import zipfile
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import openai
 from flask import Blueprint, jsonify, render_template, request, send_file
@@ -1140,7 +1140,7 @@ class TerraformGenerator:
 
         return issues
 
-    def generate_aws_terraform(self, job: TerraformJob) -> tuple[Dict[str, str], Dict[str, str]]:
+    def generate_aws_terraform(self, job: TerraformJob) -> Tuple[Dict[str, str], Dict[str, str]]:
         """Generate AWS Terraform configuration using GenAI"""
 
         # Get field mappings for intelligent generation
@@ -1163,7 +1163,7 @@ class TerraformGenerator:
         else:
             return self._generate_aws_with_mock_ai(job, table_info)
 
-    def generate_azure_terraform(self, job: TerraformJob) -> tuple[Dict[str, str], Dict[str, str]]:
+    def generate_azure_terraform(self, job: TerraformJob) -> Tuple[Dict[str, str], Dict[str, str]]:
         """Generate Azure Terraform configuration using GenAI"""
 
         # Get field mappings for intelligent generation
@@ -1224,7 +1224,7 @@ source_db_password = "your_secure_password"
 
     def _generate_aws_with_openai(
         self, job: TerraformJob, table_info: List[Dict]
-    ) -> tuple[Dict[str, str], Dict[str, str]]:
+    ) -> Tuple[Dict[str, str], Dict[str, str]]:
         """Generate AWS Terraform and ETL scripts using real OpenAI API"""
         try:
             # Prepare context for AI
@@ -1260,7 +1260,7 @@ source_db_password = "your_secure_password"
 
     def _generate_azure_with_openai(
         self, job: TerraformJob, table_info: List[Dict]
-    ) -> tuple[Dict[str, str], Dict[str, str]]:
+    ) -> Tuple[Dict[str, str], Dict[str, str]]:
         """Generate Azure Terraform and ETL scripts using real OpenAI API"""
         try:
             # Prepare context for AI
@@ -1296,7 +1296,7 @@ source_db_password = "your_secure_password"
 
     def _generate_aws_with_mock_ai(
         self, job: TerraformJob, table_info: List[Dict]
-    ) -> tuple[Dict[str, str], Dict[str, str]]:
+    ) -> Tuple[Dict[str, str], Dict[str, str]]:
         """Generate AWS Terraform using mock AI (for demo purposes)"""
 
         # Calculate intelligent sizing based on actual data
@@ -1581,7 +1581,7 @@ output "ai_generated_insights" {{
 
     def _generate_azure_with_mock_ai(
         self, job: TerraformJob, table_info: List[Dict]
-    ) -> tuple[Dict[str, str], Dict[str, str]]:
+    ) -> Tuple[Dict[str, str], Dict[str, str]]:
         """Generate Azure Terraform using mock AI (for demo purposes)"""
 
         # Calculate intelligent sizing
@@ -2357,7 +2357,6 @@ mypy==1.5.1
                     "required_fields": 0,
                     "transformations": 0,
                     "has_mappings": True,
-                    "error": "Failed to calculate detailed summary",
                 }
         else:
             mappings_summary = {"has_mappings": False}
@@ -2382,7 +2381,7 @@ mypy==1.5.1
         """Export Terraform files and ETL scripts as a ZIP archive"""
         job = self.terraform_jobs.get(job_id)
         if not job or not job.terraform_config:
-            return None
+            raise ValueError(f"Job {job_id} not found or has no terraform config")
 
         # Create temporary directory and ZIP file
         temp_dir = tempfile.mkdtemp()
@@ -2791,7 +2790,7 @@ terraform apply
         """Format table list for README"""
         formatted_tables = []
         for table in target_tables:
-            table_data = next((t for t in table_info if t["name"] == table), {})
+            table_data: Dict[str, Any] = next((t for t in table_info if t["name"] == table), {})
             transform_count = len(table_data.get("transformations", []))
             formatted_tables.append(f"- **{table}**: {transform_count} transformations")
         return "\n".join(formatted_tables)
@@ -2856,7 +2855,7 @@ terraform apply
 
             # Generate table-specific ETL scripts for each selected table
             for table_name in job.target_tables:
-                table_data = next((t for t in table_info if t["name"] == table_name), {})
+                table_data: Dict[str, Any] = next((t for t in table_info if t["name"] == table_name), {})
                 if table_data:
                     table_prompt = self._create_table_etl_prompt(
                         table_name, table_data, context, field_mappings, cloud_type
@@ -3984,7 +3983,7 @@ def get_field_mappings():
                     user_customized += 1
 
                 # Group by target app entities
-                app_entities = {}
+                app_entities: Dict[str, Any] = {}
 
                 # Handle different field mapping structures
                 fields_data = None
@@ -4215,7 +4214,7 @@ def get_job_field_mappings(job_id: str):
                 }
 
                 # Group by target app entities for display
-                app_entities = {}
+                app_entities: Dict[str, Any] = {}
 
                 # Handle different field mapping structures
                 fields_data = None

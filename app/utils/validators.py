@@ -106,7 +106,9 @@ class InputValidator:
             Sanitized string
         """
         if not isinstance(value, str):
-            value = str(value) if value is not None else ""
+            if value is None:
+                return ""
+            value = str(value)
 
         # URL decode if needed
         if "%" in value:
@@ -473,15 +475,15 @@ class InputValidator:
                     raise ValidationError(f"{field} must be a string", field, "INVALID_TYPE")
                 validated[field] = self.sanitize_string(value, max_length=max_length)
             elif field_type == "email":
-                result = self.validate_email(value, field, True)
-                if result is None:
+                email_result = self.validate_email(value, field, True)
+                if email_result is None:
                     raise ValidationError(f"{field} validation failed", field, "VALIDATION_ERROR")
-                validated[field] = result
+                validated[field] = email_result
             elif field_type == "phone":
-                result = self.validate_phone(value, field, True)
-                if result is None:
+                phone_result = self.validate_phone(value, field, True)
+                if phone_result is None:
                     raise ValidationError(f"{field} validation failed", field, "VALIDATION_ERROR")
-                validated[field] = result
+                validated[field] = phone_result
             elif field_type == "uuid":
                 validated[field] = self.validate_file_id(value, field)
             elif field_type == "integer":
@@ -495,8 +497,8 @@ class InputValidator:
                 except (ValueError, TypeError):
                     raise ValidationError(f"{field} must be a number", field, "INVALID_TYPE")
             elif field_type == "boolean":
-                result = self.validate_boolean_param(value, field)
-                validated[field] = result
+                bool_result: bool = self.validate_boolean_param(value, field)
+                validated[field] = bool_result
             else:
                 # Default string handling
                 validated[field] = self.sanitize_string(str(value), max_length=max_length)
