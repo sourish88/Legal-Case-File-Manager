@@ -125,7 +125,7 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-# .env
+.env
 .venv
 env/
 venv/
@@ -192,3 +192,10 @@ data/
 *.swp
 *.swo
 *~
+
+# Environment files (add to your existing .gitignore)
+.env*
+!.env.example
+!env_template.txt
+.env.backup
+.env.old
