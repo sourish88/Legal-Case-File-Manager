@@ -37,7 +37,7 @@ def advanced_search():
         category = request.args.get("category", "files")
         limit = int(request.args.get("limit", 20))
         offset = int(request.args.get("offset", 0))
-        include_archived = request.args.get("include_archived", "false").lower() == "true"
+        # include_archived = request.args.get("include_archived", "false").lower() == "true"
 
         # Additional custom validation if needed
         if query and len(query) < 2:

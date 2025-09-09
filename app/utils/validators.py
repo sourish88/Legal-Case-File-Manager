@@ -10,7 +10,7 @@ import html
 import re
 import uuid
 from functools import wraps
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 from urllib.parse import unquote
 
 from flask import abort, jsonify, request
@@ -91,7 +91,11 @@ class InputValidator:
         return self.errors.copy()
 
     def sanitize_string(
-        self, value: str, max_length: Optional[int] = None, allow_html: bool = False, strip_whitespace: bool = True
+        self,
+        value: Optional[str],
+        max_length: Optional[int] = None,
+        allow_html: bool = False,
+        strip_whitespace: bool = True,
     ) -> str:
         """
         Sanitize string input with various options
@@ -105,16 +109,18 @@ class InputValidator:
         Returns:
             Sanitized string
         """
+        if value is None:
+            return ""
+
+        # Ensure we have a string to work with
         if not isinstance(value, str):
-            if value is None:
-                return ""
-            value = str(value)
+            value = str(value)  # type: ignore
 
         # URL decode if needed
         if "%" in value:
             try:
                 value = unquote(value)
-            except:
+            except Exception:
                 pass  # Keep original if decoding fails
 
         # Strip whitespace if requested
@@ -131,7 +137,7 @@ class InputValidator:
 
         return value
 
-    def detect_sql_injection(self, value: str) -> bool:
+    def detect_sql_injection(self, value: Any) -> bool:
         """Detect potential SQL injection attempts"""
         if not isinstance(value, str):
             return False
@@ -142,7 +148,7 @@ class InputValidator:
                 return True
         return False
 
-    def detect_xss(self, value: str) -> bool:
+    def detect_xss(self, value: Any) -> bool:
         """Detect potential XSS attempts"""
         if not isinstance(value, str):
             return False
@@ -171,18 +177,18 @@ class InputValidator:
             return ""
 
         if not isinstance(query, str):
-            raise ValidationError(f"Search query must be a string", field_name, "INVALID_TYPE")
+            raise ValidationError("Search query must be a string", field_name, "INVALID_TYPE")
 
         # Check for security threats
         if self.detect_sql_injection(query):
-            raise ValidationError(f"Invalid characters detected in search query", field_name, "SECURITY_THREAT")
+            raise ValidationError("Invalid characters detected in search query", field_name, "SECURITY_THREAT")
 
         if self.detect_xss(query):
-            raise ValidationError(f"Invalid characters detected in search query", field_name, "SECURITY_THREAT")
+            raise ValidationError("Invalid characters detected in search query", field_name, "SECURITY_THREAT")
 
         # Additional validation for search queries
         if len(query) > 500:
-            raise ValidationError(f"Search query too long (max 500 characters)", field_name, "TOO_LONG")
+            raise ValidationError("Search query too long (max 500 characters)", field_name, "TOO_LONG")
 
         # Sanitize the query
         sanitized = self.sanitize_string(query, max_length=500)
@@ -190,7 +196,7 @@ class InputValidator:
         # Check for excessive special characters (potential attack)
         special_char_count = sum(1 for c in sanitized if not c.isalnum() and c not in " -_.")
         if special_char_count > len(sanitized) * 0.3:  # More than 30% special chars
-            raise ValidationError(f"Search query contains too many special characters", field_name, "INVALID_FORMAT")
+            raise ValidationError("Search query contains too many special characters", field_name, "INVALID_FORMAT")
 
         return sanitized
 
@@ -209,17 +215,17 @@ class InputValidator:
             ValidationError: If file ID is invalid
         """
         if not file_id:
-            raise ValidationError(f"File ID is required", field_name, "REQUIRED")
+            raise ValidationError("File ID is required", field_name, "REQUIRED")
 
         if not isinstance(file_id, str):
-            raise ValidationError(f"File ID must be a string", field_name, "INVALID_TYPE")
+            raise ValidationError("File ID must be a string", field_name, "INVALID_TYPE")
 
         # Sanitize first
         sanitized = self.sanitize_string(file_id.strip())
 
         # Check if it's a valid UUID
         if not self.UUID_PATTERN.match(sanitized):
-            raise ValidationError(f"Invalid file ID format", field_name, "INVALID_FORMAT")
+            raise ValidationError("Invalid file ID format", field_name, "INVALID_FORMAT")
 
         return sanitized
 
@@ -347,7 +353,7 @@ class InputValidator:
 
         return validated
 
-    def validate_boolean_param(self, value: Union[str, bool], field_name: str, default: bool = False) -> bool:
+    def validate_boolean_param(self, value: Optional[Union[str, bool]], field_name: str, default: bool = False) -> bool:
         """
         Validate boolean parameters
 
@@ -394,16 +400,16 @@ class InputValidator:
         """
         if not email:
             if required:
-                raise ValidationError(f"Email is required", field_name, "REQUIRED")
+                raise ValidationError("Email is required", field_name, "REQUIRED")
             return None
 
         if not isinstance(email, str):
-            raise ValidationError(f"Email must be a string", field_name, "INVALID_TYPE")
+            raise ValidationError("Email must be a string", field_name, "INVALID_TYPE")
 
         sanitized = self.sanitize_string(email, max_length=254).lower()
 
         if not self.EMAIL_PATTERN.match(sanitized):
-            raise ValidationError(f"Invalid email format", field_name, "INVALID_FORMAT")
+            raise ValidationError("Invalid email format", field_name, "INVALID_FORMAT")
 
         return sanitized
 
@@ -424,18 +430,95 @@ class InputValidator:
         """
         if not phone:
             if required:
-                raise ValidationError(f"Phone number is required", field_name, "REQUIRED")
+                raise ValidationError("Phone number is required", field_name, "REQUIRED")
             return None
 
         if not isinstance(phone, str):
-            raise ValidationError(f"Phone number must be a string", field_name, "INVALID_TYPE")
+            raise ValidationError("Phone number must be a string", field_name, "INVALID_TYPE")
 
         sanitized = self.sanitize_string(phone, max_length=20)
 
         if not self.PHONE_PATTERN.match(sanitized):
-            raise ValidationError(f"Invalid phone number format", field_name, "INVALID_FORMAT")
+            raise ValidationError("Invalid phone number format", field_name, "INVALID_FORMAT")
 
         return sanitized
+
+    def _validate_string_field(self, value: Any, field: str, max_length: Optional[int] = None) -> str:
+        """Validate and sanitize a string field."""
+        if not isinstance(value, str):
+            raise ValidationError(f"{field} must be a string", field, "INVALID_TYPE")
+        return self.sanitize_string(value, max_length=max_length)
+
+    def _validate_email_field(self, value: Any, field: str) -> str:
+        """Validate an email field."""
+        email_result = self.validate_email(value, field, True)
+        if email_result is None:
+            raise ValidationError(f"{field} validation failed", field, "VALIDATION_ERROR")
+        return email_result
+
+    def _validate_phone_field(self, value: Any, field: str) -> str:
+        """Validate a phone field."""
+        phone_result = self.validate_phone(value, field, True)
+        if phone_result is None:
+            raise ValidationError(f"{field} validation failed", field, "VALIDATION_ERROR")
+        return phone_result
+
+    def _validate_uuid_field(self, value: Any, field: str) -> str:
+        """Validate a UUID field."""
+        return self.validate_file_id(value, field)
+
+    def _validate_integer_field(self, value: Any, field: str) -> int:
+        """Validate an integer field."""
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            raise ValidationError(f"{field} must be an integer", field, "INVALID_TYPE")
+
+    def _validate_float_field(self, value: Any, field: str) -> float:
+        """Validate a float field."""
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            raise ValidationError(f"{field} must be a number", field, "INVALID_TYPE")
+
+    def _validate_boolean_field(self, value: Any, field: str) -> bool:
+        """Validate a boolean field."""
+        return self.validate_boolean_param(value, field)
+
+    def _validate_field_by_type(self, value: Any, field: str, field_type: str, max_length: Optional[int] = None) -> Any:
+        """Validate a field based on its type."""
+        if field_type == "string":
+            return self._validate_string_field(value, field, max_length)
+        elif field_type == "email":
+            return self._validate_email_field(value, field)
+        elif field_type == "phone":
+            return self._validate_phone_field(value, field)
+        elif field_type == "uuid":
+            return self._validate_uuid_field(value, field)
+        elif field_type == "integer":
+            return self._validate_integer_field(value, field)
+        elif field_type == "float":
+            return self._validate_float_field(value, field)
+        elif field_type == "boolean":
+            return self._validate_boolean_field(value, field)
+        else:
+            # Default string handling
+            return self.sanitize_string(str(value), max_length=max_length)
+
+    def _check_required_field(self, value: Any, field: str, required: bool) -> bool:
+        """Check if a required field is present and valid."""
+        if required and (value is None or value == ""):
+            raise ValidationError(f"{field} is required", field, "REQUIRED")
+        return value is None or value == ""
+
+    def _check_allowed_values(self, value: Any, field: str, allowed_values: Optional[List[str]]) -> None:
+        """Check if field value is in allowed values."""
+        if allowed_values and value not in allowed_values:
+            raise ValidationError(
+                f"Invalid {field} value. Allowed values: {', '.join(map(str, allowed_values))}",
+                field,
+                "INVALID_VALUE",
+            )
 
     def validate_request_data(self, data: Dict[str, Any], schema: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
         """
@@ -460,56 +543,16 @@ class InputValidator:
             max_length = rules.get("max_length")
             allowed_values = rules.get("allowed_values")
 
-            # Check if required
-            if required and (value is None or value == ""):
-                raise ValidationError(f"{field} is required", field, "REQUIRED")
-
-            # Skip validation if value is None/empty and not required
-            if value is None or value == "":
+            # Check if required and handle empty values
+            if self._check_required_field(value, field, required):
                 validated[field] = None
                 continue
 
-            # Type-specific validation
-            if field_type == "string":
-                if not isinstance(value, str):
-                    raise ValidationError(f"{field} must be a string", field, "INVALID_TYPE")
-                validated[field] = self.sanitize_string(value, max_length=max_length)
-            elif field_type == "email":
-                email_result = self.validate_email(value, field, True)
-                if email_result is None:
-                    raise ValidationError(f"{field} validation failed", field, "VALIDATION_ERROR")
-                validated[field] = email_result
-            elif field_type == "phone":
-                phone_result = self.validate_phone(value, field, True)
-                if phone_result is None:
-                    raise ValidationError(f"{field} validation failed", field, "VALIDATION_ERROR")
-                validated[field] = phone_result
-            elif field_type == "uuid":
-                validated[field] = self.validate_file_id(value, field)
-            elif field_type == "integer":
-                try:
-                    validated[field] = int(value)
-                except (ValueError, TypeError):
-                    raise ValidationError(f"{field} must be an integer", field, "INVALID_TYPE")
-            elif field_type == "float":
-                try:
-                    validated[field] = float(value)
-                except (ValueError, TypeError):
-                    raise ValidationError(f"{field} must be a number", field, "INVALID_TYPE")
-            elif field_type == "boolean":
-                bool_result: bool = self.validate_boolean_param(value, field)
-                validated[field] = bool_result
-            else:
-                # Default string handling
-                validated[field] = self.sanitize_string(str(value), max_length=max_length)
+            # Validate field by type
+            validated[field] = self._validate_field_by_type(value, field, field_type, max_length)
 
             # Check allowed values
-            if allowed_values and validated[field] not in allowed_values:
-                raise ValidationError(
-                    f"Invalid {field} value. Allowed values: {', '.join(map(str, allowed_values))}",
-                    field,
-                    "INVALID_VALUE",
-                )
+            self._check_allowed_values(validated[field], field, allowed_values)
 
         return validated
 
@@ -588,7 +631,7 @@ def validate_search_params():
         "storage_status": {"type": "string", "allowed_values": STORAGE_STATUSES},
     }
 
-    return validate_api_request(search_rules)
+    return validate_api_request(cast(Optional[Dict[str, Dict[str, Any]]], search_rules))
 
 
 def validate_file_id_param():

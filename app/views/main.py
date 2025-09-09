@@ -9,7 +9,7 @@ import hashlib
 import random
 import uuid
 from datetime import datetime, timedelta
-from typing import Any, Dict
+from typing import Any, Dict, List, cast
 
 from flask import Blueprint, current_app, render_template, request, session, url_for
 
@@ -166,6 +166,114 @@ def index():
     return dashboard()
 
 
+def _format_relative_time(timestamp: datetime) -> str:
+    """Format timestamp as relative time string."""
+    now = datetime.now()
+    diff = now - timestamp
+    total_seconds = int(diff.total_seconds())
+
+    if total_seconds < 60:
+        return "Just now"
+    elif total_seconds < 3600:
+        return f"{total_seconds // 60}m ago"
+    elif total_seconds < 86400:
+        return f"{total_seconds // 3600}h ago"
+    elif total_seconds < 604800:
+        return f"{total_seconds // 86400}d ago"
+    else:
+        return timestamp.strftime("%Y-%m-%d")
+
+
+def _process_recent_accesses(recent_accesses: List[Dict[str, Any]]) -> None:
+    """Process recent accesses for template rendering."""
+    for access in recent_accesses:
+        if "access_timestamp" in access and access["access_timestamp"]:
+            timestamp = access["access_timestamp"]
+            access["access_timestamp"] = timestamp.strftime("%Y-%m-%d %H:%M")
+            access["relative_time"] = _format_relative_time(timestamp)
+
+
+def _process_search_data(searches: List[Dict[str, Any]], date_field: str) -> None:
+    """Process search data for template rendering."""
+    for search in searches:
+        if date_field in search and search[date_field]:
+            search[date_field] = search[date_field].strftime("%Y-%m-%d %H:%M")
+
+
+def _get_recent_files(db_manager) -> List:
+    """Get and process recent files for dashboard."""
+    all_files = db_manager.search_files()
+    recent_files_sorted = sorted(all_files, key=lambda x: x.get("last_accessed") or datetime.min, reverse=True)[:10]
+
+    # Convert dictionaries to namespace objects for template dot notation
+    class FileNamespace:
+        def __init__(self, **kwargs):
+            for key, value in kwargs.items():
+                setattr(self, key, value)
+
+    return [FileNamespace(**file) for file in recent_files_sorted]
+
+
+def _log_dashboard_metrics(start_time, stats: Dict[str, Any]) -> None:
+    """Log dashboard performance and business metrics."""
+    duration = (datetime.utcnow() - start_time).total_seconds() * 1000
+    log_performance_metric("dashboard_load_time", duration)
+    log_business_event(
+        "dashboard_viewed",
+        total_clients=stats.get("total_clients", 0),
+        total_cases=stats.get("total_cases", 0),
+        total_files=stats.get("total_files", 0),
+    )
+
+
+def _create_dashboard_context(
+    stats: Dict[str, Any],
+    recent_files: List,
+    recent_accesses: List[Dict[str, Any]],
+    popular_searches: List[Dict[str, Any]],
+    recent_searches: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Create template context for dashboard."""
+    return {
+        "total_clients": stats.get("total_clients", 0),
+        "total_cases": stats.get("total_cases", 0),
+        "total_files": stats.get("total_files", 0),
+        "active_cases": stats.get("active_cases", 0),
+        "active_clients": stats.get("active_clients", 0),
+        "active_files": stats.get("active_files", 0),
+        "total_paid": float(stats.get("total_paid", 0) or 0),
+        "total_pending": float(stats.get("total_pending", 0) or 0),
+        "total_overdue": float(stats.get("total_overdue", 0) or 0),
+        "recent_files": recent_files,
+        "recent_accesses": recent_accesses,
+        "popular_searches": popular_searches,
+        "recent_searches": recent_searches,
+        "get_client_name": get_client_name,
+        "get_case_type": get_case_type,
+    }
+
+
+def _create_error_dashboard_context() -> Dict[str, Any]:
+    """Create error context for dashboard."""
+    return {
+        "total_clients": 0,
+        "total_cases": 0,
+        "total_files": 0,
+        "active_cases": 0,
+        "active_clients": 0,
+        "active_files": 0,
+        "total_paid": 0.0,
+        "total_pending": 0.0,
+        "total_overdue": 0.0,
+        "recent_files": [],
+        "recent_accesses": [],
+        "popular_searches": [],
+        "recent_searches": [],
+        "get_client_name": get_client_name,
+        "get_case_type": get_case_type,
+    }
+
+
 @main_bp.route("/dashboard")
 def dashboard():
     """Main dashboard with statistics and recent activity"""
@@ -174,108 +282,115 @@ def dashboard():
     db_manager = get_db_manager()
 
     try:
-        # Get dashboard statistics
+        # Get dashboard data
         stats = db_manager.get_dashboard_stats()
-
-        # Get recent file accesses
         recent_accesses = db_manager.get_recent_file_accesses(limit=5)
-
-        # Get popular searches
         popular_searches = db_manager.get_popular_searches(limit=5)
-
-        # Get recent searches
         recent_searches = db_manager.get_recent_searches(limit=5)
 
-        # Convert datetime objects to strings for template rendering and add relative time
-        for access in recent_accesses:
-            if "access_timestamp" in access and access["access_timestamp"]:
-                timestamp = access["access_timestamp"]
-                access["access_timestamp"] = timestamp.strftime("%Y-%m-%d %H:%M")
-                # Add relative time formatting
-                now = datetime.now()
-                diff = now - timestamp
-                total_seconds = int(diff.total_seconds())
+        # Process data for template rendering
+        _process_recent_accesses(recent_accesses)
+        _process_search_data(recent_searches, "latest_date")
+        _process_search_data(popular_searches, "last_searched")
 
-                if total_seconds < 60:
-                    access["relative_time"] = "Just now"
-                elif total_seconds < 3600:
-                    access["relative_time"] = f"{total_seconds // 60}m ago"
-                elif total_seconds < 86400:
-                    access["relative_time"] = f"{total_seconds // 3600}h ago"
-                elif total_seconds < 604800:
-                    access["relative_time"] = f"{total_seconds // 86400}d ago"
-                else:
-                    access["relative_time"] = timestamp.strftime("%Y-%m-%d")
+        recent_files = _get_recent_files(db_manager)
 
-        for search in recent_searches:
-            if "latest_date" in search and search["latest_date"]:
-                search["latest_date"] = search["latest_date"].strftime("%Y-%m-%d %H:%M")
+        # Log metrics and create response
+        _log_dashboard_metrics(start_time, stats)
 
-        for search in popular_searches:
-            if "last_searched" in search and search["last_searched"]:
-                search["last_searched"] = search["last_searched"].strftime("%Y-%m-%d %H:%M")
-
-        # Get recent files for dashboard
-        all_files = db_manager.search_files()
-        recent_files_sorted = sorted(all_files, key=lambda x: x.get("last_accessed") or datetime.min, reverse=True)[:10]
-
-        # Convert dictionaries to namespace objects for template dot notation
-        class FileNamespace:
-            def __init__(self, **kwargs):
-                for key, value in kwargs.items():
-                    setattr(self, key, value)
-
-        recent_files = [FileNamespace(**file) for file in recent_files_sorted]
-
-        # Log successful dashboard load
-        duration = (datetime.utcnow() - start_time).total_seconds() * 1000
-        log_performance_metric("dashboard_load_time", duration)
-        log_business_event(
-            "dashboard_viewed",
-            total_clients=stats.get("total_clients", 0),
-            total_cases=stats.get("total_cases", 0),
-            total_files=stats.get("total_files", 0),
-        )
-
-        return render_template(
-            "dashboard.html",
-            total_clients=stats.get("total_clients", 0),
-            total_cases=stats.get("total_cases", 0),
-            total_files=stats.get("total_files", 0),
-            active_cases=stats.get("active_cases", 0),
-            active_clients=stats.get("active_clients", 0),
-            active_files=stats.get("active_files", 0),
-            total_paid=float(stats.get("total_paid", 0) or 0),
-            total_pending=float(stats.get("total_pending", 0) or 0),
-            total_overdue=float(stats.get("total_overdue", 0) or 0),
-            recent_files=recent_files,
-            recent_accesses=recent_accesses,
-            popular_searches=popular_searches,
-            recent_searches=recent_searches,
-            get_client_name=get_client_name,
-            get_case_type=get_case_type,
-        )
+        context = _create_dashboard_context(stats, recent_files, recent_accesses, popular_searches, recent_searches)
+        return render_template("dashboard.html", **context)
     except Exception as e:
         logger.error(
             "Dashboard error",
             extra={"event": "dashboard_error", "error": str(e), "error_type": type(e).__name__},
             exc_info=True,
         )
-        return render_template(
-            "dashboard.html",
-            total_clients=0,
-            total_cases=0,
-            total_files=0,
-            active_cases=0,
-            active_clients=0,
-            active_files=0,
-            total_paid=0.0,
-            total_pending=0.0,
-            total_overdue=0.0,
-            recent_accesses=[],
-            popular_searches=[],
-            recent_searches=[],
+        context = _create_error_dashboard_context()
+        return render_template("dashboard.html", **context)
+
+
+def _extract_search_filters(request_args) -> Dict[str, str]:
+    """Extract search filters from request arguments."""
+    return {
+        "case_type": request_args.get("case_type", ""),
+        "file_type": request_args.get("file_type", ""),
+        "confidentiality": request_args.get("confidentiality", ""),
+        "warehouse": request_args.get("warehouse", ""),
+        "storage_status": request_args.get("storage_status", ""),
+    }
+
+
+def _build_search_filters(filter_params: Dict[str, str]) -> Dict[str, str]:
+    """Build database filters from filter parameters."""
+    filters = {}
+    if filter_params["case_type"]:
+        filters["case_type"] = filter_params["case_type"]
+    if filter_params["file_type"]:
+        filters["file_type"] = filter_params["file_type"]
+    if filter_params["confidentiality"]:
+        filters["confidentiality_level"] = filter_params["confidentiality"]
+    if filter_params["warehouse"]:
+        filters["warehouse_location"] = filter_params["warehouse"]
+    if filter_params["storage_status"]:
+        filters["storage_status"] = filter_params["storage_status"]
+    return filters
+
+
+def _perform_search_with_analytics(db_manager, query: str, filters: Dict[str, str]) -> List:
+    """Perform search and track analytics."""
+    search_results = db_manager.search_files(query, filters, limit=200)
+
+    # Convert dictionaries to namespace objects for template dot notation
+    class FileNamespace:
+        def __init__(self, **kwargs):
+            for key, value in kwargs.items():
+                setattr(self, key, value)
+
+    results = [FileNamespace(**file) for file in search_results]
+
+    # Track search analytics
+    if query:
+        session_id = session.get("session_id", "anonymous")
+        db_manager.add_recent_search(query, session_id)
+        db_manager.update_popular_search(query)
+
+        # Log search event
+        log_business_event(
+            "search_performed", query=query, results_count=len(results), filters=filters, session_id=session_id
         )
+
+    return results
+
+
+def _get_filter_options_safe(db_manager: Any, logger: Any) -> Dict[str, List]:
+    """Get filter options with error handling."""
+    try:
+        return cast(Dict[str, List], db_manager.get_filter_options())
+    except Exception as e:
+        logger.error(
+            "Filter options error",
+            extra={"event": "filter_options_error", "error": str(e), "error_type": type(e).__name__},
+            exc_info=True,
+        )
+        return {
+            "case_types": [],
+            "file_types": [],
+            "confidentiality_levels": [],
+            "warehouse_locations": [],
+            "storage_statuses": [],
+        }
+
+
+def _create_template_filters(filter_params: Dict[str, str]) -> Dict[str, str]:
+    """Create filters object for template rendering."""
+    return {
+        "case_type": filter_params["case_type"],
+        "file_type": filter_params["file_type"],
+        "confidentiality_level": filter_params["confidentiality"],
+        "warehouse_location": filter_params["warehouse"],
+        "storage_status": filter_params["storage_status"],
+    }
 
 
 @main_bp.route("/search")
@@ -286,49 +401,13 @@ def search():
     db_manager = get_db_manager()
 
     query = request.args.get("q", "").strip()
-    case_type_filter = request.args.get("case_type", "")
-    file_type_filter = request.args.get("file_type", "")
-    confidentiality_filter = request.args.get("confidentiality", "")
-    warehouse_filter = request.args.get("warehouse", "")
-    storage_status_filter = request.args.get("storage_status", "")
-
-    # Build filters dictionary
-    filters = {}
-    if case_type_filter:
-        filters["case_type"] = case_type_filter
-    if file_type_filter:
-        filters["file_type"] = file_type_filter
-    if confidentiality_filter:
-        filters["confidentiality_level"] = confidentiality_filter
-    if warehouse_filter:
-        filters["warehouse_location"] = warehouse_filter
-    if storage_status_filter:
-        filters["storage_status"] = storage_status_filter
+    filter_params = _extract_search_filters(request.args)
+    filters = _build_search_filters(filter_params)
 
     results = []
     if query or filters:
         try:
-            search_results = db_manager.search_files(query, filters, limit=200)
-
-            # Convert dictionaries to namespace objects for template dot notation
-            class FileNamespace:
-                def __init__(self, **kwargs):
-                    for key, value in kwargs.items():
-                        setattr(self, key, value)
-
-            results = [FileNamespace(**file) for file in search_results]
-
-            # Track search analytics
-            if query:
-                session_id = session.get("session_id", "anonymous")
-                db_manager.add_recent_search(query, session_id)
-                db_manager.update_popular_search(query)
-
-                # Log search event
-                log_business_event(
-                    "search_performed", query=query, results_count=len(results), filters=filters, session_id=session_id
-                )
-
+            results = _perform_search_with_analytics(db_manager, query, filters)
         except Exception as e:
             logger.error(
                 "Search error",
@@ -343,31 +422,9 @@ def search():
             )
             results = []
 
-    # Get filter options
-    try:
-        filter_options = db_manager.get_filter_options()
-    except Exception as e:
-        logger.error(
-            "Filter options error",
-            extra={"event": "filter_options_error", "error": str(e), "error_type": type(e).__name__},
-            exc_info=True,
-        )
-        filter_options = {
-            "case_types": [],
-            "file_types": [],
-            "confidentiality_levels": [],
-            "warehouse_locations": [],
-            "storage_statuses": [],
-        }
-
-    # Create filters object for template
-    template_filters = {
-        "case_type": case_type_filter,
-        "file_type": file_type_filter,
-        "confidentiality_level": confidentiality_filter,
-        "warehouse_location": warehouse_filter,
-        "storage_status": storage_status_filter,
-    }
+    # Get filter options and create template context
+    filter_options = _get_filter_options_safe(db_manager, logger)
+    template_filters = _create_template_filters(filter_params)
 
     # Log search performance
     duration = (datetime.utcnow() - start_time).total_seconds() * 1000
@@ -378,11 +435,11 @@ def search():
         results=results,
         query=query,
         filters=template_filters,
-        case_type_filter=case_type_filter,
-        file_type_filter=file_type_filter,
-        confidentiality_filter=confidentiality_filter,
-        warehouse_filter=warehouse_filter,
-        storage_status_filter=storage_status_filter,
+        case_type_filter=filter_params["case_type"],
+        file_type_filter=filter_params["file_type"],
+        confidentiality_filter=filter_params["confidentiality"],
+        warehouse_filter=filter_params["warehouse"],
+        storage_status_filter=filter_params["storage_status"],
         case_types=filter_options.get("case_types", []),
         file_types=filter_options.get("file_types", []),
         confidentiality_levels=filter_options.get("confidentiality_levels", []),
@@ -680,7 +737,7 @@ def health_check():
 
     try:
         # Test database connection
-        stats = db_manager.get_dashboard_stats()
+        db_manager.get_dashboard_stats()
         return {"status": "healthy", "database": "connected", "timestamp": datetime.now().isoformat()}
     except Exception as e:
         return {

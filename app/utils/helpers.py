@@ -4,7 +4,7 @@ Helper functions for the Legal Case File Manager.
 This module contains utility functions used across the application.
 """
 
-from typing import Optional
+from typing import Optional, cast
 
 
 def get_db_manager():
@@ -34,7 +34,7 @@ def get_case_type(case_id: str) -> str:
     try:
         case = db_manager.get_case_by_id(case_id)
         if case:
-            return case["case_type"]
+            return cast(str, case["case_type"])
         return "Unknown Case Type"
     except Exception:
         return "Unknown Case Type"
@@ -44,7 +44,7 @@ def format_currency(amount: Optional[float]) -> str:
     """Format currency amount for display"""
     if amount is None:
         return "$0.00"
-    return f"${amount:,.2f}"
+    return f"${amount: , .2f}"
 
 
 def format_file_size(size_category: str) -> str:

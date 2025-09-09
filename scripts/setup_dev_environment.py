@@ -133,7 +133,7 @@ def main():
         print("   2. Open browser to: http://localhost:5000")
         print("   3. Explore the dashboard and search functionality")
         print("\nWHAT'S AVAILABLE:")
-        print(f"   - {args.client_count} clients with realistic data")
+        print(f"- {args.client_count} clients with realistic data")
         print("   - Associated cases, files, and payments")
         print("   - Full-text search capabilities")
         print("   - Performance-optimized database")

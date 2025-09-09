@@ -9,7 +9,7 @@ import zipfile
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 import openai
 from flask import Blueprint, jsonify, render_template, request, send_file
@@ -246,7 +246,7 @@ class TerraformGenerator:
 
     def analyze_database_schema(self, db_type: str, tables: List[str]) -> Dict[str, Any]:
         """AI-powered schema analysis for Terraform generation"""
-        analysis = {
+        analysis: Dict[str, Any] = {
             "field_mappings": {},
             "transformation_rules": [],
             "data_quality_issues": [],
@@ -277,7 +277,9 @@ class TerraformGenerator:
         """Generate infrastructure recommendations for cloud deployment"""
         recommendations = []
 
-        total_rows = sum(t["rows"] for t in self.sample_database_tables.get(db_type, []) if t["name"] in tables)
+        total_rows = sum(
+            cast(int, t["rows"]) for t in self.sample_database_tables.get(db_type, []) if t["name"] in tables
+        )
 
         if total_rows > 50000:
             recommendations.append(
@@ -1301,17 +1303,16 @@ source_db_password = "your_secure_password"
 
         # Calculate intelligent sizing based on actual data
         total_rows = sum(
-            t.get("rows", 0)
+            cast(int, t.get("rows", 0))
             for t in self.sample_database_tables.get(job.source_db_type, [])
             if t["name"] in job.target_tables
         )
-        glue_workers = max(2, min(10, total_rows // 50000))  # Scale workers based on data size
 
         # AI-generated main.tf with intelligent resource sizing
         main_tf = f"""# AI-Generated AWS Data Pipeline for Legal File Management System
 # Generated with GenAI on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 # Source: {job.source_db_type.upper()} | Tables: {", ".join(job.target_tables)}
-# Intelligent Sizing: {total_rows:,} total rows detected
+# Intelligent Sizing: {total_rows:, } total rows detected
 
 terraform {{
   required_version = ">= 1.0"
@@ -1426,9 +1427,16 @@ resource "aws_glue_catalog_database" "legal_database" {{
             table_lower = table_name.lower()
 
             # AI determines optimal DPU allocation based on table size and transformations
-            table_rows = next(
-                (t["rows"] for t in self.sample_database_tables.get(job.source_db_type, []) if t["name"] == table_name),
-                10000,
+            table_rows = cast(
+                int,
+                next(
+                    (
+                        t["rows"]
+                        for t in self.sample_database_tables.get(job.source_db_type, [])
+                        if t["name"] == table_name
+                    ),
+                    10000,
+                ),
             )
             transformation_count = len(table_info_item.get("transformations", []))
             dpu_count = max(2, min(10, (table_rows // 25000) + transformation_count))
@@ -1586,7 +1594,7 @@ output "ai_generated_insights" {{
 
         # Calculate intelligent sizing
         total_rows = sum(
-            t.get("rows", 0)
+            cast(int, t.get("rows", 0))
             for t in self.sample_database_tables.get(job.source_db_type, [])
             if t["name"] in job.target_tables
         )
@@ -1595,7 +1603,7 @@ output "ai_generated_insights" {{
         main_tf = f"""# AI-Generated Azure Data Pipeline for Legal File Management System
 # Generated with GenAI on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 # Source: {job.source_db_type.upper()} | Tables: {", ".join(job.target_tables)}
-# Intelligent Sizing: {total_rows:,} total rows detected
+# Intelligent Sizing: {total_rows:, } total rows detected
 
 terraform {{
   required_version = ">= 1.0"
@@ -2260,7 +2268,7 @@ mypy==1.5.1
 
             # Calculate detailed cost based on actual data and cloud platform
             total_rows = sum(
-                t.get("rows", 0)
+                cast(int, t.get("rows", 0))
                 for t in self.sample_database_tables.get(job.source_db_type, [])
                 if t["name"] in job.target_tables
             )
@@ -2811,7 +2819,7 @@ terraform apply
                 max_tokens=4000,
                 temperature=0.1,
             )
-            return response.choices[0].message.content
+            return cast(str, response.choices[0].message.content)
         except Exception as e:
             logging.error(f"OpenAI API call failed for {task_description}: {e}")
             raise e
@@ -2850,7 +2858,7 @@ terraform apply
 
             # Generate data validator
             validator_prompt = self._create_data_validator_prompt(context, field_mappings, cloud_type)
-            validator_script = self._call_openai(validator_prompt, f"Generate data validation script")
+            validator_script = self._call_openai(validator_prompt, "Generate data validation script")
             etl_scripts["data_validator.py"] = validator_script
 
             # Generate table-specific ETL scripts for each selected table
@@ -3137,7 +3145,7 @@ Generate production-ready configuration management code."""
 
         # Calculate data characteristics
         total_rows = sum(
-            t.get("rows", 0)
+            cast(int, t.get("rows", 0))
             for t in self.sample_database_tables.get(job.source_db_type, [])
             if t["name"] in job.target_tables
         )
@@ -3333,7 +3341,7 @@ Generate production-ready configuration management code."""
         """Generate detailed cost breakdown by service category"""
 
         total_rows = sum(
-            t.get("rows", 0)
+            cast(int, t.get("rows", 0))
             for t in self.sample_database_tables.get(job.source_db_type, [])
             if t["name"] in job.target_tables
         )
@@ -3499,9 +3507,9 @@ Generate production-ready configuration management code."""
             jobs.append(self._convert_db_job_to_dict(job))
 
         # Also include any in-memory jobs that might not be in database yet
-        for job_id, job in self.terraform_jobs.items():
+        for job_id, job in self.terraform_jobs.items():  # type: ignore
             # Skip if already in database
-            if any(db_job.job_id == job_id for db_job in db_jobs):
+            if any(getattr(db_job, "job_id", None) == job_id for db_job in db_jobs):
                 continue
             # Calculate field mappings summary for display (same logic as get_terraform_status)
             mappings_summary = None
@@ -3550,7 +3558,6 @@ Generate production-ready configuration management code."""
                         "required_fields": 0,
                         "transformations": 0,
                         "has_mappings": True,
-                        "error": "Failed to calculate detailed summary",
                     }
             else:
                 mappings_summary = {"has_mappings": False}
@@ -4168,7 +4175,7 @@ def get_job_field_mappings(job_id: str):
         job = db_job
     elif job_id in terraform_generator.terraform_jobs:
         # Fallback to in-memory job
-        job = terraform_generator.terraform_jobs[job_id]
+        job = terraform_generator.terraform_jobs[job_id]  # type: ignore
     else:
         return jsonify({"error": "Job not found"}), 404
 
@@ -4177,14 +4184,16 @@ def get_job_field_mappings(job_id: str):
 
     try:
         # Prepare the field mappings in the same format as the regular field mappings API
-        result = {
+        result: Dict[str, Any] = {
             "job_id": job_id,
             "database_type": job.source_db_type,
             "target_cloud": job.target_cloud,
             "selected_tables": job.target_tables,
             "field_mappings": {},
             "job_info": {
-                "created_at": job.created_at.isoformat() if hasattr(job.created_at, "isoformat") else job.created_at,
+                "created_at": job.created_at.isoformat()
+                if job.created_at and hasattr(job.created_at, "isoformat")
+                else str(job.created_at),
                 "status": job.status,
                 "source_connection": job.source_connection,
                 "progress": job.progress,
@@ -4203,7 +4212,7 @@ def get_job_field_mappings(job_id: str):
         transformations = 0
         foreign_keys = 0
 
-        for table in job.target_tables:
+        for table in list(job.target_tables):
             if table in job.field_mappings:
                 table_mapping = job.field_mappings[table]
                 result["field_mappings"][table] = {

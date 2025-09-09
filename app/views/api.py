@@ -5,7 +5,7 @@ This module contains all JSON API endpoints for the application.
 """
 
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Dict, List, Tuple
 
 from flask import Blueprint, jsonify, request, session
 
@@ -30,6 +30,104 @@ def get_db_manager():
     return _get_db_manager()
 
 
+def _extract_and_validate_filters(request_args) -> Dict[str, Any]:
+    """Extract and validate search filters from request arguments."""
+    raw_filters = {
+        "case_type": request_args.get("case_type", ""),
+        "file_type": request_args.get("file_type", ""),
+        "confidentiality": request_args.get("confidentiality", ""),
+        "warehouse": request_args.get("warehouse", ""),
+        "storage_status": request_args.get("storage_status", ""),
+    }
+
+    # Remove empty filters and validate
+    filters = {k: v for k, v in raw_filters.items() if v}
+    return validator.validate_filters(filters)
+
+
+def _map_filters_to_db_columns(validated_filters: Dict[str, Any]) -> Dict[str, Any]:
+    """Map filter keys to database column names."""
+    db_filters = {}
+    if "case_type" in validated_filters:
+        db_filters["case_type"] = validated_filters["case_type"]
+    if "file_type" in validated_filters:
+        db_filters["file_type"] = validated_filters["file_type"]
+    if "confidentiality" in validated_filters:
+        db_filters["confidentiality_level"] = validated_filters["confidentiality"]
+    if "warehouse" in validated_filters:
+        db_filters["warehouse_location"] = validated_filters["warehouse"]
+    if "storage_status" in validated_filters:
+        db_filters["storage_status"] = validated_filters["storage_status"]
+    return db_filters
+
+
+def _convert_datetime_objects_for_json(results: List[Dict[str, Any]]) -> None:
+    """Convert datetime objects to strings for JSON serialization."""
+    for result in results:
+        for key, value in result.items():
+            if isinstance(value, datetime):
+                result[key] = value.isoformat()
+            elif hasattr(value, "isoformat"):  # Handle date objects
+                result[key] = value.isoformat()
+
+
+def _track_search_analytics(query: str, results: List[Dict[str, Any]], db_filters: Dict[str, Any]) -> None:
+    """Track search analytics and log business events."""
+    if query:
+        db_manager = get_db_manager()
+        session_id = session.get("session_id", "anonymous")
+        db_manager.add_recent_search(query, session_id)
+        db_manager.update_popular_search(query)
+
+        # Log API search event
+        log_business_event(
+            "api_search_performed",
+            query=query,
+            results_count=len(results),
+            filters=db_filters,
+            session_id=session_id,
+        )
+
+
+def _create_search_response(results: List[Dict[str, Any]], query: str, db_filters: Dict[str, Any]) -> Dict[str, Any]:
+    """Create the JSON response for search results."""
+    return {"success": True, "results": results, "count": len(results), "query": query, "filters": db_filters}
+
+
+def _create_validation_error_response(e: ValidationError) -> Tuple[Dict[str, Any], int]:
+    """Create error response for validation errors."""
+    log_security_event(
+        "validation_error",
+        {"endpoint": "/api/search", "error": e.message, "field": e.field, "query_params": dict(request.args)},
+    )
+    return (
+        {
+            "success": False,
+            "error": "Invalid input",
+            "details": {"message": e.message, "field": e.field, "code": e.code},
+            "results": [],
+            "count": 0,
+        },
+        400,
+    )
+
+
+def _create_server_error_response(e: Exception, logger) -> Tuple[Dict[str, Any], int]:
+    """Create error response for server errors."""
+    logger.error(
+        "API search error",
+        extra={
+            "event": "api_search_error",
+            "query": request.args.get("q", ""),
+            "filters": request.args.to_dict(),
+            "error": str(e),
+            "error_type": type(e).__name__,
+        },
+        exc_info=True,
+    )
+    return {"success": False, "error": str(e), "results": [], "count": 0}, 500
+
+
 @api_bp.route("/search")
 @validate_search_params()
 @secure_headers
@@ -47,98 +145,32 @@ def search(**kwargs):
         if not query:
             query = validator.validate_search_query(request.args.get("q", "").strip())
 
-        # Validate filters
-        raw_filters = {
-            "case_type": request.args.get("case_type", ""),
-            "file_type": request.args.get("file_type", ""),
-            "confidentiality": request.args.get("confidentiality", ""),
-            "warehouse": request.args.get("warehouse", ""),
-            "storage_status": request.args.get("storage_status", ""),
-        }
-
-        # Remove empty filters and validate
-        filters = {k: v for k, v in raw_filters.items() if v}
-        validated_filters = validator.validate_filters(filters)
-
-        # Map filter keys to database column names
-        db_filters = {}
-        if "case_type" in validated_filters:
-            db_filters["case_type"] = validated_filters["case_type"]
-        if "file_type" in validated_filters:
-            db_filters["file_type"] = validated_filters["file_type"]
-        if "confidentiality" in validated_filters:
-            db_filters["confidentiality_level"] = validated_filters["confidentiality"]
-        if "warehouse" in validated_filters:
-            db_filters["warehouse_location"] = validated_filters["warehouse"]
-        if "storage_status" in validated_filters:
-            db_filters["storage_status"] = validated_filters["storage_status"]
+        # Extract and validate filters
+        validated_filters = _extract_and_validate_filters(request.args)
+        db_filters = _map_filters_to_db_columns(validated_filters)
 
         # Validate pagination
         pagination = validator.validate_pagination(limit=request.args.get("limit", 100), max_limit=1000)
 
+        # Perform search
         results = db_manager.search_files(query, db_filters, limit=pagination["limit"])
 
-        # Convert datetime objects to strings for JSON serialization
-        for result in results:
-            for key, value in result.items():
-                if isinstance(value, datetime):
-                    result[key] = value.isoformat()
-                elif hasattr(value, "isoformat"):  # Handle date objects
-                    result[key] = value.isoformat()
+        # Convert datetime objects for JSON serialization
+        _convert_datetime_objects_for_json(results)
 
-        # Track search analytics
-        if query:
-            session_id = session.get("session_id", "anonymous")
-            db_manager.add_recent_search(query, session_id)
-            db_manager.update_popular_search(query)
-
-            # Log API search event
-            log_business_event(
-                "api_search_performed",
-                query=query,
-                results_count=len(results),
-                filters=db_filters,
-                session_id=session_id,
-            )
-
-        # Log performance
+        # Track analytics and log performance
+        _track_search_analytics(query, results, db_filters)
         duration = (datetime.utcnow() - start_time).total_seconds() * 1000
         log_performance_metric("api_search_duration", duration, query=query)
 
-        return jsonify(
-            {"success": True, "results": results, "count": len(results), "query": query, "filters": db_filters}
-        )
+        return jsonify(_create_search_response(results, query, db_filters))
 
     except ValidationError as e:
-        log_security_event(
-            "validation_error",
-            {"endpoint": "/api/search", "error": e.message, "field": e.field, "query_params": dict(request.args)},
-        )
-        return (
-            jsonify(
-                {
-                    "success": False,
-                    "error": "Invalid input",
-                    "details": {"message": e.message, "field": e.field, "code": e.code},
-                    "results": [],
-                    "count": 0,
-                }
-            ),
-            400,
-        )
+        response, status_code = _create_validation_error_response(e)
+        return jsonify(response), status_code
     except Exception as e:
-        logger.error(
-            "API search error",
-            extra={
-                "event": "api_search_error",
-                "query": request.args.get("q", ""),
-                "filters": request.args.to_dict(),
-                "error": str(e),
-                "error_type": type(e).__name__,
-            },
-            exc_info=True,
-        )
-        return jsonify({"success": False, "error": str(e), "results": [], "count": 0}), 500
+        response, status_code = _create_server_error_response(e, logger)
+        return jsonify(response), status_code
 
 
 @api_bp.route("/stats")
@@ -330,7 +362,7 @@ def suggestions(**kwargs):
             ),
             400,
         )
-    except Exception as e:
+    except Exception:
         return jsonify({"suggestions": [], "intelligent": {"suggestions": []}, "query": request.args.get("q", "")})
 
 
@@ -378,7 +410,7 @@ def intelligent_suggestions(**kwargs):
             ),
             400,
         )
-    except Exception as e:
+    except Exception:
         return jsonify({"suggestions": []})
 
 

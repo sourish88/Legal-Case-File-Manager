@@ -437,4 +437,4 @@ def log_business_event(event_type: str, entity_type: Optional[str] = None, entit
         )
     except Exception:
         # Fallback to basic logging if structured logging fails
-        logging.getLogger("business").info(f"Business event: {event_type} on {entity_type}:{entity_id}")
+        logging.getLogger("business").info(f"Business event: {event_type} on {entity_type}: {entity_id}")

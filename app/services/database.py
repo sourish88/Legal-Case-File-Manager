@@ -64,7 +64,7 @@ class ConnectionPoolManager:
         self._pool = None
         self._pool_lock = threading.Lock()
         self._health_check_interval = 300  # 5 minutes
-        self._last_health_check = None
+        self._last_health_check: Optional[datetime] = None
         self._failed_connections = 0
         self._total_connections = 0
         self.logger = get_logger("database.pool")
@@ -77,7 +77,7 @@ class ConnectionPoolManager:
         try:
             with self._pool_lock:
                 if self._pool is not None:
-                    self._pool.closeall()
+                    self._pool.closeall()  # type: ignore
 
                 self._pool = psycopg2.pool.ThreadedConnectionPool(
                     minconn=self.min_connections, maxconn=self.max_connections, **self.connection_params
@@ -157,7 +157,8 @@ class ConnectionPoolManager:
                     if self._pool is None:
                         self._initialize_pool()
 
-                    conn = self._pool.getconn()
+                    assert self._pool is not None, "Pool should be initialized"
+                    conn = self._pool.getconn()  # type: ignore
                     if conn:
                         self._total_connections += 1
                         return conn
@@ -189,12 +190,12 @@ class ConnectionPoolManager:
 
         return None
 
-    def return_connection(self, conn):
+    def return_connection(self, conn: Optional[Any]):
         """Return a connection to the pool."""
         try:
             with self._pool_lock:
-                if self._pool and conn:
-                    self._pool.putconn(conn)
+                if self._pool and conn:  # type: ignore
+                    self._pool.putconn(conn)  # type: ignore
         except Exception as e:
             self.logger.error(
                 "Failed to return connection to pool",
@@ -206,7 +207,7 @@ class ConnectionPoolManager:
         try:
             with self._pool_lock:
                 if self._pool:
-                    self._pool.closeall()
+                    self._pool.closeall()  # type: ignore
                     self.logger.info("All connections closed", extra={"event": "all_connections_closed"})
         except Exception as e:
             self.logger.error(
@@ -292,11 +293,11 @@ class DatabaseConnection:
             if conn is None:
                 raise psycopg2.OperationalError("Failed to get connection from pool")
             yield conn
-        except Exception as e:
+        except Exception:
             if conn:
                 try:
                     conn.rollback()
-                except:
+                except Exception:
                     pass
             raise
         finally:

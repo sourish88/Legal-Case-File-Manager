@@ -166,7 +166,7 @@ class SecurityMiddleware:
 
     def check_request_size(self) -> bool:
         """Check if request size is within limits"""
-        max_size = current_app.config.get("MAX_CONTENT_LENGTH", 16 * 1024 * 1024)  # 16MB
+        max_size = cast(int, current_app.config.get("MAX_CONTENT_LENGTH", 16 * 1024 * 1024))  # 16MB
         content_length = request.content_length or 0
         return content_length <= max_size
 
@@ -332,7 +332,6 @@ def hash_password(password: str, salt: Optional[str] = None) -> Tuple[str, str]:
     Returns:
         Tuple of (hashed_password, salt)
     """
-    import hashlib
     import secrets
 
     if salt is None:
@@ -355,8 +354,6 @@ def verify_password(password: str, hashed_password: str, salt: str) -> bool:
     Returns:
         True if password matches, False otherwise
     """
-    import hashlib
-
     hashed = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 100000)
     return hmac.compare_digest(hashed.hex(), hashed_password)
 

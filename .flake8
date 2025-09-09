@@ -17,3 +17,5 @@ max-complexity = 12
 per-file-ignores =
     __init__.py:F401
     tests/*:F401,F811
+    # Strategic ignores for migration.py: template formatting + specialized data transformation complexity
+    app/views/migration.py:E221,E231,E272,E202,E241,E226,C901

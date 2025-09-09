@@ -15,7 +15,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(script_dir)
 sys.path.insert(0, parent_dir)
 
-from app.config.settings import Config
+from app.config.settings import Config  # noqa: E402
 
 
 class PerformanceIndexOptimizer:
@@ -55,7 +55,7 @@ class PerformanceIndexOptimizer:
             for idx in indexes:
                 if idx["tablename"] != current_table:
                     current_table = idx["tablename"]
-                    print(f"\n{current_table.upper()} table:")
+                    print(f"\n{current_table.upper()} table: ")
                 print(f"  {idx['indexname']}: {idx['indexdef']}")
 
             cursor.close()
@@ -142,7 +142,7 @@ class PerformanceIndexOptimizer:
                         print(f"[ERROR] Error creating {index_name}: {e}")
 
             conn.commit()
-            print(f"\n[SUCCESS] Performance optimization completed!")
+            print("\n[SUCCESS] Performance optimization completed!")
             print("These indexes will significantly improve search performance for client names.")
 
             cursor.close()
@@ -175,11 +175,11 @@ class PerformanceIndexOptimizer:
 
             print("\nINDEX USAGE STATISTICS:")
             print("-" * 60)
-            print(f"{'Index Name':<35} {'Tuples Read':<12} {'Tuples Fetched':<15}")
+            print(f"{'Index Name': <35} {'Tuples Read': <12} {'Tuples Fetched': <15}")
             print("-" * 60)
 
             for stat in stats:
-                print(f"{stat['indexname']:<35} {stat['idx_tup_read']:<12} {stat['idx_tup_fetch']:<15}")
+                print(f"{stat['indexname']: <35} {stat['idx_tup_read']: <12} {stat['idx_tup_fetch']: <15}")
 
             cursor.close()
             conn.close()

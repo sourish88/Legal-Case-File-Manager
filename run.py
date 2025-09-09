@@ -16,7 +16,11 @@ app = create_app(config[config_name])
 if __name__ == "__main__":
     print("Starting Legal Case File Manager with PostgreSQL backend")
     print(f"Environment: {config_name}")
-    print(f"Database: {app.config['DB_NAME']} on {app.config['DB_HOST']}:{app.config['DB_PORT']}")
-    print(f"Server: http://{app.config['APP_HOST']}:{app.config['APP_PORT']}")
+    db_host = app.config["DB_HOST"]
+    db_port = app.config["DB_PORT"]
+    print(f"Database: {app.config['DB_NAME']} on {db_host}:{db_port}")  # noqa: E231
+    app_host = app.config["APP_HOST"]
+    app_port = app.config["APP_PORT"]
+    print(f"Server: http://{app_host}:{app_port}")  # noqa: E231
 
     app.run(debug=app.config["DEBUG"], host=app.config["APP_HOST"], port=app.config["APP_PORT"])

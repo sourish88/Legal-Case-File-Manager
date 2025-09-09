@@ -164,7 +164,7 @@ class PostgreSQLDummyDataGenerator:
 
         for i in range(count):
             # Generate client ID (CLI followed by 4 digits)
-            client_id = f"CLI{i+1:04d}"
+            client_id = f"CLI{i + 1: 04d}"
 
             # Generate client data
             first_name = fake.first_name()
@@ -222,8 +222,8 @@ class PostgreSQLDummyDataGenerator:
 
             for j in range(num_cases):
                 case_count += 1
-                case_id = f"CASE{case_count:04d}"
-                reference_number = f"REF{case_count:06d}"
+                case_id = f"CASE{case_count: 04d}"
+                reference_number = f"REF{case_count: 06d}"
 
                 case_data = {
                     "case_id": case_id,
@@ -271,7 +271,7 @@ class PostgreSQLDummyDataGenerator:
 
             for k in range(num_files):
                 file_count += 1
-                file_id = f"FILE{file_count:06d}"
+                file_id = f"FILE{file_count: 06d}"
 
                 # Generate file keywords
                 keywords = [fake.word(), fake.word(), case["case_type"].lower().replace(" ", "_")]
@@ -280,7 +280,7 @@ class PostgreSQLDummyDataGenerator:
 
                 file_data = {
                     "file_id": file_id,
-                    "reference_number": f"{case['reference_number']}-{k+1:02d}",
+                    "reference_number": f"{case['reference_number']}-{k + 1: 02d}",
                     "client_id": case["client_id"],
                     "case_id": case["case_id"],
                     "file_type": random.choice(
@@ -290,8 +290,8 @@ class PostgreSQLDummyDataGenerator:
                         ["Litigation", "Corporate", "Real Estate", "Family", "Criminal"]
                     ),
                     "warehouse_location": random.choice(self.file_locations),
-                    "shelf_number": f"S{random.randint(1,50):03d}",
-                    "box_number": f"B{random.randint(1,100):03d}",
+                    "shelf_number": f"S{random.randint(1, 50): 03d}",
+                    "box_number": f"B{random.randint(1, 100): 03d}",
                     "file_size": f"{round(random.uniform(0.1, 50.0), 2)} MB",
                     "file_description": fake.sentence(nb_words=6),
                     "keywords": keywords,
@@ -336,7 +336,7 @@ class PostgreSQLDummyDataGenerator:
 
             for p in range(num_payments):
                 payment_count += 1
-                payment_id = f"PAY{payment_count:06d}"
+                payment_id = f"PAY{payment_count: 06d}"
 
                 payment_data = {
                     "payment_id": payment_id,
@@ -379,7 +379,7 @@ class PostgreSQLDummyDataGenerator:
 
             for a in range(num_accesses):
                 access_count += 1
-                access_id = f"ACC{access_count:06d}"
+                access_id = f"ACC{access_count: 06d}"
 
                 access_data = {
                     "access_id": access_id,
@@ -423,7 +423,7 @@ class PostgreSQLDummyDataGenerator:
 
             for c in range(num_comments):
                 comment_count += 1
-                comment_id = f"COM{comment_count:06d}"
+                comment_id = f"COM{comment_count: 06d}"
 
                 comment_data = {
                     "comment_id": comment_id,
@@ -473,24 +473,24 @@ class PostgreSQLDummyDataGenerator:
         print("\n" + "=" * 60)
         print("DUMMY DATA GENERATION COMPLETE!")
         print("=" * 60)
-        print(f"STATISTICS:")
-        print(f"  - Clients:          {stats['clients']:,} ({active_clients} active)")
-        print(f"  - Cases:            {stats['cases']:,} ({active_cases} active)")
-        print(f"  - Physical Files:   {stats['files']:,}")
-        print(f"  - Payments:         {stats['payments']:,}")
-        print(f"  - Access Logs:      {stats['access_logs']:,}")
-        print(f"  - Comments:         {stats['comments']:,}")
-        print(f"\nFINANCIAL:")
-        print(f"  - Total Case Value: ${total_case_value:,.2f}")
-        print(f"  - Total Payments:   ${total_payment_amount:,.2f}")
-        print(f"\nCASE TYPES:")
+        print("STATISTICS:")
+        print(f"- Clients: {stats['clients']: , } ({active_clients} active)")
+        print(f"- Cases: {stats['cases']: , } ({active_cases} active)")
+        print(f"- Physical Files: {stats['files']: , }")
+        print(f"- Payments: {stats['payments']: , }")
+        print(f"- Access Logs: {stats['access_logs']: , }")
+        print(f"- Comments: {stats['comments']: , }")
+        print("\nFINANCIAL:")
+        print(f"- Total Case Value: ${total_case_value: , .2f}")
+        print(f"- Total Payments: ${total_payment_amount: , .2f}")
+        print("\nCASE TYPES:")
         case_type_counts: Dict[str, int] = {}
         for case in cases:
             case_type = case["case_type"]
             case_type_counts[case_type] = case_type_counts.get(case_type, 0) + 1
 
         for case_type, count in sorted(case_type_counts.items()):
-            print(f"  - {case_type}: {count}")
+            print(f"- {case_type}: {count}")
 
         print("=" * 60)
 
@@ -552,11 +552,11 @@ def main():
     success = generator.run(client_count=args.count, clear_existing=args.clear)
 
     if success:
-        print(f"\n[SUCCESS] Successfully generated dummy data!")
-        print(f"[INFO] You can now run: python app_postgresql.py")
+        print("\n[SUCCESS] Successfully generated dummy data!")
+        print("[INFO] You can now run: python app_postgresql.py")
         sys.exit(0)
     else:
-        print(f"\n[ERROR] Failed to generate dummy data. Check the logs above.")
+        print("\n[ERROR] Failed to generate dummy data. Check the logs above.")
         sys.exit(1)
 
 
