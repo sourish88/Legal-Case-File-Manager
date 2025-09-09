@@ -1312,7 +1312,7 @@ source_db_password = "your_secure_password"
         main_tf = f"""# AI-Generated AWS Data Pipeline for Legal File Management System
 # Generated with GenAI on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 # Source: {job.source_db_type.upper()} | Tables: {", ".join(job.target_tables)}
-# Intelligent Sizing: {total_rows:, } total rows detected
+# Intelligent Sizing: {total_rows:,} total rows detected
 
 terraform {{
   required_version = ">= 1.0"
@@ -1603,7 +1603,7 @@ output "ai_generated_insights" {{
         main_tf = f"""# AI-Generated Azure Data Pipeline for Legal File Management System
 # Generated with GenAI on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 # Source: {job.source_db_type.upper()} | Tables: {", ".join(job.target_tables)}
-# Intelligent Sizing: {total_rows:, } total rows detected
+# Intelligent Sizing: {total_rows:,} total rows detected
 
 terraform {{
   required_version = ">= 1.0"
