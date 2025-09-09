@@ -150,6 +150,7 @@ class TerraformJob:
     created_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     terraform_config: Optional[Dict[str, Any]] = None
+    etl_scripts: Optional[Dict[str, Any]] = None
     field_mappings: Optional[Dict[str, Any]] = None
     ai_analysis: Optional[Dict[str, Any]] = None
     estimated_cost: Optional[Dict[str, Any]] = None

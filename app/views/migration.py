@@ -2387,9 +2387,18 @@ mypy==1.5.1
 
     def export_terraform_files(self, job_id: str) -> str:
         """Export Terraform files and ETL scripts as a ZIP archive"""
-        job = self.terraform_jobs.get(job_id)
-        if not job or not job.terraform_config:
-            raise ValueError(f"Job {job_id} not found or has no terraform config")
+        job: Optional[TerraformJob] = self.terraform_jobs.get(job_id)
+
+        # If job not found in memory, try to get it from database
+        if not job:
+            db_job = self.db_manager.get_terraform_job(job_id)
+            if not db_job:
+                raise ValueError(f"Job {job_id} not found")
+            # Use the database job directly since both have terraform_config
+            job = cast(TerraformJob, db_job)
+
+        if not job.terraform_config:
+            raise ValueError(f"Job {job_id} has no terraform config")
 
         # Create temporary directory and ZIP file
         temp_dir = tempfile.mkdtemp()
@@ -2401,7 +2410,7 @@ mypy==1.5.1
                 zipf.writestr(f"terraform/{filename}", content)
 
             # Add ETL scripts if available
-            if job.etl_scripts:
+            if hasattr(job, "etl_scripts") and job.etl_scripts:
                 for filename, content in job.etl_scripts.items():
                     zipf.writestr(f"etl/{filename}", content)
 
@@ -3662,6 +3671,7 @@ Generate production-ready configuration management code."""
                 if isinstance(memory_job.completed_at, str) and memory_job.completed_at
                 else None,
                 terraform_config=memory_job.terraform_config,
+                etl_scripts=memory_job.etl_scripts,
                 field_mappings=memory_job.field_mappings,
                 ai_analysis=memory_job.ai_analysis,
                 estimated_cost=memory_job.estimated_cost,
@@ -3849,12 +3859,22 @@ def get_all_terraform_jobs():
 @migration_bp.route("/api/export-terraform/<job_id>")
 def export_terraform(job_id: str):
     """Export Terraform files as ZIP"""
-    zip_path = terraform_generator.export_terraform_files(job_id)
+    try:
+        zip_path = terraform_generator.export_terraform_files(job_id)
 
-    if not zip_path:
-        return jsonify({"error": "Terraform files not found or not ready"}), 404
+        if not zip_path:
+            return jsonify({"error": "Terraform files not found or not ready"}), 404
 
-    return send_file(zip_path, as_attachment=True, download_name=f"terraform-{job_id}.zip", mimetype="application/zip")
+        return send_file(
+            zip_path, as_attachment=True, download_name=f"terraform-{job_id}.zip", mimetype="application/zip"
+        )
+
+    except ValueError as e:
+        logging.error(f"Error exporting terraform files for job {job_id}: {e}")
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        logging.error(f"Unexpected error exporting terraform files for job {job_id}: {e}")
+        return jsonify({"error": "Internal server error during export"}), 500
 
 
 @migration_bp.route("/api/cancel-terraform/<job_id>", methods=["POST"])
@@ -3882,10 +3902,15 @@ def cancel_terraform(job_id: str):
 @migration_bp.route("/api/terraform-preview/<job_id>")
 def get_terraform_preview(job_id: str):
     """Get Terraform files for preview without downloading"""
-    job = terraform_generator.terraform_jobs.get(job_id)
+    job: Optional[TerraformJob] = terraform_generator.terraform_jobs.get(job_id)
 
+    # If job not found in memory, try to get it from database
     if not job:
-        return jsonify({"error": "Terraform job not found"}), 404
+        db_job = terraform_generator.db_manager.get_terraform_job(job_id)
+        if not db_job:
+            return jsonify({"error": "Terraform job not found"}), 404
+        # Use the database job directly since both have terraform_config
+        job = cast(TerraformJob, db_job)
 
     if job.status != "completed":
         return jsonify({"error": "Terraform generation not completed yet"}), 400
@@ -3902,21 +3927,23 @@ def get_terraform_preview(job_id: str):
         all_files = {}
         if job.terraform_config:
             all_files.update(job.terraform_config)
-        if job.etl_scripts:
+        if hasattr(job, "etl_scripts") and job.etl_scripts:
             all_files.update(job.etl_scripts)
 
         return jsonify(
             {
                 "success": True,
                 "files": job.terraform_config or {},
-                "etl_scripts": job.etl_scripts or {},
+                "etl_scripts": getattr(job, "etl_scripts", {}) or {},
                 "all_files": all_files,
                 "job_id": job_id,
                 "cloud_platform": job.target_cloud,
                 "database_type": job.source_db_type,
                 "table_count": len(job.target_tables),
                 "generated_files": list(job.terraform_config.keys()) if job.terraform_config else [],
-                "etl_files": list(job.etl_scripts.keys()) if job.etl_scripts else [],
+                "etl_files": list(getattr(job, "etl_scripts", {}).keys())
+                if hasattr(job, "etl_scripts") and job.etl_scripts
+                else [],
                 "service_summary": service_summary,
                 "cost_breakdown": cost_breakdown,
             }

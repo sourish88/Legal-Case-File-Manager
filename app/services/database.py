@@ -1001,13 +1001,14 @@ class LegalFileManagerDB:
                 INSERT INTO terraform_jobs (
                     job_id, source_db_type, target_cloud, source_connection,
                     target_tables, status, progress, created_at, completed_at,
-                    terraform_config, field_mappings, ai_analysis, estimated_cost, errors
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    terraform_config, etl_scripts, field_mappings, ai_analysis, estimated_cost, errors
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (job_id) DO UPDATE SET
                     status = EXCLUDED.status,
                     progress = EXCLUDED.progress,
                     completed_at = EXCLUDED.completed_at,
                     terraform_config = EXCLUDED.terraform_config,
+                    etl_scripts = EXCLUDED.etl_scripts,
                     field_mappings = EXCLUDED.field_mappings,
                     ai_analysis = EXCLUDED.ai_analysis,
                     estimated_cost = EXCLUDED.estimated_cost,
@@ -1026,6 +1027,7 @@ class LegalFileManagerDB:
                 job.created_at,
                 job.completed_at,
                 Json(job.terraform_config) if job.terraform_config else None,
+                Json(job.etl_scripts) if job.etl_scripts else None,
                 Json(job.field_mappings) if job.field_mappings else None,
                 Json(job.ai_analysis) if job.ai_analysis else None,
                 Json(job.estimated_cost) if job.estimated_cost else None,
@@ -1054,7 +1056,7 @@ class LegalFileManagerDB:
             query = """
                 SELECT job_id, source_db_type, target_cloud, source_connection,
                        target_tables, status, progress, created_at, completed_at,
-                       terraform_config, field_mappings, ai_analysis, estimated_cost, errors
+                       terraform_config, etl_scripts, field_mappings, ai_analysis, estimated_cost, errors
                 FROM terraform_jobs
                 WHERE job_id = %s
             """
@@ -1075,6 +1077,7 @@ class LegalFileManagerDB:
                     created_at=result["created_at"],
                     completed_at=result["completed_at"],
                     terraform_config=result["terraform_config"] if result["terraform_config"] else None,
+                    etl_scripts=result["etl_scripts"] if result["etl_scripts"] else None,
                     field_mappings=result["field_mappings"] if result["field_mappings"] else None,
                     ai_analysis=result["ai_analysis"] if result["ai_analysis"] else None,
                     estimated_cost=result["estimated_cost"] if result["estimated_cost"] else None,
@@ -1101,7 +1104,7 @@ class LegalFileManagerDB:
             query = """
                 SELECT job_id, source_db_type, target_cloud, source_connection,
                        target_tables, status, progress, created_at, completed_at,
-                       terraform_config, field_mappings, ai_analysis, estimated_cost, errors
+                       terraform_config, etl_scripts, field_mappings, ai_analysis, estimated_cost, errors
                 FROM terraform_jobs
                 ORDER BY created_at DESC
             """
@@ -1124,6 +1127,7 @@ class LegalFileManagerDB:
                         created_at=result["created_at"],
                         completed_at=result["completed_at"],
                         terraform_config=result["terraform_config"] if result["terraform_config"] else None,
+                        etl_scripts=result["etl_scripts"] if result["etl_scripts"] else None,
                         field_mappings=result["field_mappings"] if result["field_mappings"] else None,
                         ai_analysis=result["ai_analysis"] if result["ai_analysis"] else None,
                         estimated_cost=result["estimated_cost"] if result["estimated_cost"] else None,

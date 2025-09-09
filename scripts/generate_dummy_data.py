@@ -423,7 +423,7 @@ class PostgreSQLDummyDataGenerator:
 
             for c in range(num_comments):
                 comment_count += 1
-                comment_id = f"COM{comment_count: 06d}"
+                comment_id = "COM{:06d}".format(comment_count)
 
                 comment_data = {
                     "comment_id": comment_id,
@@ -474,15 +474,15 @@ class PostgreSQLDummyDataGenerator:
         print("DUMMY DATA GENERATION COMPLETE!")
         print("=" * 60)
         print("STATISTICS:")
-        print(f"- Clients: {stats['clients']: , } ({active_clients} active)")
-        print(f"- Cases: {stats['cases']: , } ({active_cases} active)")
-        print(f"- Physical Files: {stats['files']: , }")
-        print(f"- Payments: {stats['payments']: , }")
-        print(f"- Access Logs: {stats['access_logs']: , }")
-        print(f"- Comments: {stats['comments']: , }")
+        print("- Clients: {:,} ({} active)".format(stats["clients"], active_clients))
+        print("- Cases: {:,} ({} active)".format(stats["cases"], active_cases))
+        print("- Physical Files: {:,}".format(stats["files"]))
+        print("- Payments: {:,}".format(stats["payments"]))
+        print("- Access Logs: {:,}".format(stats["access_logs"]))
+        print("- Comments: {:,}".format(stats["comments"]))
         print("\nFINANCIAL:")
-        print(f"- Total Case Value: ${total_case_value: , .2f}")
-        print(f"- Total Payments: ${total_payment_amount: , .2f}")
+        print("- Total Case Value: ${:,.2f}".format(total_case_value))
+        print("- Total Payments: ${:,.2f}".format(total_payment_amount))
         print("\nCASE TYPES:")
         case_type_counts: Dict[str, int] = {}
         for case in cases:
@@ -553,7 +553,7 @@ def main():
 
     if success:
         print("\n[SUCCESS] Successfully generated dummy data!")
-        print("[INFO] You can now run: python app_postgresql.py")
+        print("[INFO] You can now run: python run.py")
         sys.exit(0)
     else:
         print("\n[ERROR] Failed to generate dummy data. Check the logs above.")

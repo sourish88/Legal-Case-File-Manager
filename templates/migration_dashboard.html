@@ -730,7 +730,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-success" onclick="exportTerraform()">
+                <button type="button" class="btn btn-success" onclick="exportPreviewedTerraform()">
                     <i class="fas fa-download me-1"></i>Download Terraform & ETL
                 </button>
             </div>
@@ -743,6 +743,15 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-hcl.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/5.1.1/marked.min.js"></script>
+<script>
+// Configure marked.js to disable deprecated mangle parameter
+if (typeof marked !== 'undefined') {
+    marked.setOptions({
+        mangle: false,
+        headerIds: false
+    });
+}
+</script>
 
 <script>
 let currentJobId = null;
@@ -2449,6 +2458,35 @@ async function exportTerraform() {
     }
 }
 
+async function exportPreviewedTerraform() {
+    const jobToExport = previewingJobId || currentJobId;
+    if (!jobToExport) {
+        showAlert('No Terraform configuration to export', 'warning');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/export-terraform/${jobToExport}`);
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `terraform-${jobToExport}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            showAlert('Terraform files downloaded successfully!', 'success');
+        } else {
+            showAlert('Failed to export Terraform files', 'danger');
+        }
+    } catch (error) {
+        showAlert('Export failed: ' + error.message, 'danger');
+    }
+}
+
 async function loadTerraformHistory() {
     try {
         const response = await fetch('/api/terraform-jobs');
@@ -3053,16 +3091,17 @@ function copyETLScript() {
 }
 
 function exportETLScripts() {
-    if (!currentJobId) {
-        showAlert('No current job to export ETL scripts from', 'warning');
+    const jobToExport = previewingJobId || currentJobId;
+    if (!jobToExport) {
+        showAlert('No job to export ETL scripts from', 'warning');
         return;
     }
 
     // Trigger download of ETL scripts only
-    const downloadUrl = `/migration/api/export-terraform/${currentJobId}`;
+    const downloadUrl = `/api/export-terraform/${jobToExport}`;
     const link = document.createElement('a');
     link.href = downloadUrl;
-    link.download = `etl-scripts-${currentJobId}.zip`;
+    link.download = `etl-scripts-${jobToExport}.zip`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

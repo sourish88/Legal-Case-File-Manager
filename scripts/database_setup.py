@@ -252,6 +252,7 @@ class PostgreSQLSetup:
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             completed_at TIMESTAMP NULL,
             terraform_config JSONB NULL, -- Store terraform configuration as JSON
+            etl_scripts JSONB NULL, -- Store ETL scripts as JSON
             field_mappings JSONB NULL, -- Store field mappings as JSON
             ai_analysis JSONB NULL, -- Store AI analysis results as JSON
             estimated_cost JSONB NULL, -- Store cost estimation as JSON
